@@ -1,5 +1,6 @@
 /**
  * Merchant Mappings Module - Gestione Mappature con Supabase
+ * VERSION: FIXED - Returns data for cache system
  */
 
 const MerchantMappings = {
@@ -12,7 +13,8 @@ const MerchantMappings = {
      * Inizializza le mappature
      */
     async init() {
-        await this.loadMappings();
+        // FIX: Restituisce il risultato per il sistema di cache
+        return await this.loadMappings();
     },
 
     /**
@@ -23,7 +25,7 @@ const MerchantMappings = {
             const user = await window.supabaseClient.auth.getUser();
             if (!user.data.user) {
                 this.mappings = {};
-                return;
+                return {}; // FIX: Ritorna oggetto vuoto invece di undefined
             }
 
             // Fetch mappings from Supabase
@@ -35,7 +37,7 @@ const MerchantMappings = {
             if (error) {
                 console.error('Error loading merchant mappings:', error);
                 this.mappings = {};
-                return;
+                return {}; // FIX: Ritorna oggetto vuoto su errore
             }
 
             // Convert array to object format
@@ -48,9 +50,14 @@ const MerchantMappings = {
                     };
                 });
             }
+            
+            // FIX: Restituisce i dati caricati per data-cache.js
+            return this.mappings;
+
         } catch (e) {
             console.error('Error in loadMappings:', e);
             this.mappings = {};
+            return {}; // FIX: Ritorna oggetto vuoto su eccezione
         }
     },
 
@@ -157,7 +164,9 @@ const MerchantMappings = {
      * Applica la mappatura a una spesa basandosi sul merchant
      */
     applyToExpense(expense) {
-        const mapping = this.get(expense.merchant);
+        if (!expense.merchant) return expense; // Safety check
+        
+        const mapping = this.get(expense.merchant.toLowerCase().trim());
         if (mapping) {
             expense.category = mapping.category;
             expense.tags = mapping.tags || [];

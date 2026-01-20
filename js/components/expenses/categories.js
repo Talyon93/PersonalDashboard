@@ -1,5 +1,6 @@
 /**
  * Categories Module - Gestione Categorie con Supabase
+ * VERSION: FIXED - Better duplicate handling & Returns data for cache
  */
 
 const Categories = {
@@ -32,7 +33,7 @@ const Categories = {
      * Inizializza le categorie
      */
     async init() {
-        await this.loadCategories();
+        return await this.loadCategories();
     },
 
     /**
@@ -40,30 +41,30 @@ const Categories = {
      */
     async loadCategories() {
         try {
-            const user = window.supabaseClient.auth.getUser();
-            if (!user) {
+            const user = await window.supabaseClient.auth.getUser();
+            if (!user || !user.data.user) {
                 this.categories = [...this.defaultCategories];
-                return;
+                return this.categories;
             }
 
             // Fetch categories from Supabase
             const { data, error } = await window.supabaseClient
                 .from('categories')
                 .select('*')
-                .eq('user_id', (await user).data.user.id)
+                .eq('user_id', user.data.user.id)
                 .eq('type', 'expense');
 
             if (error) {
                 console.error('Error loading categories:', error);
                 this.categories = [...this.defaultCategories];
-                return;
+                return this.categories;
             }
 
             // Se non ci sono categorie custom, usa quelle default
             if (!data || data.length === 0) {
                 this.categories = [...this.defaultCategories];
-                // Salva le categorie default su Supabase
-                await this.initializeDefaultCategories();
+                // Salva le categorie default su Supabase in background
+                this.initializeDefaultCategories();
             } else {
                 // Mappa le categorie da Supabase al formato locale
                 this.categories = data.map(cat => ({
@@ -72,9 +73,13 @@ const Categories = {
                     icon: cat.icon
                 }));
             }
+            
+            return this.categories;
+
         } catch (e) {
             console.error('Error in loadCategories:', e);
             this.categories = [...this.defaultCategories];
+            return this.categories;
         }
     },
 
@@ -99,7 +104,10 @@ const Categories = {
                 .insert(categoriesToInsert);
 
             if (error) {
-                console.error('Error initializing default categories:', error);
+                // Ignora errori di duplicati durante l'inizializzazione
+                if (error.code !== '23505') {
+                    console.error('Error initializing default categories:', error);
+                }
             }
         } catch (e) {
             console.error('Error in initializeDefaultCategories:', e);
@@ -110,14 +118,14 @@ const Categories = {
      * Ottiene tutte le categorie
      */
     getAll() {
-        return this.categories;
+        return this.categories.length > 0 ? this.categories : this.defaultCategories;
     },
 
     /**
      * Ottiene una categoria per ID
      */
     getById(id) {
-        return this.categories.find(c => c.id === id);
+        return this.getAll().find(c => c.id === id);
     },
 
     /**
@@ -130,6 +138,7 @@ const Categories = {
 
         // Generate ID from name
         const id = name.toLowerCase()
+            .trim()
             .replace(/[àáâãäå]/g, 'a')
             .replace(/[èéêë]/g, 'e')
             .replace(/[ìíîï]/g, 'i')
@@ -137,9 +146,9 @@ const Categories = {
             .replace(/[ùúûü]/g, 'u')
             .replace(/[^a-z0-9]/g, '_');
 
-        // Check if category already exists
-        if (this.categories.find(c => c.id === id)) {
-            throw new Error('Categoria già esistente');
+        // Check if category already exists locally
+        if (this.getAll().find(c => c.id === id)) {
+            throw new Error('Esiste già una categoria con questo nome (o simile).');
         }
 
         try {
@@ -160,12 +169,20 @@ const Categories = {
                 });
 
             if (error) {
+                if (error.code === '23505') { // Duplicate key error code
+                     throw new Error('Questa categoria esiste già nel database.');
+                }
                 console.error('Error adding category:', error);
                 throw new Error('Errore nel salvataggio della categoria');
             }
 
             // Add to local array
             this.categories.push({ id, name, icon });
+            
+            // Aggiorna cache
+            if (window.DataCache) {
+                window.DataCache.invalidate('categories');
+            }
 
             return { id, name, icon };
         } catch (e) {
@@ -231,6 +248,11 @@ const Categories = {
 
             // Remove from local array
             this.categories = this.categories.filter(c => c.id !== categoryId);
+            
+            // Aggiorna cache
+            if (window.DataCache) {
+                window.DataCache.invalidate('categories');
+            }
 
             return usedCount;
         } catch (e) {

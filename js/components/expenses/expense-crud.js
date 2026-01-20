@@ -1,5 +1,6 @@
 /**
  * Expense CRUD Module - Create, Read, Update, Delete con Supabase
+ * VERSION: FIXED - Correct Date handling in deleteMonth
  */
 
 const ExpenseCRUD = {
@@ -44,6 +45,9 @@ const ExpenseCRUD = {
                 console.error('Error creating expense:', error);
                 throw new Error('Errore nella creazione della spesa');
             }
+            
+            // Invalidate cache
+            if (window.DataCache) window.DataCache.invalidate('expenses');
 
             return data;
         } catch (e) {
@@ -171,6 +175,9 @@ const ExpenseCRUD = {
                 console.error('Error updating expense:', error);
                 throw new Error('Errore nell\'aggiornamento della spesa');
             }
+            
+            // Invalidate cache
+            if (window.DataCache) window.DataCache.invalidate('expenses');
 
             return data;
         } catch (e) {
@@ -199,6 +206,9 @@ const ExpenseCRUD = {
                 console.error('Error deleting expense:', error);
                 throw new Error('Errore nell\'eliminazione della spesa');
             }
+            
+            // Invalidate cache
+            if (window.DataCache) window.DataCache.invalidate('expenses');
         } catch (e) {
             console.error('Error in delete:', e);
             throw e;
@@ -236,6 +246,9 @@ const ExpenseCRUD = {
                     skippedCount++;
                 }
             }
+            
+            // Invalidate cache
+            if (window.DataCache) window.DataCache.invalidate('expenses');
 
             return { addedCount, skippedCount };
         } catch (e) {
@@ -277,24 +290,29 @@ const ExpenseCRUD = {
                 throw new Error('Utente non autenticato');
             }
 
-            // Calculate date range
-            const { start, end } = Helpers.getCustomMonthRange(year, month);
-            const startDate = start.toISOString().split('T')[0];
-            const endDate = end.toISOString().split('T')[0];
+            // FIX: Use Date object for correct range calculation
+            const referenceDate = new Date(year, month, 1);
+            const { startDate, endDate } = Helpers.getCustomMonthRange(referenceDate);
+            
+            const startStr = startDate.toISOString().split('T')[0];
+            const endStr = endDate.toISOString().split('T')[0];
 
             // Delete expenses in date range
             const { data, error } = await window.supabaseClient
                 .from('expenses')
                 .delete()
                 .eq('user_id', user.data.user.id)
-                .gte('date', startDate)
-                .lte('date', endDate)
+                .gte('date', startStr)
+                .lte('date', endStr)
                 .select();
 
             if (error) {
                 console.error('Error deleting month expenses:', error);
                 throw new Error('Errore nell\'eliminazione delle spese del mese');
             }
+            
+            // Invalidate cache
+            if (window.DataCache) window.DataCache.invalidate('expenses');
 
             return data ? data.length : 0;
         } catch (e) {
