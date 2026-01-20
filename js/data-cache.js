@@ -1,129 +1,151 @@
 /**
- * DataCache Module - Intelligent caching for Supabase data
- * Reduces API calls and speeds up navigation
- * VERSION: FIXED - Corrected keys and added safety checks
+ * DataCache Module - Intelligent caching with LocalStorage persistence
+ * VERSION: FIXED - Includes invalidateMultiple
  */
 
 const DataCache = {
-    cache: {
-        expenses: { data: null, timestamp: null, ttl: 30000 }, // 30 seconds
-        tasks: { data: null, timestamp: null, ttl: 30000 },
-        goals: { data: null, timestamp: null, ttl: 30000 },
-        categories: { data: null, timestamp: null, ttl: 300000 }, // 5 minutes
-        merchantMappings: { data: null, timestamp: null, ttl: 300000 }, // PLURALE
-        settings: { data: null, timestamp: null, ttl: 60000 } // 1 minute
+    // Configurazione durata cache
+    config: {
+        expenses: { ttl: 60000 },       // 1 minuto
+        tasks: { ttl: 60000 },          // 1 minuto
+        goals: { ttl: 60000 },          // 1 minuto
+        categories: { ttl: 300000 },    // 5 minuti
+        merchantMappings: { ttl: 300000 }, // 5 minuti
+        settings: { ttl: 300000 }       // 5 minuti
     },
 
+    // Memoria interna
+    memoryCache: {},
+
     /**
-     * Get cached data or fetch fresh if expired
+     * Recupera dati
      */
     async get(key, fetchFunction) {
-        // SAFETY CHECK: Verify key exists
-        if (!this.cache[key]) {
-            console.error(`❌ Cache key '${key}' does not exist! Check your spelling.`);
-            // Prova a recuperare i dati comunque senza cache per non bloccare l'app
-            try { return await fetchFunction(); } catch (e) { return null; }
+        // Safety Check
+        if (!this.config[key]) {
+            console.warn(`⚠️ Cache key '${key}' non configurata, procedo senza cache.`);
+            try { return await fetchFunction(); } catch (e) { return []; }
         }
 
-        const cached = this.cache[key];
         const now = Date.now();
+        
+        // 1. Cerca in Memoria o LocalStorage
+        let cached = this.memoryCache[key] || this.loadFromStorage(key);
 
-        // Check if cache is valid
-        if (cached.data && cached.timestamp && (now - cached.timestamp) < cached.ttl) {
-            console.log(`✅ Cache HIT for ${key} (age: ${Math.round((now - cached.timestamp) / 1000)}s)`);
-            return cached.data;
+        // 2. Verifica validità
+        if (cached && cached.data && cached.timestamp) {
+            const ttl = this.config[key].ttl;
+            const age = now - cached.timestamp;
+
+            if (age < ttl) {
+                return cached.data;
+            }
         }
 
-        // Cache miss or expired - fetch fresh data
-        console.log(`🔄 Cache MISS for ${key} - fetching...`);
+        // 3. Scarica dati freschi
         try {
             const data = await fetchFunction();
-            // Salva solo se abbiamo dati validi
-            if (data !== undefined) {
+            if (data !== undefined && data !== null) {
                 this.set(key, data);
             }
             return data;
         } catch (e) {
-            console.error(`Error fetching ${key}:`, e);
-            // Return stale cache if available
-            if (cached.data) {
-                console.log(`⚠️ Using stale cache for ${key}`);
-                return cached.data;
-            }
+            console.error(`❌ Errore fetch ${key}:`, e);
+            if (cached && cached.data) return cached.data;
             throw e;
         }
     },
 
     /**
-     * Set cache data
+     * Salva dati
      */
     set(key, data) {
-        if (this.cache[key]) {
-            this.cache[key].data = data;
-            this.cache[key].timestamp = Date.now();
-            console.log(`💾 Cache SET for ${key}`);
+        const cacheEntry = {
+            data: data,
+            timestamp: Date.now()
+        };
+        this.memoryCache[key] = cacheEntry;
+        try {
+            localStorage.setItem(`app_cache_${key}`, JSON.stringify(cacheEntry));
+        } catch (e) {
+            console.warn('LocalStorage pieno');
         }
     },
 
     /**
-     * Invalidate specific cache key
+     * Carica da Storage
+     */
+    loadFromStorage(key) {
+        try {
+            const stored = localStorage.getItem(`app_cache_${key}`);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                this.memoryCache[key] = parsed;
+                return parsed;
+            }
+        } catch (e) {
+            return null;
+        }
+        return null;
+    },
+
+    /**
+     * Invalida una chiave
      */
     invalidate(key) {
-        if (this.cache[key]) {
-            this.cache[key].data = null;
-            this.cache[key].timestamp = null;
-            console.log(`🗑️ Cache INVALIDATED for ${key}`);
-        }
+        delete this.memoryCache[key];
+        localStorage.removeItem(`app_cache_${key}`);
     },
 
     /**
-     * Invalidate multiple keys
+     * Invalida chiavi multiple (QUELLA CHE MANCAVA!)
      */
     invalidateMultiple(keys) {
+        if (!Array.isArray(keys)) return;
         keys.forEach(key => this.invalidate(key));
     },
 
     /**
-     * Clear all cache
+     * Pulisce tutto
      */
     clearAll() {
-        Object.keys(this.cache).forEach(key => this.invalidate(key));
-        console.log('🗑️ All cache CLEARED');
+        this.memoryCache = {};
+        Object.keys(this.config).forEach(key => {
+            localStorage.removeItem(`app_cache_${key}`);
+        });
+        console.log('🧹 Cache svuotata');
     },
 
     /**
-     * Preload data for faster navigation
+     * Preload
      */
     async preloadAll() {
-        console.log('🚀 Preloading all data...');
-        
-        // Safety checks for modules
-        const safeGetAll = (Module, name) => {
-            if (window[Module] && typeof window[Module].getAll === 'function') {
-                return window[Module].getAll();
-            }
-            console.warn(`Module ${Module} not ready for preload`);
-            return [];
+        const safeFetch = async (key, fn) => {
+            const cached = this.loadFromStorage(key);
+            const now = Date.now();
+            const ttl = this.config[key]?.ttl || 30000;
+            if (cached && (now - cached.timestamp < ttl)) return;
+            return this.get(key, fn);
         };
 
-        const promises = [
-            this.get('expenses', () => ExpenseCRUD.getAll()),
-            this.get('tasks', () => TaskCRUD.getAll()),
-            this.get('goals', () => GoalCRUD.getAll()),
-            this.get('categories', () => Promise.resolve(safeGetAll('Categories', 'categories'))),
-            // FIX: Corretto nome chiave (plurale) e nome oggetto (plurale)
-            this.get('merchantMappings', () => Promise.resolve(safeGetAll('MerchantMappings', 'merchantMappings')))
-        ];
+        const safeGetAll = (Module) => {
+            if (window[Module] && typeof window[Module].getAll === 'function') {
+                return () => window[Module].getAll();
+            }
+            return () => Promise.resolve([]);
+        };
 
-        try {
-            await Promise.all(promises);
-            console.log('✅ Preload complete!');
-        } catch (e) {
-            console.error('Preload error (non-blocking):', e);
-        }
+        Promise.all([
+            safeFetch('expenses', () => ExpenseCRUD.getAll()),
+            safeFetch('tasks', () => TaskCRUD.getAll()),
+            safeFetch('goals', () => GoalCRUD.getAll()),
+            safeFetch('categories', safeGetAll('Categories')),
+            safeFetch('merchantMappings', safeGetAll('MerchantMappings'))
+        ]).then(() => {
+            if (window.EventBus) window.EventBus.emit('dataChanged');
+        });
     }
 };
 
-// Export globale
 window.DataCache = DataCache;
-console.log('✅ DataCache module loaded');
+console.log('✅ DataCache Loaded (with invalidateMultiple)');

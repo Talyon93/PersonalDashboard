@@ -1,9 +1,3 @@
-/**
- * Statistics Component - ORIGINAL WOW Design con Supabase
- * VERSION: FIXED BUDGET LINE - Multi-segment path
- */
-
-console.log('🔥 STATISTICS FIXED VERSION LOADED - Budget line is multi-segment!');
 
 const Statistics = {
     currentMonth: new Date().getMonth(),
@@ -44,7 +38,6 @@ const Statistics = {
     },
 
     async init() {
-        console.log('📊 Statistics.init()');
         await this.loadData();
         await this.render();
     },
@@ -60,7 +53,6 @@ const Statistics = {
     },
 
     async render() {
-        console.log('📊 Statistics.render()');
         await this.loadData();
         
         const container = document.getElementById('statisticsContent');
@@ -494,10 +486,7 @@ const Statistics = {
                 budgetLine += ` L ${x},${y}`;
             }
         }
-        
-        console.log('📊 Budget line created with', daysInCustomMonth, 'points');
-        console.log('📊 Budget line path:', budgetLine.substring(0, 100) + '...');
-        
+                
         const finalSpending = cumulativeTotals[daysInCustomMonth - 1] || 0;
         const isOverBudget = finalSpending > monthlyBudget;
         const spendingGradient = isOverBudget ? 'areaGradRed' : 'areaGrad';

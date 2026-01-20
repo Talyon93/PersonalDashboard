@@ -11,7 +11,6 @@ const Agenda = {
     tasks: [],
 
     async init() {
-        console.log('📅 Agenda.init()');
         await this.loadTasks();
         await this.render();
     },

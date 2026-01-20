@@ -11,7 +11,6 @@
 const Dashboard = {
     
     async init() {
-        console.log('📊 Dashboard.init()');
         
         // Subscribe to data change events
         this.setupEventListeners();
@@ -22,7 +21,6 @@ const Dashboard = {
     setupEventListeners() {
         // Listen for any data changes
         EventBus.on('dataChanged', (data) => {
-            console.log('📊 Dashboard: Data changed, refreshing...', data);
             
             // Only refresh if Dashboard is visible
             const dashboardContent = document.getElementById('dashboardContent');
@@ -33,7 +31,6 @@ const Dashboard = {
 
         // Listen for specific events if needed
         EventBus.on('taskUpdated', () => {
-            console.log('📊 Dashboard: Task updated, refreshing...');
             const dashboardContent = document.getElementById('dashboardContent');
             if (dashboardContent && !dashboardContent.classList.contains('hidden')) {
                 this.render();

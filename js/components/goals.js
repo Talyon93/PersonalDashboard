@@ -8,7 +8,6 @@ const Goals = {
     currentView: 'all', // all, active, completed
     
     async init() {
-        console.log('🎯 Goals.init()');
         await this.loadData();
         await this.render();
     },
@@ -24,17 +23,11 @@ const Goals = {
     },
 
     async render(skipLoad = false) {
-        console.log('🎯 Goals.render()', skipLoad ? '(skip load)' : '(will load)');
         
         if (!skipLoad) {
             await this.loadData();
         }
         
-        console.log('📊 Rendering with goals:', JSON.stringify(this.goals.map(g => ({
-            id: g.id,
-            title: g.title,
-            subtasks: g.subtasks
-        })), null, 2));
 
         const container = document.getElementById('goalsContent');
         if (!container) return;
@@ -692,19 +685,16 @@ const Goals = {
             subtasks: subtasks
         };
 
-        console.log('📝 Updating goal with data:', JSON.stringify(goalData, null, 2));
 
         try {
             // Use GoalCRUD directly to bypass cache
             const updatedGoal = await GoalCRUD.update(goalId, goalData);
-            console.log('✅ Goal updated, received:', updatedGoal);
             
             // Clear cache
             DataCache.invalidate('goals');
             
             // Force reload from database and assign directly
             const freshGoals = await GoalCRUD.getAll();
-            console.log('📋 Reloaded goals from DB:', JSON.stringify(freshGoals, null, 2));
             
             // IMPORTANT: Assign directly to this.goals
             this.goals = freshGoals;

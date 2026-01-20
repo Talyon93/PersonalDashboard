@@ -9,7 +9,6 @@ const AppInit = {
     async init() {
         if (this.initialized) return;
         
-        console.log('🚀 Initializing app...');
 
         try {
             // Check authentication
@@ -21,25 +20,19 @@ const AppInit = {
                 return;
             }
 
-            console.log('✅ User authenticated:', user.email);
-
             // Load settings FIRST (before data preload)
-            console.log('⚙️ Loading settings...');
             if (window.SettingsManager) {
                 await SettingsManager.load();
             }
 
             // Preload all data in parallel
-            console.log('📦 Preloading data...');
             const startTime = Date.now();
             
             await DataCache.preloadAll();
             
             const loadTime = Date.now() - startTime;
-            console.log(`✅ Data preloaded in ${loadTime}ms`);
 
             this.initialized = true;
-            console.log('✅ App initialized!');
 
             // Trigger first render
             const currentSection = document.querySelector('.content-section:not(.hidden)');
@@ -71,7 +64,6 @@ const AppInit = {
      * Render section with cached data (instant!)
      */
     async renderSection(sectionName) {
-        console.log(`📄 Rendering section: ${sectionName}`);
         
         const components = {
             'dashboard': Dashboard,

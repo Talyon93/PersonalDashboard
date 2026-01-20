@@ -239,7 +239,6 @@
     <script>
     // User authentication and UI setup
     document.addEventListener('DOMContentLoaded', async () => {
-        console.log('🚀 DOM loaded - Setting up user...');
         
         if (!window.supabaseClient) {
             alert('Errore: Supabase client non caricato.');
@@ -276,10 +275,7 @@
         
         // Update quick stats
         updateQuickStats();
-        
-        // AppInit will handle preloading and first render
-        console.log('✅ User setup complete, AppInit will take over');
-    });
+            });
 
     function initNavigation() {
         const navLinks = document.querySelectorAll('.nav-link');
