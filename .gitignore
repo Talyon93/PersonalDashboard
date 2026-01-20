@@ -1,0 +1,43 @@
+# Node modules (se aggiungerai backend)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build files (per il futuro)
+dist/
+build/
+
+# Data files personali (backup locali)
+data/backups/
+*.json.backup
+
+
+# Ignora il file di configurazione con le chiavi reali
+js/config.js
+
+# File di sistema e dipendenze
+.DS_Store
+node_modules/
+.env
