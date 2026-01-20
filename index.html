@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Assistente Personale</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/sidebar-styles.css">
+    
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Core -->
+    <script src="js/config.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/settings-manager.js"></script>
+
+    <script src="js/utils/helpers.js"></script>
+
+    <!-- 📡 EVENT BUS (before cache!) -->
+    <script src="js/event-bus.js"></script>
+    
+    <!-- 🚀 CACHE SYSTEM (prima dei CRUD!) -->
+    <script src="js/data-cache.js"></script>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- Categories & Mappings (used by CRUD) -->
+    <script src="js/components/expenses/categories.js"></script>
+    <script src="js/components/expenses/merchant-mappings.js"></script>
+    
+    <!-- CRUD Modules -->
+    <script src="js/components/expenses/expense-crud.js"></script>
+    <script src="js/modules/task-crud.js"></script>
+    <script src="js/modules/goal-crud.js"></script>
+    
+    <!-- ⚡ CACHED WRAPPERS (dopo i CRUD!) -->
+    <script src="js/cached-crud.js"></script>
+    
+    <!-- Expense Components -->
+    <script src="js/components/expenses/expense-stats.js"></script>
+    <script src="js/components/expenses/expense-filters.js"></script>
+    <script src="js/components/expenses/expense-import.js"></script>
+    <script src="js/components/expenses/expense-renderer.js"></script>
+    <script src="js/components/expenses/expense-modals.js"></script>
+    <script src="js/components/expenses/expenses-main.js"></script>
+    
+    <!-- UI Components -->
+    <script src="js/components/statistics.js"></script>
+    <script src="js/components/dashboard.js"></script>
+    <script src="js/components/agenda.js"></script>
+    <script src="js/components/goals.js"></script>
+    <script src="js/components/settings.js"></script>
+    
+    <!-- 🔄 NAVIGATION (sostituisce vecchio showSection) -->
+    <script src="js/navigation.js"></script>
+    
+    <!-- 🎯 APP INIT (ultimo - fa preload!) -->
+    <script src="js/app-init.js"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div id="modalsContainer"></div>
+    
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar WOW -->
+        <aside id="sidebar" class="w-72 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl flex flex-col">
+            <!-- User Profile -->
+            <div class="p-6 border-b border-slate-700/50 bg-gradient-to-r from-blue-600/10 to-purple-600/10">
+                <div class="flex items-center space-x-4">
+                    <div id="userAvatar" class="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg ring-4 ring-blue-500/20">
+                        U
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p id="userName" class="text-sm font-bold text-white truncate">Utente</p>
+                        <p id="userEmail" class="text-xs text-slate-400 truncate">user@email.com</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                <!-- Dashboard -->
+                <a href="#" data-section="dashboard" class="nav-link active group flex items-center space-x-3 px-4 py-3.5 rounded-xl transition-all duration-200 hover:scale-105">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg group-hover:shadow-blue-500/50 transition-shadow">
+                        <span class="text-xl">📊</span>
+                    </div>
+                    <span class="font-semibold text-white">Dashboard</span>
+                </a>
+
+                <!-- Spese Section (with submenu) -->
+                <div class="space-y-1">
+                    <!-- Spese Main -->
+                    <a href="#" data-section="expenses" class="nav-link group flex items-center space-x-3 px-4 py-3.5 rounded-xl transition-all duration-200 hover:scale-105">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg group-hover:shadow-green-500/50 transition-shadow">
+                            <span class="text-xl">💰</span>
+                        </div>
+                        <span class="font-semibold text-white flex-1">Spese</span>
+                        <svg class="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </a>
+                    
+                    <!-- Statistics Submenu -->
+                    <div class="pl-6 space-y-1">
+                        <a href="#" data-section="statistics" class="nav-link group flex items-center space-x-3 px-4 py-2.5 rounded-lg transition-all duration-200 hover:translate-x-1">
+                            <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 group-hover:border-purple-500/60 transition-all">
+                                <span class="text-base">📈</span>
+                            </div>
+                            <span class="font-medium text-slate-300 group-hover:text-white transition-colors text-sm">Statistiche & Analytics</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Agenda -->
+                <a href="#" data-section="agenda" class="nav-link group flex items-center space-x-3 px-4 py-3.5 rounded-xl transition-all duration-200 hover:scale-105">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 shadow-lg group-hover:shadow-orange-500/50 transition-shadow">
+                        <span class="text-xl">📅</span>
+                    </div>
+                    <span class="font-semibold text-white">Agenda</span>
+                </a>
+
+                <!-- Obiettivi -->
+                <a href="#" data-section="goals" class="nav-link group flex items-center space-x-3 px-4 py-3.5 rounded-xl transition-all duration-200 hover:scale-105">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 shadow-lg group-hover:shadow-pink-500/50 transition-shadow">
+                        <span class="text-xl">🎯</span>
+                    </div>
+                    <span class="font-semibold text-white">Obiettivi</span>
+                </a>
+
+                <!-- Impostazioni -->
+                <a href="#" data-section="settings" class="nav-link group flex items-center space-x-3 px-4 py-3.5 rounded-xl transition-all duration-200 hover:scale-105">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-slate-600 to-slate-700 shadow-lg group-hover:shadow-slate-500/50 transition-shadow">
+                        <span class="text-xl">⚙️</span>
+                    </div>
+                    <span class="font-semibold text-white">Impostazioni</span>
+                </a>
+
+                <!-- Spacer -->
+                <div class="h-4"></div>
+
+                <!-- Quick Stats Card -->
+                <div class="mx-2 p-4 rounded-xl bg-gradient-to-br from-blue-600/10 to-purple-600/10 border border-slate-700/50 backdrop-blur">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Quick Stats</span>
+                        <span class="text-xs text-slate-500">Oggi</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-white" id="quickStatExpenses">-</div>
+                            <div class="text-xs text-slate-400">Spese</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-white" id="quickStatTasks">-</div>
+                            <div class="text-xs text-slate-400">Tasks</div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Logout Button -->
+            <div class="p-4 border-t border-slate-700/50 bg-slate-900/50">
+                <button id="logoutBtn" class="w-full group flex items-center justify-center space-x-3 px-4 py-3.5 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-xl hover:from-red-700 hover:to-rose-700 transition-all duration-200 shadow-lg hover:shadow-red-500/50 hover:scale-105">
+                    <span class="text-xl">🚪</span>
+                    <span class="font-bold">Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto">
+            <div class="p-8">
+                <!-- Dashboard -->
+                <div id="dashboardContent" class="content-section">
+                    <div class="flex items-center justify-center py-20">
+                        <div class="text-center">
+                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                            <p class="text-gray-600">Caricamento Dashboard...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Expenses -->
+                <div id="expensesContent" class="content-section hidden">
+                    <div class="flex items-center justify-center py-20">
+                        <div class="text-center">
+                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                            <p class="text-gray-600">Caricamento Spese...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics -->
+                <div id="statisticsContent" class="content-section hidden">
+                    <div class="flex items-center justify-center py-20">
+                        <div class="text-center">
+                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                            <p class="text-gray-600">Caricamento Statistiche...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agenda -->
+                <div id="agendaContent" class="content-section hidden">
+                    <div class="flex items-center justify-center py-20">
+                        <div class="text-center">
+                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                            <p class="text-gray-600">Caricamento Agenda...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Goals -->
+                <div id="goalsContent" class="content-section hidden">
+                    <div class="flex items-center justify-center py-20">
+                        <div class="text-center">
+                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                            <p class="text-gray-600">Caricamento Obiettivi...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings -->
+                <div id="settingsContent" class="content-section hidden">
+                    <div class="flex items-center justify-center py-20">
+                        <div class="text-center">
+                            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                            <p class="text-gray-600">Caricamento Impostazioni...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    // User authentication and UI setup
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('🚀 DOM loaded - Setting up user...');
+        
+        if (!window.supabaseClient) {
+            alert('Errore: Supabase client non caricato.');
+            return;
+        }
+
+        // Get user
+        const { data: { user }, error } = await window.supabaseClient.auth.getUser();
+        
+        if (error || !user) {
+            console.log('❌ No user, redirecting to login');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        console.log('✅ User authenticated:', user.email);
+        
+        // Setup UI
+        document.getElementById('userEmail').textContent = user.email;
+        const displayName = user.user_metadata?.name || user.email.split('@')[0];
+        document.getElementById('userName').textContent = displayName;
+        document.getElementById('userAvatar').textContent = displayName.charAt(0).toUpperCase();
+        
+        // Logout handler
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            if (confirm('Vuoi davvero uscire?')) {
+                await window.supabaseClient.auth.signOut();
+                window.location.href = 'login.html';
+            }
+        });
+        
+        // Setup navigation
+        initNavigation();
+        
+        // Update quick stats
+        updateQuickStats();
+        
+        // AppInit will handle preloading and first render
+        console.log('✅ User setup complete, AppInit will take over');
+    });
+
+    function initNavigation() {
+        const navLinks = document.querySelectorAll('.nav-link');
+        
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+                // Get section name
+                const sectionName = link.dataset.section;
+                
+                // Update active state
+                updateNavActiveState(sectionName);
+                
+                // Use optimized navigation (from navigation.js)
+                if (window.showSection) {
+                    window.showSection(sectionName);
+                }
+            });
+        });
+    }
+
+    function updateNavActiveState(activeSectionName) {
+        const navLinks = document.querySelectorAll('.nav-link');
+        
+        navLinks.forEach(link => {
+            const sectionName = link.dataset.section;
+            const isActive = sectionName === activeSectionName;
+            
+            // Remove all active classes
+            link.classList.remove('active', 'bg-gradient-to-r', 'from-blue-600/20', 'to-purple-600/20', 'border-l-4', 'border-blue-500', 'shadow-lg', 'shadow-blue-500/20');
+            
+            // Add active classes to active link
+            if (isActive) {
+                link.classList.add('active', 'bg-gradient-to-r', 'from-blue-600/20', 'to-purple-600/20', 'border-l-4', 'border-blue-500', 'shadow-lg', 'shadow-blue-500/20');
+            }
+            
+            // Special handling for statistics - also highlight expenses when stats is active
+            if (activeSectionName === 'statistics' && sectionName === 'expenses') {
+                link.classList.add('bg-gradient-to-r', 'from-green-600/10', 'to-emerald-600/10');
+            }
+        });
+    }
+
+    async function updateQuickStats() {
+        try {
+            // Wait for cache to be available
+            if (!window.CachedCRUD) {
+                setTimeout(updateQuickStats, 500);
+                return;
+            }
+
+            const [expenses, tasks] = await Promise.all([
+                window.CachedCRUD.getExpenses(),
+                window.CachedCRUD.getTasks()
+            ]);
+
+            // Count today's expenses
+            const today = new Date().toISOString().split('T')[0];
+            const todayExpenses = expenses.filter(e => {
+                const expDate = new Date(e.date).toISOString().split('T')[0];
+                return expDate === today && e.amount < 0;
+            });
+
+            // Count incomplete tasks
+            const incompleteTasks = tasks.filter(t => !t.completed);
+
+            document.getElementById('quickStatExpenses').textContent = todayExpenses.length;
+            document.getElementById('quickStatTasks').textContent = incompleteTasks.length;
+        } catch (e) {
+            console.error('Error updating quick stats:', e);
+        }
+    }
+
+    // Update quick stats every 30 seconds
+    setInterval(updateQuickStats, 30000);
+
+    // Also update quick stats when data changes
+    if (window.EventBus) {
+        EventBus.on('dataChanged', updateQuickStats);
+    }
+    </script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login - Dashboard Personale</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Supabase config (il tuo file reale in /js) -->
+  <script src="js/config.js"></script>
+  <script src="js/supabase-config.js"></script>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-purple-500 via-indigo-500 to-blue-500 flex items-center justify-center p-6">
+  <div class="w-full max-w-md">
+    <div class="bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-8">
+      <div class="flex flex-col items-center text-center mb-6">
+        <div class="h-14 w-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
+          <span class="text-2xl">💰</span>
+        </div>
+        <h1 class="mt-4 text-2xl font-bold text-gray-900">Dashboard Personale</h1>
+        <p class="mt-1 text-sm text-gray-600">Accedi per gestire le tue finanze</p>
+      </div>
+
+      <!-- Alert -->
+      <div id="alertBox" class="hidden mb-4 rounded-xl border px-4 py-3 text-sm"></div>
+
+      <!-- Tabs -->
+      <div class="grid grid-cols-2 gap-2 mb-6">
+        <button id="tabLogin" class="py-2 rounded-xl font-medium border transition bg-gray-900 text-white border-gray-900">
+          Accedi
+        </button>
+        <button id="tabRegister" class="py-2 rounded-xl font-medium border transition bg-white text-gray-700 border-gray-200 hover:bg-gray-50">
+          Crea account
+        </button>
+      </div>
+
+      <!-- Form -->
+      <form id="authForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="email">Email</label>
+          <input id="email" type="email" autocomplete="email" required
+                 class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 transition"
+                 placeholder="nome@esempio.com"/>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="password">Password</label>
+          <input id="password" type="password" autocomplete="current-password" required
+                 class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 transition"
+                 placeholder="••••••••"/>
+        </div>
+
+        <!-- Only for register -->
+        <div id="confirmWrap" class="hidden">
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="passwordConfirm">Conferma password</label>
+          <input id="passwordConfirm" type="password" autocomplete="new-password"
+                 class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 transition"
+                 placeholder="••••••••"/>
+        </div>
+
+        <button id="submitBtn" type="submit"
+                class="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-95 transition shadow-lg">
+          Accedi
+        </button>
+
+        <p class="text-xs text-gray-500 text-center mt-3">🔒 I tuoi dati sono protetti e criptati</p>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Guard: se supabaseClient non c'è, fermati subito (path sbagliati / config non caricato)
+    if (!window.supabaseClient) {
+      console.error("❌ window.supabaseClient non trovato. Verifica che js/supabase-config.js sia caricato.");
+    }
+
+    const alertBox = document.getElementById("alertBox");
+    const tabLogin = document.getElementById("tabLogin");
+    const tabRegister = document.getElementById("tabRegister");
+    const confirmWrap = document.getElementById("confirmWrap");
+    const submitBtn = document.getElementById("submitBtn");
+    const authForm = document.getElementById("authForm");
+
+    let mode = "login"; // "login" | "register"
+
+    function setAlert(type, message) {
+      alertBox.classList.remove("hidden");
+      alertBox.className = "mb-4 rounded-xl border px-4 py-3 text-sm";
+      if (type === "error") {
+        alertBox.classList.add("border-red-200", "bg-red-50", "text-red-700");
+      } else {
+        alertBox.classList.add("border-green-200", "bg-green-50", "text-green-700");
+      }
+      alertBox.textContent = message;
+    }
+
+    function clearAlert() {
+      alertBox.classList.add("hidden");
+      alertBox.textContent = "";
+    }
+
+    function setMode(nextMode) {
+      mode = nextMode;
+      clearAlert();
+
+      if (mode === "login") {
+        tabLogin.className = "py-2 rounded-xl font-medium border transition bg-gray-900 text-white border-gray-900";
+        tabRegister.className = "py-2 rounded-xl font-medium border transition bg-white text-gray-700 border-gray-200 hover:bg-gray-50";
+        confirmWrap.classList.add("hidden");
+        submitBtn.textContent = "Accedi";
+        document.getElementById("password").setAttribute("autocomplete", "current-password");
+      } else {
+        tabRegister.className = "py-2 rounded-xl font-medium border transition bg-gray-900 text-white border-gray-900";
+        tabLogin.className = "py-2 rounded-xl font-medium border transition bg-white text-gray-700 border-gray-200 hover:bg-gray-50";
+        confirmWrap.classList.remove("hidden");
+        submitBtn.textContent = "Crea account";
+        document.getElementById("password").setAttribute("autocomplete", "new-password");
+      }
+    }
+
+    tabLogin.addEventListener("click", () => setMode("login"));
+    tabRegister.addEventListener("click", () => setMode("register"));
+
+    authForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearAlert();
+
+      if (!window.supabaseClient) {
+        setAlert("error", "Supabase non è stato caricato correttamente (controlla js/supabase-config.js).");
+        return;
+      }
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const passwordConfirm = document.getElementById("passwordConfirm").value;
+
+      submitBtn.disabled = true;
+      const oldText = submitBtn.textContent;
+      submitBtn.textContent = "Attendere...";
+
+      try {
+        if (mode === "register") {
+          if (!passwordConfirm || passwordConfirm !== password) {
+            setAlert("error", "Le password non corrispondono.");
+            return;
+          }
+
+          const { error } = await window.supabaseClient.auth.signUp({ email, password });
+          if (error) {
+            setAlert("error", error.message);
+            return;
+          }
+
+          setAlert("ok", "Account creato. Se richiesto, conferma la mail e poi fai login.");
+          setMode("login");
+          return;
+        }
+
+        // login
+        const { error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) {
+          setAlert("error", error.message);
+          return;
+        }
+
+        window.location.href = "index.html";
+      } catch (err) {
+        setAlert("error", "Errore inatteso: " + (err?.message || String(err)));
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = oldText;
+      }
+    });
+
+    // Default
+    setMode("login");
+  </script>
+</body>
+</html>
