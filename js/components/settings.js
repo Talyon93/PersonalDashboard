@@ -379,15 +379,38 @@ const Settings = {
                 return;
             }
 
-            // Delete all data
-            await Promise.all([
-                window.supabaseClient.from('expenses').delete().eq('user_id', user.data.user.id),
-                window.supabaseClient.from('tasks').delete().eq('user_id', user.data.user.id),
-                window.supabaseClient.from('goals').delete().eq('user_id', user.data.user.id)
-            ]);
+            // 1. Cancella dal Database (Lato Server)
+            const { error } = await window.supabaseClient.rpc('delete_own_user_data');
+            
+            if (error) throw error;
 
-            Helpers.showToast('✅ Tutti i dati sono stati eliminati', 'success');
-            setTimeout(() => window.location.reload(), 1500);
+            // 2. PULIZIA TOTALE (Lato Client) - Questo è il passaggio che mancava
+            // Se usi localStorage per la persistenza, puliscilo
+            localStorage.removeItem('expenses'); 
+            localStorage.removeItem('tasks');
+            localStorage.removeItem('goals');
+            // O se vuoi essere drastico: localStorage.clear(); 
+
+            // Se usi l'oggetto DataCache visto nel codice precedente
+            if (window.DataCache) {
+                // Invalida tutto manualmente per sicurezza
+                if (typeof DataCache.clear === 'function') {
+                    DataCache.clear();
+                } else {
+                    DataCache.invalidate('expenses');
+                    DataCache.invalidate('tasks');
+                    DataCache.invalidate('goals');
+                    DataCache.invalidate('budget'); // Assicuriamoci di pulire anche le statistiche
+                }
+            }
+
+            Helpers.showToast('✅ Dati eliminati e cache svuotata', 'success');
+            
+            // 3. Ricarica la pagina forzando il server (non usare la cache del browser)
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+
         } catch (e) {
             console.error('Error deleting data:', e);
             Helpers.showToast('❌ Errore: ' + e.message, 'error');

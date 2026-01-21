@@ -1,314 +1,272 @@
 /**
- * Expense Import Module - Import da CSV e Excel
+ * Expense Import Module - "Blind Scan" + Smart Date Fix
+ * Corregge automaticamente date invertite (Mese 31 -> Giorno 31)
  */
 
 const ExpenseImport = {
-    /**
-     * Processa un file (CSV o Excel)
-     */
     async processFile(file, bankType) {
-        const fileName = file.name.toLowerCase();
-
+        console.log(`📂 Processing ${file.name} for ${bankType}`);
         try {
             let expenses = [];
-
-            if (fileName.endsWith('.csv')) {
+            
+            if (file.name.toLowerCase().endsWith('.csv')) {
                 const text = await file.text();
-                expenses = this.parseCSVByBank(text, bankType);
-            } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-                if (typeof XLSX === 'undefined') {
-                    throw new Error('Libreria Excel non caricata');
-                }
-                expenses = await this.parseExcelByBank(file, bankType);
+                expenses = this.parseCSV(text, bankType);
             } else {
-                throw new Error('Formato file non supportato');
+                if (typeof XLSX === 'undefined') throw new Error('Excel lib missing');
+                expenses = await this.parseExcel(file, bankType);
             }
 
+            console.log(`✅ Imported ${expenses.length} transactions`);
             return expenses;
         } catch (error) {
-            console.error('Errore import:', error);
+            console.error('Import Error:', error);
             throw error;
         }
     },
 
-    /**
-     * Parse CSV based on bank type
-     */
-    parseCSVByBank(csvText, bankType) {
-        const lines = csvText.trim().split('\n');
+    parseCSV(text, bankType) {
+        if (bankType === 'intesa') return this.parseIntesaCSV(text);
+        if (bankType === 'revolut') return this.parseRevolutCSV(text);
+        return [];
+    },
+
+    // ==========================================
+    // 🏦 INTESA SAN PAOLO
+    // ==========================================
+    parseIntesaCSV(text) {
+        return this.genericScanner(text, {
+            startKeywords: ['data', 'importo'],
+            colKeywords: {
+                date: ['data'],
+                desc: ['descrizione', 'operazione', 'dettagli'],
+                amount: ['importo', 'accrediti']
+            },
+            bankTag: '#intesa',
+            dateFormat: 'DD/MM/YYYY', // Hint iniziale
+            amountFormat: 'IT'
+        });
+    },
+
+    // ==========================================
+    // 💳 REVOLUT
+    // ==========================================
+    parseRevolutCSV(text) {
+        return this.genericScanner(text, {
+            startKeywords: ['descrizione|description', 'importo|amount'], 
+            colKeywords: {
+                date: ['completata', 'completed', 'data', 'date'],
+                desc: ['descrizione', 'description'],
+                amount: ['importo', 'amount'],
+                fee: ['commissione', 'fee'],
+                state: ['stato', 'state']
+            },
+            bankTag: '#revolut',
+            dateFormat: 'AUTO',
+            amountFormat: 'AUTO'
+        });
+    },
+
+    // ==========================================
+    // 🧠 SCANNER UNIVERSALE
+    // ==========================================
+    genericScanner(text, config) {
+        const lines = text.trim().split('\n');
         const expenses = [];
+        let dataStart = false;
+        let delimiter = ';';
+        let colMap = null;
 
-        const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
-
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
             if (!line) continue;
+            const lower = line.toLowerCase();
 
-            const values = this.parseCSVLine(line);
-            let expense = null;
+            // 1. CERCA INTESTAZIONE
+            if (!dataStart) {
+                const matchAll = config.startKeywords.every(keyword => {
+                    const options = keyword.split('|');
+                    return options.some(opt => lower.includes(opt));
+                });
 
-            if (bankType === 'intesa') {
-                expense = {
-                    id: Date.now() + Math.random() + i,
-                    date: this.parseDate(values[0]),
-                    description: values[1] || 'Spesa',
-                    amount: Math.abs(parseFloat(values[2])),
-                    category: 'other'
-                };
-            } else if (bankType === 'revolut') {
-                const amount = parseFloat(values[5] || 0);
-                const state = values[8] || '';
+                if (matchAll) {
+                    console.log(`🎯 Header trovato alla riga ${i+1}:`, line);
+                    dataStart = true;
+                    
+                    const countSemi = (line.match(/;/g) || []).length;
+                    const countComma = (line.match(/,/g) || []).length;
+                    delimiter = countSemi > countComma ? ';' : ',';
 
-                if (state !== 'COMPLETATO' && state !== 'COMPLETED') continue;
-                if (amount >= 0) continue;
+                    const headers = line.split(delimiter).map(h => h.trim().toLowerCase().replace(/"/g, ''));
+                    
+                    colMap = {
+                        date: this.findColIndex(headers, config.colKeywords.date),
+                        desc: this.findColIndex(headers, config.colKeywords.desc),
+                        amount: this.findColIndex(headers, config.colKeywords.amount),
+                        fee: config.colKeywords.fee ? this.findColIndex(headers, config.colKeywords.fee) : -1,
+                        state: config.colKeywords.state ? this.findColIndex(headers, config.colKeywords.state) : -1,
+                    };
 
-                expense = {
-                    id: Date.now() + Math.random() + i,
-                    date: this.parseDate(values[3] || values[2]),
-                    description: values[4] || 'Spesa',
-                    amount: Math.abs(amount),
-                    category: this.categorizeExpense(values[4] || '')
-                };
+                    if (colMap.date === -1 || colMap.amount === -1) {
+                        dataStart = false; 
+                    }
+                }
+                continue;
+            }
+
+            // 2. LEGGI I DATI
+            const cols = this.splitCSVLine(line, delimiter);
+            if (!colMap || cols.length < 2) continue;
+            
+            const rawDate = cols[colMap.date];
+            const rawDesc = cols[colMap.desc];
+            const rawAmount = cols[colMap.amount];
+            
+            if (!rawDate || !rawAmount) continue;
+
+            if (colMap.state !== -1) {
+                const state = (cols[colMap.state] || '').toUpperCase();
+                if (state && !state.includes('COMPLET') && state !== '') continue;
+            }
+
+            let amount = 0;
+            if (config.amountFormat === 'IT' || delimiter === ';') {
+                amount = this.parseItalianNumber(rawAmount);
             } else {
-                expense = {
-                    id: Date.now() + Math.random() + i,
-                    date: this.parseDate(values[0]),
-                    description: values[1] || 'Spesa',
-                    amount: Math.abs(parseFloat(values[2])),
-                    category: 'other'
-                };
+                amount = parseFloat(rawAmount);
             }
 
-            if (expense && expense.amount > 0 && !isNaN(expense.amount)) {
-                expenses.push(expense);
+            if (isNaN(amount) || amount >= 0) continue; 
+
+            let finalAmount = Math.abs(amount);
+            if (colMap.fee !== -1 && cols[colMap.fee]) {
+                let fee = 0;
+                if (delimiter === ';') fee = this.parseItalianNumber(cols[colMap.fee]);
+                else fee = parseFloat(cols[colMap.fee]);
+                if (!isNaN(fee) && fee < 0) finalAmount += Math.abs(fee);
             }
+
+            const date = this.parseDateSmart(rawDate, config.dateFormat);
+            if (!date) continue;
+
+            expenses.push({
+                id: Date.now() + Math.random() + i,
+                date: date,
+                description: this.sanitizeInput(rawDesc || 'Spesa Importata'),
+                amount: parseFloat(finalAmount.toFixed(2)),
+                category: this.categorizeExpense(rawDesc),
+                tags: [config.bankTag]
+            });
         }
 
         return expenses;
     },
 
-    /**
-     * Parse CSV line respecting quotes
-     */
-    parseCSVLine(line) {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
+    // ==========================================
+    // 🛠️ UTILS & DATE ENGINE (FIXED)
+    // ==========================================
+    
+    findColIndex(headers, keywords) {
+        return headers.findIndex(h => keywords.some(k => h.includes(k)));
+    },
 
-        for (let i = 0; i < line.length; i++) {
-            const char = line[i];
+    parseDateSmart(dateStr, formatHint) {
+        if (!dateStr) return null;
+        // Pulisce e normalizza separatori
+        let clean = dateStr.trim().split(' ')[0].replace(/\./g, '/').replace(/-/g, '/');
 
-            if (char === '"') {
-                inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-                result.push(current.trim());
-                current = '';
+        let parts = clean.split('/');
+        if (parts.length !== 3) return null;
+
+        let d, m, y;
+        
+        // Caso: YYYY all'inizio (2025/12/31)
+        if (parts[0].length === 4) { 
+            y = parseInt(parts[0]); m = parseInt(parts[1]); d = parseInt(parts[2]);
+        } 
+        // Caso: YYYY alla fine (31/12/2025)
+        else if (parts[2].length === 4) { 
+            y = parseInt(parts[2]);
+            let p1 = parseInt(parts[0]);
+            let p2 = parseInt(parts[1]);
+
+            if (formatHint === 'DD/MM/YYYY') {
+                d = p1; m = p2;
             } else {
-                current += char;
+                if (p1 > 12) { d = p1; m = p2; }
+                else if (p2 > 12) { d = p2; m = p1; }
+                else { d = p1; m = p2; } 
             }
+        } else {
+            return null;
         }
 
-        result.push(current.trim());
-        return result;
+        // --- SAFETY CHECK (Il Fix per il tuo errore) ---
+        // Se il "mese" rilevato è > 12 (es. 31), è impossibile. 
+        // Significa che giorno e mese sono invertiti. Scambiamoli.
+        if (m > 12 && d <= 12) {
+             let temp = d; d = m; m = temp;
+        }
+
+        // Anti-Future: Se data futura, prova swap
+        const check = new Date(y, m-1, d);
+        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+        if (check > tomorrow && d <= 12 && m <= 12) {
+             let temp = d; d = m; m = temp;
+        }
+
+        return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     },
 
-    /**
-     * Parse Excel file based on bank type
-     */
-    async parseExcelByBank(file, bankType) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-
-            reader.onload = (e) => {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, {
-                        type: 'array',
-                        cellDates: true,
-                        cellNF: false,
-                        cellText: false
-                    });
-
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    const expenses = [];
-
-                    if (bankType === 'intesa') {
-                        let headerRow = -1;
-
-                        // Find header row
-                        for (let row = 1; row <= 30; row++) {
-                            const cellA = worksheet[`A${row}`];
-                            const cellB = worksheet[`B${row}`];
-                            const cellH = worksheet[`H${row}`];
-
-                            if (cellA && cellB && cellH) {
-                                const valA = cellA.v || '';
-                                const valB = cellB.v || '';
-                                const valH = cellH.v || '';
-
-                                if (valA === 'Data' && valB === 'Operazione' && valH === 'Importo') {
-                                    headerRow = row;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (headerRow === -1) {
-                            throw new Error('Header non trovato nel file Intesa');
-                        }
-
-                        // Process data rows
-                        let rowNum = headerRow + 1;
-                        while (true) {
-                            const cellDate = worksheet[`A${rowNum}`];
-                            const cellDesc = worksheet[`B${rowNum}`];
-                            const cellAmount = worksheet[`H${rowNum}`];
-
-                            if (!cellDate || !cellDate.v) break;
-
-                            const dateValue = cellDate.v;
-                            const description = cellDesc && cellDesc.v ? String(cellDesc.v).trim() : 'Spesa';
-                            const amount = cellAmount && cellAmount.v ? parseFloat(cellAmount.v) : 0;
-
-                            if (amount >= 0) {
-                                rowNum++;
-                                continue;
-                            }
-
-                            let parsedDate;
-                            if (dateValue instanceof Date) {
-                                const year = dateValue.getFullYear();
-                                const month = String(dateValue.getMonth() + 1).padStart(2, '0');
-                                const day = String(dateValue.getDate()).padStart(2, '0');
-                                parsedDate = `${year}-${month}-${day}`;
-                            } else {
-                                parsedDate = this.parseDate(dateValue);
-                            }
-
-                            const expense = {
-                                id: Date.now() + Math.random(),
-                                date: parsedDate,
-                                description: description,
-                                amount: Math.abs(amount),
-                                category: this.categorizeExpense(description),
-                                createdAt: new Date().toISOString()
-                            };
-
-                            expenses.push(expense);
-                            rowNum++;
-                        }
-                    }
-
-                    resolve(expenses);
-                } catch (error) {
-                    console.error('Error parsing Excel:', error);
-                    reject(error);
-                }
-            };
-
-            reader.onerror = () => reject(new Error('Errore lettura file'));
-            reader.readAsArrayBuffer(file);
-        });
+    parseItalianNumber(str) {
+        if (!str) return 0;
+        let clean = str.replace(/[^\d.,-]/g, '');
+        if (clean.includes(',') && !clean.endsWith(',')) {
+            clean = clean.replace(/\./g, '').replace(',', '.');
+        }
+        return parseFloat(clean) || 0;
     },
 
-    /**
-     * Auto-categorize expense based on description
-     */
+    splitCSVLine(line, delimiter) {
+        const res = [];
+        let curr = '', quote = false;
+        for (let c of line) {
+            if (c === '"') { quote = !quote; }
+            else if (c === delimiter && !quote) { res.push(curr.trim().replace(/^"|"$/g,'')); curr=''; }
+            else { curr += c; }
+        }
+        res.push(curr.trim().replace(/^"|"$/g,''));
+        return res;
+    },
+
+    sanitizeInput(str) {
+        let s = String(str || '').trim().replace(/^"|"$/g, '');
+        return /^[=+\-@\t\r]/.test(s) ? "'"+s : s;
+    },
+
     categorizeExpense(description) {
-        const desc = description.toLowerCase().trim();
-
-        // Check user-defined mappings first
-        const mappings = MerchantMappings.getAll();
-        for (const [merchant, mapping] of Object.entries(mappings)) {
-            if (desc.includes(merchant.toLowerCase())) {
-                return mapping.category;
-            }
-        }
-
-        // Food
-        if (desc.includes('bistrot') || desc.includes('restaurant') || desc.includes('pizz') ||
-            desc.includes('cafe') || desc.includes('bar') || desc.includes('ristorante') ||
-            desc.includes('deliveroo') || desc.includes('just eat') || desc.includes('glovo') ||
-            desc.includes('uber eats') || desc.includes('kfc') || desc.includes('mcdonald') ||
-            desc.includes('burger') || desc.includes('sushi') || desc.includes('muraglia')) {
-            return 'food';
-        }
-
-        // Shopping
-        if (desc.includes('coop') || desc.includes('basko') || desc.includes('esselunga') ||
-            desc.includes('conad') || desc.includes('carrefour') || desc.includes('lidl') ||
-            desc.includes('supermercato') || desc.includes('ikea') || desc.includes('shunfa')) {
-            return 'shopping';
-        }
-
-        // Entertainment
-        if (desc.includes('cinema') || desc.includes('netflix') || desc.includes('spotify') ||
-            desc.includes('tiktok') || desc.includes('amazon prime') || desc.includes('funside')) {
-            return 'entertainment';
-        }
-
-        // Transport
-        if (desc.includes('trenitalia') || desc.includes('italo') || desc.includes('amt') ||
-            desc.includes('uber') || desc.includes('taxi') || desc.includes('carburante') ||
-            desc.includes('benzina') || desc.includes('diesel')) {
-            return 'transport';
-        }
-
+        if (!description) return 'other';
+        const d = description.toLowerCase();
+        if (d.includes('coop') || d.includes('conad') || d.includes('lidl') || d.includes('esselunga')) return 'shopping';
+        if (d.includes('mcdonald') || d.includes('glovo') || d.includes('just eat') || d.includes('ristorante')) return 'food';
+        if (d.includes('benzina') || d.includes('q8') || d.includes('uber') || d.includes('trenitalia')) return 'transport';
+        if (d.includes('netflix') || d.includes('spotify') || d.includes('cinema')) return 'entertainment';
         return 'other';
     },
 
-    /**
-     * Parse date from various formats
-     */
-    parseDate(dateStr) {
-        if (dateStr instanceof Date) {
-            const year = dateStr.getFullYear();
-            const month = String(dateStr.getMonth() + 1).padStart(2, '0');
-            const day = String(dateStr.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-        const str = String(dateStr).trim();
-
-        const formats = [
-            { regex: /^(\d{4})-(\d{2})-(\d{2})\s+\d{2}:\d{2}:\d{2}$/, type: 'YYYY-MM-DD HH:MM:SS' },
-            { regex: /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/, type: 'M/D/YY' },
-            { regex: /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/, type: 'M/D/YYYY' },
-            { regex: /^(\d{2})\/(\d{2})\/(\d{4})$/, type: 'DD/MM/YYYY' },
-            { regex: /^(\d{4})-(\d{2})-(\d{2})$/, type: 'YYYY-MM-DD' },
-            { regex: /^(\d{2})-(\d{2})-(\d{4})$/, type: 'DD-MM-YYYY' }
-        ];
-
-        for (const format of formats) {
-            const match = str.match(format.regex);
-            if (match) {
-                if (format.type === 'YYYY-MM-DD HH:MM:SS') {
-                    return `${match[1]}-${match[2]}-${match[3]}`;
-                } else if (format.type === 'M/D/YY') {
-                    const month = match[1].padStart(2, '0');
-                    const day = match[2].padStart(2, '0');
-                    let year = parseInt(match[3]);
-                    year = year < 100 ? 2000 + year : year;
-                    return `${year}-${month}-${day}`;
-                } else if (format.type === 'M/D/YYYY') {
-                    const month = match[1].padStart(2, '0');
-                    const day = match[2].padStart(2, '0');
-                    const year = match[3];
-                    return `${year}-${month}-${day}`;
-                } else if (format.type === 'DD/MM/YYYY' || format.type === 'DD-MM-YYYY') {
-                    return `${match[3]}-${match[2]}-${match[1]}`;
-                } else if (format.type === 'YYYY-MM-DD') {
-                    return str;
-                }
-            }
-        }
-
-        console.warn('⚠️ Data non riconosciuta, uso oggi:', dateStr);
-        return new Date().toISOString().split('T')[0];
+    async parseExcel(file, bankType) {
+        return new Promise((resolve) => {
+            const r = new FileReader();
+            r.onload = (e) => {
+                const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
+                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''});
+                const csv = json.map(row => row.join(';')).join('\n');
+                resolve(this.parseCSV(csv, bankType));
+            };
+            r.readAsArrayBuffer(file);
+        });
     }
 };
 
-// Export globale
 window.ExpenseImport = ExpenseImport;
-console.log('✅ ExpenseImport module loaded');
+console.log('✅ ExpenseImport: Smart Date Fix Active');
