@@ -43,6 +43,14 @@ const Expenses = {
     /**
      * Renderizza la vista principale
      */
+    /**
+     * Renderizza la vista principale - VERSIONE PREMIUM STYLE
+     */
+
+
+    /**
+     * Renderizza la vista principale - VERSIONE PREMIUM STYLE
+     */
     async render() {
         // Reload expenses before rendering
         await this.loadExpenses();
@@ -53,90 +61,127 @@ const Expenses = {
         const expenses = this.getMonthExpenses();
         const stats = ExpenseStats.calculate(expenses);
         
-        // FIX: Passaggio oggetto Date corretto
         const monthLabel = Helpers.formatCustomMonthName(new Date(this.currentYear, this.currentMonth, 1));
 
         container.innerHTML = `
-            <div class="mb-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-3xl font-bold text-gray-800">💰 Spese</h2>
-                    <div class="flex gap-2">
-                        <button onclick="Expenses.showCategoriesModal()" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition">
+            <div class="mb-8">
+                <div class="flex flex-col xl:flex-row justify-between items-center mb-8 gap-6">
+                    <h2 class="text-4xl font-black bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-sm">
+                        💰 Gestione Spese
+                    </h2>
+                    
+                    <div class="flex flex-wrap gap-2 justify-center">
+                        <button onclick="Expenses.showCategoriesModal()" class="px-4 py-2 bg-slate-800/50 text-slate-300 border border-slate-700 hover:text-white hover:bg-slate-700/50 rounded-lg transition text-sm font-semibold backdrop-blur-md">
                             📂 Categorie
                         </button>
-                        <button onclick="Expenses.showMappingsModal()" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition">
+                        <button onclick="Expenses.showMappingsModal()" class="px-4 py-2 bg-slate-800/50 text-purple-400 border border-purple-500/20 hover:bg-purple-500/10 rounded-lg transition text-sm font-semibold backdrop-blur-md">
                             🎯 Mappature (${MerchantMappings.count()})
                         </button>
-                        <button onclick="ExpenseModals.showImport()" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition">
-                            📤 Importa CSV
+                        <button onclick="ExpenseModals.showImport()" class="px-4 py-2 bg-slate-800/50 text-blue-400 border border-blue-500/20 hover:bg-blue-500/10 rounded-lg transition text-sm font-semibold backdrop-blur-md">
+                            📥 Importa CSV
                         </button>
-                        <button onclick="ExpenseModals.showAdd('income')" class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition">
-                            💰 Aggiungi Entrata
+                        <button onclick="ExpenseModals.showAdd('income')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20 rounded-lg transition text-sm font-bold">
+                            💰 Entrata
                         </button>
-                        <button onclick="ExpenseModals.showAdd('expense')" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
-                            ➕ Aggiungi Spesa
+                        <button onclick="ExpenseModals.showAdd('expense')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/20 rounded-lg transition text-sm font-bold">
+                            ➕ Spesa
                         </button>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-4 mb-6">
-                    <button onclick="Expenses.changeMonth(-1)" class="p-2 hover:bg-gray-200 rounded">
-                        ◀️
+                <div class="relative flex items-center justify-between gap-6 mb-10 bg-slate-800/40 backdrop-blur-md p-2 pr-3 rounded-2xl border border-slate-700/50 shadow-xl max-w-xl mx-auto">
+                    
+                    <button onclick="Expenses.changeMonth(-1)" 
+                            class="w-12 h-12 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 hover:border-slate-500 border border-transparent transition-all duration-300 active:scale-95 group">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 group-hover:-translate-x-1 transition-transform">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                        </svg>
                     </button>
-                    <h3 class="text-xl font-semibold">
+
+                    <h3 class="text-2xl font-black text-white flex-1 text-center capitalize tracking-tight select-none">
                         ${monthLabel}
                     </h3>
-                    <button onclick="Expenses.changeMonth(1)" class="p-2 hover:bg-gray-200 rounded">
-                        ▶️
-                    </button>
-                    <button onclick="Expenses.resetMonth()" class="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300">
-                        Oggi
-                    </button>
-                    <button onclick="Expenses.confirmResetMonth()" class="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition">
-                        🗑️ Reset Mese
-                    </button>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="Expenses.changeMonth(1)" 
+                                class="w-12 h-12 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 hover:border-slate-500 border border-transparent transition-all duration-300 active:scale-95 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 group-hover:translate-x-1 transition-transform">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
+                        </button>
+
+                        <div class="w-px h-8 bg-slate-700 mx-1"></div>
+
+                        <button onclick="Expenses.resetMonth()" 
+                                title="Torna a Oggi"
+                                class="w-12 h-12 flex items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 hover:border-indigo-500 transition-all duration-300 active:scale-95">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                            </svg>
+                        </button>
+
+                        <button onclick="Expenses.confirmResetMonth()" 
+                                title="Reset Mese (Elimina tutto)"
+                                class="w-12 h-12 flex items-center justify-center rounded-xl bg-red-500/10 text-red-400 hover:bg-red-600 hover:text-white border border-red-500/30 hover:border-red-500 transition-all duration-300 active:scale-95 group">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 group-hover:rotate-12 transition-transform">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-                <div class="bg-gradient-to-br from-red-500 to-pink-600 text-white rounded-lg shadow-md p-4">
-                    <p class="text-sm opacity-90 mb-1">💸 Totale Spese</p>
-                    <p class="text-3xl font-bold">${Helpers.formatCurrency(stats.total)}</p>
+                <div class="relative overflow-hidden bg-gradient-to-br from-red-500 to-pink-600 text-white rounded-2xl shadow-lg p-5 hover:scale-[1.02] transition-transform">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
+                    <p class="text-sm opacity-90 mb-1 font-medium">💸 Totale Spese</p>
+                    <p class="text-3xl font-bold tracking-tight">${Helpers.formatCurrency(stats.total)}</p>
                 </div>
-                <div class="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-lg shadow-md p-4">
-                    <p class="text-sm opacity-90 mb-1">💰 Totale Entrate</p>
-                    <p class="text-3xl font-bold">${Helpers.formatCurrency(stats.income)}</p>
+                <div class="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl shadow-lg p-5 hover:scale-[1.02] transition-transform">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
+                    <p class="text-sm opacity-90 mb-1 font-medium">💰 Totale Entrate</p>
+                    <p class="text-3xl font-bold tracking-tight">${Helpers.formatCurrency(stats.income)}</p>
                 </div>
-                <div class="bg-gradient-to-br ${stats.balance >= 0 ? 'from-blue-500 to-cyan-600' : 'from-orange-500 to-red-600'} text-white rounded-lg shadow-md p-4">
-                    <p class="text-sm opacity-90 mb-1">📊 Bilancio</p>
-                    <p class="text-3xl font-bold">${stats.balance >= 0 ? '+' : ''}${Helpers.formatCurrency(stats.balance)}</p>
+                <div class="relative overflow-hidden bg-gradient-to-br ${stats.balance >= 0 ? 'from-blue-500 to-cyan-600' : 'from-orange-500 to-red-600'} text-white rounded-2xl shadow-lg p-5 hover:scale-[1.02] transition-transform">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
+                    <p class="text-sm opacity-90 mb-1 font-medium">📊 Bilancio</p>
+                    <p class="text-3xl font-bold tracking-tight">${stats.balance >= 0 ? '+' : ''}${Helpers.formatCurrency(stats.balance)}</p>
                 </div>
-                <div class="bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-lg shadow-md p-4">
-                    <p class="text-sm opacity-90 mb-1">🔢 Transazioni</p>
-                    <p class="text-3xl font-bold">${stats.count + stats.incomeCount}</p>
+                <div class="relative overflow-hidden bg-gradient-to-br from-violet-500 to-purple-600 text-white rounded-2xl shadow-lg p-5 hover:scale-[1.02] transition-transform">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
+                    <p class="text-sm opacity-90 mb-1 font-medium">🔢 Transazioni</p>
+                    <p class="text-3xl font-bold tracking-tight">${stats.count + stats.incomeCount}</p>
                 </div>
-                <div class="bg-gradient-to-br from-teal-600 to-emerald-700 text-white rounded-lg shadow-md p-4">
-                    <p class="text-sm opacity-90 mb-1">💎 Investimenti</p>
-                    <p class="text-3xl font-bold">${Helpers.formatCurrency(stats.excludedTotal)}</p>
+                <div class="relative overflow-hidden bg-gradient-to-br from-cyan-600 to-blue-700 text-white rounded-2xl shadow-lg p-5 hover:scale-[1.02] transition-transform">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
+                    <p class="text-sm opacity-90 mb-1 font-medium">💎 Investimenti</p>
+                    <p class="text-3xl font-bold tracking-tight">${Helpers.formatCurrency(stats.excludedTotal)}</p>
                 </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow-md p-4 mb-6">
-                <h3 class="text-lg font-semibold mb-3">🔍 Filtra per Categoria</h3>
+            <div class="bg-slate-800/40 backdrop-blur-md rounded-2xl shadow-lg border border-slate-700/50 p-5 mb-6">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <span class="text-blue-400">🔍</span> Filtra per Categoria
+                </h3>
                 <div class="flex flex-wrap gap-2">
                     <button onclick="ExpenseFilters.clearCategory(); Expenses.render();" 
-                            class="px-4 py-2 rounded-lg transition ${!ExpenseFilters.hasCategory() ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}">
+                            class="px-4 py-2 rounded-xl transition font-medium text-sm ${!ExpenseFilters.hasCategory() ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white'}">
                         🔄 Tutte
                     </button>
                     ${ExpenseRenderer.renderCategoryFilters()}
                 </div>
             </div>
 
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-semibold">📝 Tutte le Spese</h3>
-                    <button onclick="Expenses.exportMonth()" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                        📥 Esporta CSV
+            <div class="bg-slate-800/40 backdrop-blur-md rounded-2xl shadow-lg border border-slate-700/50 p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                        <span class="text-purple-400">📝</span> Tutte le Spese
+                    </h3>
+                    <button onclick="Expenses.exportMonth()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-blue-400 hover:text-white hover:bg-blue-500/20 transition font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        Esporta CSV
                     </button>
                 </div>
                 <div class="space-y-2">
