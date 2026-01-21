@@ -23,115 +23,57 @@ const Goals = {
     },
 
     async render(skipLoad = false) {
-        
-        if (!skipLoad) {
-            await this.loadData();
-        }
-        
-
+        if (!skipLoad) await this.loadData();
         const container = document.getElementById('goalsContent');
         if (!container) return;
         
-        // Stats
+        // Stats ricalcolate per KPI Premium
         const activeGoals = this.goals.filter(g => !g.completed);
         const completedGoals = this.goals.filter(g => g.completed);
-        const totalSubtasks = this.goals.reduce((sum, g) => sum + g.subtasks.length, 0);
+        const totalSubtasks = this.goals.reduce((sum, g) => sum + (g.subtasks?.length || 0), 0);
         const completedSubtasks = this.goals.reduce((sum, g) => 
-            sum + g.subtasks.filter(st => st.completed).length, 0);
+            sum + (g.subtasks?.filter(st => st.completed).length || 0), 0);
         const overallProgress = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
 
-        // Filter goals
+        // Filtro visualizzazione
         let filteredGoals = this.goals;
-        if (this.currentView === 'active') {
-            filteredGoals = activeGoals;
-        } else if (this.currentView === 'completed') {
-            filteredGoals = completedGoals;
-        }
+        if (this.currentView === 'active') filteredGoals = activeGoals;
+        else if (this.currentView === 'completed') filteredGoals = completedGoals;
 
-        // Group by quarter
         const groupedGoals = this.groupByQuarter(filteredGoals);
 
         container.innerHTML = `
-            <div class="p-6 animate-fadeIn">
-                <!-- Header -->
-                <div class="mb-8">
-                    <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-6">
-                        <div>
-                            <h2 class="text-4xl font-black bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-                                🎯 Obiettivi
-                            </h2>
-                            <p class="text-slate-400">Pianifica e raggiungi i tuoi traguardi</p>
-                        </div>
-                        
-                        <button onclick="Goals.showAddModal()" 
-                                class="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl hover:scale-105 transition-all shadow-2xl font-bold text-lg">
-                            ✨ Nuovo Obiettivo
-                        </button>
+            <div class="mb-10 animate-fadeIn">
+                <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-6 mb-10">
+                    <div>
+                        <h2 class="text-5xl font-black tracking-tighter bg-gradient-to-r from-purple-400 via-pink-400 to-slate-400 bg-clip-text text-transparent italic">Obiettivi</h2>
+                        <p class="text-slate-400 mt-2 font-medium flex items-center gap-2 text-lg">
+                            <span class="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></span> Visione e traguardi a lungo termine.
+                        </p>
                     </div>
-
-                    <!-- Stats Cards -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <!-- Overall Progress -->
-                        <div class="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-xl p-6 text-white">
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="text-sm font-semibold opacity-90">Progresso Totale</span>
-                                <div class="text-3xl">📊</div>
-                            </div>
-                            <div class="text-4xl font-black mb-2">${overallProgress}%</div>
-                            <div class="text-xs opacity-80">${completedSubtasks}/${totalSubtasks} subtask</div>
+                    
+                    <div class="flex flex-wrap gap-3">
+                        <div class="bg-slate-800/40 backdrop-blur-xl p-1 rounded-2xl border border-slate-700/50 flex shadow-xl">
+                            ${['all', 'active', 'completed'].map(v => `
+                                <button onclick="Goals.setView('${v}')" 
+                                        class="px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${this.currentView === v ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}">
+                                    ${v === 'all' ? 'Tutti' : v === 'active' ? 'Attivi' : 'Finiti'}
+                                </button>
+                            `).join('')}
                         </div>
-
-                        <!-- Active Goals -->
-                        <div class="bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-xl p-6 text-white">
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="text-sm font-semibold opacity-90">Obiettivi Attivi</span>
-                                <div class="text-3xl">🔥</div>
-                            </div>
-                            <div class="text-4xl font-black mb-2">${activeGoals.length}</div>
-                            <div class="text-xs opacity-80">In corso</div>
-                        </div>
-
-                        <!-- Completed Goals -->
-                        <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-xl p-6 text-white">
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="text-sm font-semibold opacity-90">Completati</span>
-                                <div class="text-3xl">✅</div>
-                            </div>
-                            <div class="text-4xl font-black mb-2">${completedGoals.length}</div>
-                            <div class="text-xs opacity-80">Raggiunto!</div>
-                        </div>
-
-                        <!-- Total Goals -->
-                        <div class="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl shadow-xl p-6 text-white border border-slate-600">
-                            <div class="flex items-center justify-between mb-3">
-                                <span class="text-sm font-semibold opacity-90">Totali</span>
-                                <div class="text-3xl">🎯</div>
-                            </div>
-                            <div class="text-4xl font-black mb-2">${this.goals.length}</div>
-                            <div class="text-xs opacity-80">Obiettivi</div>
-                        </div>
-                    </div>
-
-                    <!-- View Filters -->
-                    <div class="flex gap-2 bg-slate-800 rounded-xl p-1 border border-slate-700 inline-flex">
-                        <button onclick="Goals.setView('all')" 
-                                class="px-6 py-2 rounded-lg transition-all font-semibold ${this.currentView === 'all' ? 'bg-purple-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}">
-                            Tutti
-                        </button>
-                        <button onclick="Goals.setView('active')" 
-                                class="px-6 py-2 rounded-lg transition-all font-semibold ${this.currentView === 'active' ? 'bg-blue-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}">
-                            Attivi
-                        </button>
-                        <button onclick="Goals.setView('completed')" 
-                                class="px-6 py-2 rounded-lg transition-all font-semibold ${this.currentView === 'completed' ? 'bg-green-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}">
-                            Completati
-                        </button>
+                        <button onclick="Goals.showAddModal()" class="px-8 py-2.5 bg-gradient-to-r from-purple-600 to-pink-700 text-white shadow-xl rounded-2xl transition-all hover:scale-105 active:scale-95 text-sm font-bold">✨ Nuovo Obiettivo</button>
                     </div>
                 </div>
 
-                <!-- Goals Content -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                    ${this.renderKpiCard('Progresso', overallProgress, 'from-purple-500 to-pink-600', `${completedSubtasks}/${totalSubtasks} Task`, '%')}
+                    ${this.renderKpiCard('Attivi', activeGoals.length, 'from-blue-500 to-indigo-600', 'In esecuzione', '')}
+                    ${this.renderKpiCard('Completati', completedGoals.length, 'from-emerald-500 to-teal-600', 'Traguardi raggiunti', '')}
+                    ${this.renderKpiCard('Totali', this.goals.length, 'from-slate-700 to-slate-800', 'Obiettivi definiti', '')}
+                </div>
+
                 ${filteredGoals.length === 0 ? this.renderEmptyState() : `
-                    <div class="space-y-8">
+                    <div class="space-y-12">
                         ${Object.entries(groupedGoals).map(([quarter, goals]) => 
                             this.renderQuarterSection(quarter, goals)
                         ).join('')}
@@ -140,7 +82,15 @@ const Goals = {
             </div>
         `;
     },
-
+    renderKpiCard(title, value, grad, sub, unit = '') {
+        return `
+            <div class="relative overflow-hidden bg-gradient-to-br ${grad} rounded-2xl shadow-xl p-6 text-white transform hover:scale-[1.02] transition-all">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
+                <p class="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">${title}</p>
+                <p class="text-4xl font-black mb-1">${value}${unit}</p>
+                <p class="text-[10px] font-bold opacity-70 uppercase tracking-tighter">${sub}</p>
+            </div>`;
+    },
     renderEmptyState() {
         const messages = {
             all: {
@@ -201,18 +151,13 @@ const Goals = {
 
     renderQuarterSection(quarterKey, goals) {
         const [year, quarter] = quarterKey.split('-');
-        
         return `
-            <div class="space-y-4">
-                <div class="flex items-center gap-3">
-                    <div class="h-1 w-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
-                    <h3 class="text-2xl font-bold text-white">
-                        📅 ${quarter} ${year}
-                    </h3>
-                    <div class="h-1 flex-1 bg-gradient-to-r from-pink-500 to-transparent rounded-full"></div>
+            <div class="space-y-8">
+                <div class="flex items-center gap-4">
+                    <h3 class="text-2xl font-black text-white tracking-tight capitalize">📅 ${quarter} ${year}</h3>
+                    <div class="h-px flex-1 bg-slate-700/50"></div>
                 </div>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-4">
                     ${goals.map(goal => this.renderGoalCard(goal)).join('')}
                 </div>
             </div>

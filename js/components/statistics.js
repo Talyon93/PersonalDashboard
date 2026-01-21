@@ -54,9 +54,7 @@ const Statistics = {
         container.innerHTML = `
             <div class="mb-8">
                 <div class="flex flex-col xl:flex-row justify-between items-center mb-8 gap-6">
-                    <h2 class="text-4xl font-black bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent drop-shadow-sm">
-                        📊 Analytics
-                    </h2>
+                    <h2 class="text-5xl font-black tracking-tighter bg-gradient-to-r from-emerald-300 via-teal-200 to-slate-400 bg-clip-text text-transparent">Analytics</h2>
                     
                     <div class="flex items-center gap-4">
                         <div class="bg-slate-800/50 p-1 rounded-xl flex shadow-lg border border-slate-700/50 backdrop-blur-sm">

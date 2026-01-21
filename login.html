@@ -3,81 +3,92 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Login - Dashboard Personale</title>
+  <title>Login - MyFinance Premium</title>
 
-  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Supabase config (il tuo file reale in /js) -->
   <script src="js/config.js"></script>
   <script src="js/supabase-config.js"></script>
+
+  <style>
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fadeIn { animation: fadeIn 0.6s ease-out forwards; }
+  </style>
 </head>
 
-<body class="min-h-screen bg-gradient-to-br from-purple-500 via-indigo-500 to-blue-500 flex items-center justify-center p-6">
-  <div class="w-full max-w-md">
-    <div class="bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-8">
-      <div class="flex flex-col items-center text-center mb-6">
-        <div class="h-14 w-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
-          <span class="text-2xl">💰</span>
+<body class="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 font-sans selection:bg-indigo-500/30">
+  
+  <div class="fixed inset-0 overflow-hidden pointer-events-none">
+    <div class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px]"></div>
+    <div class="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[120px]"></div>
+  </div>
+
+  <div class="w-full max-w-md relative z-10 animate-fadeIn">
+    <div class="bg-slate-800/30 backdrop-blur-2xl rounded-[2.5rem] border border-slate-700/50 shadow-2xl p-10">
+      
+      <div class="flex flex-col items-center text-center mb-10">
+        <div class="h-20 w-20 rounded-3xl bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center shadow-2xl shadow-indigo-500/20 mb-6 transform hover:rotate-3 transition-transform">
+          <span class="text-4xl">💰</span>
         </div>
-        <h1 class="mt-4 text-2xl font-bold text-gray-900">Dashboard Personale</h1>
-        <p class="mt-1 text-sm text-gray-600">Accedi per gestire le tue finanze</p>
+        <h1 class="text-4xl font-black tracking-tighter bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent italic">
+          MyFinance
+        </h1>
+        <p class="mt-2 text-slate-400 font-medium text-sm tracking-tight">Gestione centralizzata attività e finanze.</p>
       </div>
 
-      <!-- Alert -->
-      <div id="alertBox" class="hidden mb-4 rounded-xl border px-4 py-3 text-sm"></div>
+      <div id="alertBox" class="hidden mb-6 rounded-2xl border px-5 py-3 text-sm font-bold text-center transition-all"></div>
 
-      <!-- Tabs -->
-      <div class="grid grid-cols-2 gap-2 mb-6">
-        <button id="tabLogin" class="py-2 rounded-xl font-medium border transition bg-gray-900 text-white border-gray-900">
+      <div class="bg-slate-900/50 p-1.5 rounded-2xl border border-slate-700/50 grid grid-cols-2 gap-2 mb-8 shadow-inner">
+        <button id="tabLogin" class="py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
           Accedi
         </button>
-        <button id="tabRegister" class="py-2 rounded-xl font-medium border transition bg-white text-gray-700 border-gray-200 hover:bg-gray-50">
-          Crea account
+        <button id="tabRegister" class="py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
+          Crea Account
         </button>
       </div>
 
-      <!-- Form -->
-      <form id="authForm" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="email">Email</label>
+      <form id="authForm" class="space-y-5">
+        <div class="space-y-1.5">
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4" for="email">Email</label>
           <input id="email" type="email" autocomplete="email" required
-                 class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 transition"
+                 class="w-full bg-slate-900/50 border-2 border-slate-700/50 rounded-2xl px-5 py-4 text-white placeholder-slate-600 focus:border-indigo-500/50 focus:outline-none transition-all font-medium"
                  placeholder="nome@esempio.com"/>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="password">Password</label>
+        <div class="space-y-1.5">
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4" for="password">Password</label>
           <input id="password" type="password" autocomplete="current-password" required
-                 class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 transition"
+                 class="w-full bg-slate-900/50 border-2 border-slate-700/50 rounded-2xl px-5 py-4 text-white placeholder-slate-600 focus:border-indigo-500/50 focus:outline-none transition-all font-medium"
                  placeholder="••••••••"/>
         </div>
 
-        <!-- Only for register -->
-        <div id="confirmWrap" class="hidden">
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="passwordConfirm">Conferma password</label>
+        <div id="confirmWrap" class="hidden space-y-1.5">
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4" for="passwordConfirm">Conferma Password</label>
           <input id="passwordConfirm" type="password" autocomplete="new-password"
-                 class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 transition"
+                 class="w-full bg-slate-900/50 border-2 border-slate-700/50 rounded-2xl px-5 py-4 text-white placeholder-slate-600 focus:border-indigo-500/50 focus:outline-none transition-all font-medium"
                  placeholder="••••••••"/>
         </div>
 
         <button id="submitBtn" type="submit"
-                class="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-95 transition shadow-lg">
+                class="w-full py-4 mt-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-indigo-500/20">
           Accedi
         </button>
 
-        <p class="text-xs text-gray-500 text-center mt-3">🔒 I tuoi dati sono protetti e criptati</p>
+        <div class="pt-6 text-center">
+            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2">
+                <span class="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></span>
+                Connessione Sicura Criptata
+            </p>
+        </div>
       </form>
     </div>
   </div>
 
   <script>
-    // Guard: se supabaseClient non c'è, fermati subito (path sbagliati / config non caricato)
     if (!window.supabaseClient) {
-      console.error("❌ window.supabaseClient non trovato. Verifica che js/supabase-config.js sia caricato.");
+      console.error("❌ window.supabaseClient non trovato.");
     }
 
     const alertBox = document.getElementById("alertBox");
@@ -87,40 +98,39 @@
     const submitBtn = document.getElementById("submitBtn");
     const authForm = document.getElementById("authForm");
 
-    let mode = "login"; // "login" | "register"
+    let mode = "login";
 
     function setAlert(type, message) {
       alertBox.classList.remove("hidden");
-      alertBox.className = "mb-4 rounded-xl border px-4 py-3 text-sm";
       if (type === "error") {
-        alertBox.classList.add("border-red-200", "bg-red-50", "text-red-700");
+        alertBox.className = "mb-6 rounded-2xl border-2 border-rose-500/20 bg-rose-500/10 text-rose-400 px-5 py-3 text-sm font-bold text-center";
       } else {
-        alertBox.classList.add("border-green-200", "bg-green-50", "text-green-700");
+        alertBox.className = "mb-6 rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/10 text-emerald-400 px-5 py-3 text-sm font-bold text-center";
       }
       alertBox.textContent = message;
     }
 
     function clearAlert() {
       alertBox.classList.add("hidden");
-      alertBox.textContent = "";
     }
 
     function setMode(nextMode) {
       mode = nextMode;
       clearAlert();
 
+      const activeClass = "bg-indigo-600 text-white shadow-lg";
+      const inactiveClass = "text-slate-400 hover:text-white";
+
       if (mode === "login") {
-        tabLogin.className = "py-2 rounded-xl font-medium border transition bg-gray-900 text-white border-gray-900";
-        tabRegister.className = "py-2 rounded-xl font-medium border transition bg-white text-gray-700 border-gray-200 hover:bg-gray-50";
+        tabLogin.className = `py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeClass}`;
+        tabRegister.className = `py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${inactiveClass}`;
         confirmWrap.classList.add("hidden");
         submitBtn.textContent = "Accedi";
-        document.getElementById("password").setAttribute("autocomplete", "current-password");
       } else {
-        tabRegister.className = "py-2 rounded-xl font-medium border transition bg-gray-900 text-white border-gray-900";
-        tabLogin.className = "py-2 rounded-xl font-medium border transition bg-white text-gray-700 border-gray-200 hover:bg-gray-50";
+        tabRegister.className = `py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeClass}`;
+        tabLogin.className = `py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${inactiveClass}`;
         confirmWrap.classList.remove("hidden");
-        submitBtn.textContent = "Crea account";
-        document.getElementById("password").setAttribute("autocomplete", "new-password");
+        submitBtn.textContent = "Crea Account";
       }
     }
 
@@ -131,54 +141,37 @@
       e.preventDefault();
       clearAlert();
 
-      if (!window.supabaseClient) {
-        setAlert("error", "Supabase non è stato caricato correttamente (controlla js/supabase-config.js).");
-        return;
-      }
-
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
       const passwordConfirm = document.getElementById("passwordConfirm").value;
 
       submitBtn.disabled = true;
       const oldText = submitBtn.textContent;
-      submitBtn.textContent = "Attendere...";
+      submitBtn.textContent = "Sincronizzazione...";
 
       try {
         if (mode === "register") {
-          if (!passwordConfirm || passwordConfirm !== password) {
+          if (passwordConfirm !== password) {
             setAlert("error", "Le password non corrispondono.");
             return;
           }
-
           const { error } = await window.supabaseClient.auth.signUp({ email, password });
-          if (error) {
-            setAlert("error", error.message);
-            return;
-          }
-
-          setAlert("ok", "Account creato. Se richiesto, conferma la mail e poi fai login.");
+          if (error) throw error;
+          setAlert("ok", "Account creato! Controlla l'email.");
           setMode("login");
-          return;
+        } else {
+          const { error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          window.location.href = "index.html";
         }
-
-        // login
-        const { error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
-        if (error) {
-          setAlert("error", error.message);
-          return;
-        }
-
-        window.location.href = "index.html";
       } catch (err) {
-        setAlert("error", "Errore inatteso: " + (err?.message || String(err)));
+        setAlert("error", err.message);
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = oldText;
       }
     });
 
-    // Default
     setMode("login");
   </script>
 </body>
