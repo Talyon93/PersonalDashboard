@@ -118,7 +118,17 @@ const Categories = {
      * Ottiene tutte le categorie
      */
     getAll() {
-        return this.categories.length > 0 ? this.categories : this.defaultCategories;
+        // Unisce sempre le default con quelle caricate dal DB
+        const custom = this.categories || [];
+        const all = [...this.defaultCategories];
+        
+        // Evita duplicati se una categoria default è presente anche nel DB
+        custom.forEach(c => {
+            if (!all.find(a => a.id === c.id)) {
+                all.push(c);
+            }
+        });
+        return all;
     },
 
     /**

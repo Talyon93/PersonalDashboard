@@ -28,6 +28,7 @@ const ExpenseImport = {
     parseCSV(text, bankType) {
         if (bankType === 'intesa') return this.parseIntesaCSV(text);
         if (bankType === 'revolut') return this.parseRevolutCSV(text);
+        if (bankType === 'ing') return this.parseIngCSV(text);
         return [];
     },
 
@@ -67,6 +68,23 @@ const ExpenseImport = {
         });
     },
 
+    // ==========================================
+    // 🍊 ING - CONTO ARANCIO
+    // ==========================================
+    parseIngCSV(text) {
+        return this.genericScanner(text, {
+            startKeywords: ['data contabile', 'uscite', 'entrate'],
+            colKeywords: {
+                date: ['data contabile'],
+                desc: ['descrizione operazione', 'causale'],
+                amount: ['uscite'] // Il sistema cerca le spese (valori negativi)
+            },
+            bankTag: '#ing',
+            dateFormat: 'DD/MM/YYYY',
+            amountFormat: 'IT'
+        });
+    },
+    
     // ==========================================
     // 🧠 SCANNER UNIVERSALE
     // ==========================================
