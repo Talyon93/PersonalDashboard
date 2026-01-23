@@ -53,11 +53,17 @@ const Dashboard = {
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                ${this.renderKPICard('Task Attivi', 'kpi-tasks-val', '📅', 'from-blue-500 to-indigo-600', 'Pianificati')}
-                ${this.renderKPICard('Obiettivi', 'kpi-goals-val', '🎯', 'from-violet-500 to-purple-600', 'Traguardi')}
-                ${this.renderKPICard('Spese Mese', 'kpi-expenses-val', '💰', 'from-rose-500 to-pink-600', 'Uscite correnti')}
-                ${this.renderKPICard('Completati', 'kpi-completed-val', '✅', 'from-emerald-500 to-teal-600', 'Attività concluse')}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                ${this.renderKPICard('Task Attivi', 'kpi-tasks-val', '📅', 'from-blue-600 to-indigo-700', 'Pianificati', 
+                    `showSection('agenda'); setTimeout(() => Agenda.showAddModal(), 100)`)}
+                
+                ${this.renderKPICard('Obiettivi', 'kpi-goals-val', '🎯', 'from-purple-600 to-pink-700', 'Traguardi', 
+                    `showSection('goals'); setTimeout(() => Goals.showAddModal(), 100)`)}
+                
+                ${this.renderKPICard('Spese Mese', 'kpi-expenses-val', '💰', 'from-rose-600 to-pink-700', 'Uscite correnti', 
+                    `showSection('expenses'); setTimeout(() => ExpenseModals.showAdd(), 100)`)}
+                
+                ${this.renderKPICard('Completati', 'kpi-completed-val', '✅', 'from-emerald-600 to-teal-700', 'Attività concluse')}
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -65,7 +71,7 @@ const Dashboard = {
                     <div class="bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-8 border border-slate-700/40 shadow-xl group">
                         <div class="flex items-center justify-between mb-8">
                             <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20 transform group-hover:rotate-3 transition-transform">
+                                <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg transform group-hover:rotate-3 transition-transform">
                                     <span class="text-2xl">📅</span>
                                 </div>
                                 <h3 class="text-2xl font-bold text-white tracking-tight">Priorità in Agenda</h3>
@@ -78,7 +84,7 @@ const Dashboard = {
                     <div class="bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-8 border border-slate-700/40 shadow-xl">
                         <div class="flex items-center justify-between mb-8">
                             <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/20">
+                                <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg">
                                     <span class="text-2xl">🎯</span>
                                 </div>
                                 <h3 class="text-2xl font-bold text-white tracking-tight">Focus Obiettivi</h3>
@@ -88,37 +94,48 @@ const Dashboard = {
                     </div>
                 </div>
 
-                <div class="lg:col-span-4 space-y-8">
-                    <div class="bg-gradient-to-b from-slate-800/80 to-slate-900/80 backdrop-blur-2xl rounded-[2rem] p-6 border border-slate-700/50 shadow-2xl">
-                        <h3 class="text-lg font-bold text-white mb-6 flex items-center gap-2">⚡ Azioni Veloci</h3>
-                        <div class="space-y-3">
-                            ${this.renderActionBtn('➕', 'Nuovo Task', 'blue', "showSection('agenda'); setTimeout(() => Agenda.showAddModal(), 100)")}
-                            ${this.renderActionBtn('🎯', 'Nuovo Goal', 'purple', "showSection('goals'); setTimeout(() => Goals.showAddModal(), 100)")}
-                            ${this.renderActionBtn('💵', 'Nuova Spesa', 'emerald', "showSection('expenses'); setTimeout(() => ExpenseModals.showAdd(), 100)")}
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-6 border border-slate-700/40">
-                        <h3 class="font-bold text-white mb-6 flex items-center gap-2 px-2">💰 Ultime Uscite</h3>
-                        <div id="recent-expenses-container" class="space-y-2"></div>
+                <div class="lg:col-span-4">
+                    <div class="bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-6 border border-slate-700/40 h-full">
+                        <h3 class="font-bold text-white mb-8 flex items-center gap-3 px-2">
+                            <span class="w-10 h-10 bg-rose-500/20 text-rose-400 rounded-xl flex items-center justify-center text-sm">💰</span>
+                            Ultime Uscite
+                        </h3>
+                        <div id="recent-expenses-container" class="space-y-3"></div>
                     </div>
                 </div>
             </div>
         `;
     },
 
-    // Helper KPICard stile Analytics
-    renderKPICard(title, id, icon, gradient, subtext) {
+    /**
+     * KPI Card con Pulsante Integrato
+     */
+    renderKPICard(title, id, icon, gradient, subtext, actionClick = null) {
+        // Genera il pulsante solo se è definita un'azione
+        const actionHtml = actionClick ? `
+            <button onclick="${actionClick}" 
+                    class="group/btn relative w-12 h-12 bg-white/20 hover:bg-white text-white hover:text-indigo-900 backdrop-blur-md rounded-2xl border border-white/20 transition-all duration-300 hover:scale-110 active:scale-90 shadow-xl flex items-center justify-center">
+                <span class="text-2xl font-bold transform group-hover/btn:rotate-90 transition-transform">＋</span>
+            </button>
+        ` : '';
+
         return `
-            <div class="relative overflow-hidden bg-gradient-to-br ${gradient} rounded-2xl shadow-xl p-6 text-white transform hover:scale-[1.02] transition-all">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
-                <div class="relative flex justify-between items-start mb-2">
-                    <p class="text-[10px] font-black uppercase tracking-widest opacity-80">${title}</p>
-                    <span class="text-xl opacity-50">${icon}</span>
+            <div class="relative overflow-hidden bg-gradient-to-br ${gradient} rounded-[2.5rem] shadow-2xl p-7 text-white group transition-all duration-500">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-xl group-hover:bg-white/20 transition-all"></div>
+                
+                <div class="relative flex justify-between items-start mb-1">
+                    <div class="flex-1">
+                        <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">${title}</p>
+                        <p id="${id}" class="text-5xl font-black tracking-tighter leading-none">-</p>
+                    </div>
+                    <div class="w-12 h-12 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center text-2xl shadow-inner border border-white/10 group-hover:rotate-6 transition-transform">
+                        ${icon}
+                    </div>
                 </div>
-                <div class="relative">
-                    <p id="${id}" class="text-4xl font-black mb-1">-</p>
-                    <p class="text-[10px] font-bold opacity-70 uppercase tracking-tighter">${subtext}</p>
+
+                <div class="relative flex items-end justify-between mt-8">
+                    <p class="text-[9px] font-bold opacity-50 uppercase tracking-widest max-w-[100px] leading-tight">${subtext}</p>
+                    ${actionHtml}
                 </div>
             </div>`;
     },
