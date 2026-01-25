@@ -339,3 +339,10 @@ input:focus, textarea:focus, select:focus {
 .stat-card-4 {
     background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
 }
+
+.ftue-highlight {
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.5); /* Indigo glow */
+    border-radius: 12px; /* Adatta ai tuoi bordi */
+    pointer-events: none; /* Impedisce click durante il tour */
+    background-color: #0f172a; /* Assicura sfondo scuro */
+}

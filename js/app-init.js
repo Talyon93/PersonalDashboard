@@ -1,6 +1,6 @@
 /**
  * App Initialization - Preload data and setup
- * UPDATED: Initialize Modules FIRST to fix Sidebar immediately
+ * FIXED: Launches FTUE Tour after initialization.
  */
 
 const AppInit = {
@@ -20,7 +20,7 @@ const AppInit = {
                 return;
             }
 
-            // 2. ✨ INIT MODULI (Priorità assoluta per sistemare la Sidebar)
+            // 2. INIT MODULI (Priorità assoluta per sistemare la Sidebar)
             if (window.ModulesHub) {
                 await ModulesHub.init();
             }
@@ -30,25 +30,31 @@ const AppInit = {
                 await SettingsManager.load();
             }
 
-            // 4. Preload data (solo se necessario, la cache gestisce le chiamate vuote)
+            // 4. Preload data
             await DataCache.preloadAll();
 
             this.initialized = true;
 
             // 5. Trigger first render
-            // Controlla quale sezione è visibile (di default dashboard o quella nell'HTML)
             const currentSection = document.querySelector('.content-section:not(.hidden)');
             if (currentSection) {
                 const sectionId = currentSection.id.replace('Content', '');
                 
-                // Se la sezione corrente è disattivata (es. expenses), torna alla dashboard
+                // Fallback dashboard se il modulo corrente è disattivato
                 if (sectionId === 'expenses' && !ModulesHub.states.expenses_enabled) {
                     window.showSection('dashboard');
                 } else if (sectionId === 'goals' && !ModulesHub.states.goals_enabled) {
                     window.showSection('dashboard');
                 } else {
-                    this.renderSection(sectionId);
+                    await this.renderSection(sectionId);
                 }
+            }
+
+            // === 6. AVVIA IL TOUR (FTUE) ===
+            // Parte solo se tutto il resto è finito
+            if (window.FTUE) {
+                console.log('🚀 App Ready. Checking FTUE...');
+                window.FTUE.init();
             }
 
         } catch (e) {
