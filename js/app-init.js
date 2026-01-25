@@ -1,6 +1,6 @@
 /**
  * App Initialization - Preload data and setup
- * UPDATED: Loads SettingsManager first
+ * UPDATED: Initialize Modules FIRST to fix Sidebar immediately
  */
 
 const AppInit = {
@@ -8,10 +8,10 @@ const AppInit = {
 
     async init() {
         if (this.initialized) return;
-        
 
         try {
-            // Check authentication
+            // 1. Check authentication
+            if (!window.supabaseClient) throw new Error("Supabase client not found");
             const { data: { user } } = await window.supabaseClient.auth.getUser();
             
             if (!user) {
@@ -20,74 +20,74 @@ const AppInit = {
                 return;
             }
 
-            // Load settings FIRST (before data preload)
+            // 2. ✨ INIT MODULI (Priorità assoluta per sistemare la Sidebar)
+            if (window.ModulesHub) {
+                await ModulesHub.init();
+            }
+
+            // 3. Load settings
             if (window.SettingsManager) {
                 await SettingsManager.load();
             }
 
-            // Preload all data in parallel
-            const startTime = Date.now();
-            
+            // 4. Preload data (solo se necessario, la cache gestisce le chiamate vuote)
             await DataCache.preloadAll();
-            
-            const loadTime = Date.now() - startTime;
 
             this.initialized = true;
 
-            // Trigger first render
+            // 5. Trigger first render
+            // Controlla quale sezione è visibile (di default dashboard o quella nell'HTML)
             const currentSection = document.querySelector('.content-section:not(.hidden)');
             if (currentSection) {
                 const sectionId = currentSection.id.replace('Content', '');
-                this.renderSection(sectionId);
+                
+                // Se la sezione corrente è disattivata (es. expenses), torna alla dashboard
+                if (sectionId === 'expenses' && !ModulesHub.states.expenses_enabled) {
+                    window.showSection('dashboard');
+                } else if (sectionId === 'goals' && !ModulesHub.states.goals_enabled) {
+                    window.showSection('dashboard');
+                } else {
+                    this.renderSection(sectionId);
+                }
             }
 
         } catch (e) {
             console.error('Initialization error:', e);
-            
-            // Show error UI
             document.body.innerHTML = `
-                <div class="min-h-screen flex items-center justify-center bg-gray-100">
-                    <div class="bg-white rounded-lg shadow-xl p-8 max-w-md text-center">
-                        <div class="text-6xl mb-4">⚠️</div>
-                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Errore di Inizializzazione</h2>
-                        <p class="text-gray-600 mb-6">${e.message}</p>
-                        <button onclick="window.location.reload()" class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                            🔄 Ricarica Pagina
-                        </button>
+                <div class="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+                    <div class="text-center">
+                        <h2 class="text-2xl font-bold mb-4">Errore di Caricamento</h2>
+                        <p class="text-slate-400 mb-6">${e.message}</p>
+                        <button onclick="window.location.reload()" class="px-6 py-3 bg-indigo-600 rounded-lg font-bold">Ricarica</button>
                     </div>
                 </div>
             `;
         }
     },
 
-    /**
-     * Render section with cached data (instant!)
-     */
     async renderSection(sectionName) {
-        
         const components = {
             'dashboard': Dashboard,
             'expenses': Expenses,
             'statistics': Statistics,
             'agenda': Agenda,
             'goals': Goals,
-            'settings': Settings
+            'settings': Settings,
+            'modules': ModulesHub
         };
 
         const component = components[sectionName];
-        if (component && component.render) {
-            await component.render();
+        if (component) {
+            if (component.init) await component.init();
+            else if (component.render) await component.render();
         }
     }
 };
 
-// Auto-initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => AppInit.init());
 } else {
     AppInit.init();
 }
 
-// Export globale
 window.AppInit = AppInit;
-console.log('✅ AppInit module loaded (with SettingsManager integration)');

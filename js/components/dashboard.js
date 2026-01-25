@@ -1,42 +1,54 @@
 /**
- * Dashboard Component - ULTRA PREMIUM (Fixed & Feature Rich)
- * Versione con KPI stile Analytics e Focus Obiettivi interattivo.
+ * Dashboard Component - ULTRA PREMIUM RESTORED
+ * Grafica originale completa + Aggiornamento Real-Time dei Moduli.
  */
 const Dashboard = {
     isInitialized: false,
     updateInProgress: false,
 
     async init() {
-        if (this._initializedListeners) return;
-        this.setupEventListeners();
-        this._initializedListeners = true;
+        if (this._listenersReady) return;
+        
+        // Se i dati cambiano (es. attivi un modulo), ridisegna tutto
+        EventBus.on('dataChanged', () => {
+            if (!document.getElementById('dashboardContent').classList.contains('hidden')) {
+                this.render(); 
+            }
+        });
+        
+        this._listenersReady = true;
         await this.render();
     },
 
-    setupEventListeners() {
-        const handleUpdate = async () => {
-            const container = document.getElementById('dashboardContent');
-            if (container && !container.classList.contains('hidden') && this.isInitialized) {
-                await this.updateValues();
-            }
-        };
-        EventBus.on('dataChanged', handleUpdate);
-        EventBus.on('taskUpdated', handleUpdate);
+    // Funzione Helper: Recupera lo stato PIÙ AGGIORNATO (Memoria o Cache)
+    getCurrentStates() {
+        if (window.ModulesHub && ModulesHub.states) {
+            return ModulesHub.states;
+        }
+        const cached = localStorage.getItem('myfinance_module_states');
+        if (cached) return JSON.parse(cached);
+        
+        return { expenses_enabled: false, goals_enabled: false };
     },
 
     async render() {
         const container = document.getElementById('dashboardContent');
         if (!container) return;
 
-        if (!this.isInitialized || container.querySelector('h2') === null) {
-            this.renderStructure(container);
-            this.isInitialized = true;
-        }
+        // 1. Ridisegna la struttura (Layout a colonne dinamico)
+        this.renderStructure(container);
+        this.isInitialized = true;
 
+        // 2. Aggiorna i valori numerici
         await this.updateValues();
     },
 
     renderStructure(container) {
+        const { expenses_enabled, goals_enabled } = this.getCurrentStates();
+
+        // Se expenses è OFF, la colonna principale si allarga
+        const mainColSpan = expenses_enabled ? 'lg:col-span-8' : 'lg:col-span-12';
+
         container.innerHTML = `
             <div class="mb-10 animate-fadeIn">
                 <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -44,7 +56,7 @@ const Dashboard = {
                         <h2 class="text-5xl font-black tracking-tighter bg-gradient-to-r from-white via-indigo-200 to-slate-400 bg-clip-text text-transparent italic">Overview</h2>
                         <p class="text-slate-400 mt-2 font-medium flex items-center gap-2">
                             <span class="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
-                            Gestione centralizzata attività e finanze.
+                            Il tuo centro di controllo operativo.
                         </p>
                     </div>
                     <div class="bg-slate-800/40 backdrop-blur-xl px-5 py-2.5 rounded-2xl border border-slate-700/50 shadow-2xl">
@@ -54,20 +66,23 @@ const Dashboard = {
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                ${this.renderKPICard('Task Attivi', 'kpi-tasks-val', '📅', 'from-blue-600 to-indigo-700', 'Pianificati', 
+                
+                ${this.renderKPICard('Task Attivi', 'kpi-tasks-val', '📅', 'from-blue-600 to-indigo-700', 'Pianificati Oggi', 
                     `showSection('agenda'); setTimeout(() => Agenda.showAddModal(), 100)`)}
                 
-                ${this.renderKPICard('Obiettivi', 'kpi-goals-val', '🎯', 'from-purple-600 to-pink-700', 'Traguardi', 
-                    `showSection('goals'); setTimeout(() => Goals.showAddModal(), 100)`)}
+                ${goals_enabled ? this.renderKPICard('Obiettivi', 'kpi-goals-val', '🎯', 'from-purple-600 to-pink-700', 'Focus Traguardi', 
+                    `showSection('goals'); setTimeout(() => Goals.showAddModal(), 100)`) : ''}
                 
-                ${this.renderKPICard('Spese Mese', 'kpi-expenses-val', '💰', 'from-rose-600 to-pink-700', 'Uscite correnti', 
-                    `showSection('expenses'); setTimeout(() => ExpenseModals.showAdd(), 100)`)}
+                ${expenses_enabled ? this.renderKPICard('Spese Mese', 'kpi-expenses-val', '💰', 'from-rose-600 to-pink-700', 'Uscite Totali', 
+                    `showSection('expenses'); setTimeout(() => ExpenseModals.showAdd(), 100)`) : ''}
                 
                 ${this.renderKPICard('Completati', 'kpi-completed-val', '✅', 'from-emerald-600 to-teal-700', 'Attività concluse')}
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div class="lg:col-span-8 space-y-8">
+                
+                <div class="${mainColSpan} space-y-8">
+                    
                     <div class="bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-8 border border-slate-700/40 shadow-xl group">
                         <div class="flex items-center justify-between mb-8">
                             <div class="flex items-center gap-4">
@@ -81,37 +96,37 @@ const Dashboard = {
                         <div id="tasks-list-container" class="space-y-4"></div>
                     </div>
 
-                    <div class="bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-8 border border-slate-700/40 shadow-xl">
-                        <div class="flex items-center justify-between mb-8">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg">
-                                    <span class="text-2xl">🎯</span>
+                    ${goals_enabled ? `
+                        <div class="bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-8 border border-slate-700/40 shadow-xl animate-fadeIn">
+                            <div class="flex items-center justify-between mb-8">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg">
+                                        <span class="text-2xl">🎯</span>
+                                    </div>
+                                    <h3 class="text-2xl font-bold text-white tracking-tight">Focus Obiettivi</h3>
                                 </div>
-                                <h3 class="text-2xl font-bold text-white tracking-tight">Focus Obiettivi</h3>
                             </div>
+                            <div id="dashboard-goals-container" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
                         </div>
-                        <div id="dashboard-goals-container" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
-                    </div>
+                    ` : ''}
                 </div>
 
-                <div class="lg:col-span-4">
-                    <div class="bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-6 border border-slate-700/40 h-full">
-                        <h3 class="font-bold text-white mb-8 flex items-center gap-3 px-2">
-                            <span class="w-10 h-10 bg-rose-500/20 text-rose-400 rounded-xl flex items-center justify-center text-sm">💰</span>
-                            Ultime Uscite
-                        </h3>
-                        <div id="recent-expenses-container" class="space-y-3"></div>
+                ${expenses_enabled ? `
+                    <div class="lg:col-span-4 animate-fadeIn">
+                        <div class="bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-6 border border-slate-700/40 h-full">
+                            <h3 class="font-bold text-white mb-8 flex items-center gap-3 px-2">
+                                <span class="w-10 h-10 bg-rose-500/20 text-rose-400 rounded-xl flex items-center justify-center text-sm">💰</span>
+                                Ultime Uscite
+                            </h3>
+                            <div id="recent-expenses-container" class="space-y-3"></div>
+                        </div>
                     </div>
-                </div>
+                ` : ''}
             </div>
         `;
     },
 
-    /**
-     * KPI Card con Pulsante Integrato
-     */
     renderKPICard(title, id, icon, gradient, subtext, actionClick = null) {
-        // Genera il pulsante solo se è definita un'azione
         const actionHtml = actionClick ? `
             <button onclick="${actionClick}" 
                     class="group/btn relative w-12 h-12 bg-white/20 hover:bg-white text-white hover:text-indigo-900 backdrop-blur-md rounded-2xl border border-white/20 transition-all duration-300 hover:scale-110 active:scale-90 shadow-xl flex items-center justify-center">
@@ -120,7 +135,7 @@ const Dashboard = {
         ` : '';
 
         return `
-            <div class="relative overflow-hidden bg-gradient-to-br ${gradient} rounded-[2.5rem] shadow-2xl p-7 text-white group transition-all duration-500">
+            <div class="relative overflow-hidden bg-gradient-to-br ${gradient} rounded-[2.5rem] shadow-2xl p-7 text-white group transition-all duration-500 animate-fadeIn">
                 <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-xl group-hover:bg-white/20 transition-all"></div>
                 
                 <div class="relative flex justify-between items-start mb-1">
@@ -145,91 +160,53 @@ const Dashboard = {
         this.updateInProgress = true;
 
         try {
-            if (!window.CachedCRUD) await new Promise(r => setTimeout(r, 400));
+            const { expenses_enabled, goals_enabled } = this.getCurrentStates();
 
-            const [tasks, expenses, goals] = await Promise.all([
-                CachedCRUD.getTasks().catch(() => []),
-                CachedCRUD.getExpenses().catch(() => []),
-                CachedCRUD.getGoals().catch(() => [])
-            ]);
+            // 1. Task (Sempre presenti)
+            const tasks = await CachedCRUD.getTasks().catch(() => []);
+            
+            // Calcolo conteggi
+            const todayStr = new Date().toDateString();
+            const tomorrowStr = new Date(new Date().setDate(new Date().getDate() + 1)).toDateString();
+            const activeTasks = tasks.filter(t => !t.completed);
+            const todayCount = activeTasks.filter(t => new Date(t.date).toDateString() === todayStr).length;
+            const tomorrowCount = activeTasks.filter(t => new Date(t.date).toDateString() === tomorrowStr).length;
 
-            const stats = this.calculateStats(tasks, expenses, goals);
-
+            this.setSafeText('kpi-tasks-val', todayCount);
+            this.setSafeText('kpi-completed-val', tasks.filter(t => t.completed).length);
+            this.setSafeText('active-tasks-badge', `${todayCount} OGGI, ${tomorrowCount} DOMANI`);
             this.setSafeText('header-date', Helpers.formatDate(new Date(), 'full'));
-            this.setSafeText('kpi-tasks-val', stats.todayTasks);
-            this.setSafeText('kpi-goals-val', stats.activeGoals);
-            this.setSafeText('kpi-expenses-val', Helpers.formatCurrency(stats.monthExpenses));
-            this.setSafeText('kpi-completed-val', stats.completedTasks);
-            this.setSafeText('active-tasks-badge', `${stats.todayTasks} OGGI, ${stats.tomorrowTasks} DOMANI`);
 
-            this.updateTasksList(tasks);
-            this.updateRecentExpenses(expenses);
-            this.updateGoalsList(goals);
+            this.updateTasksList(tasks); // Qui usiamo la versione "Ricca"
+
+            // 2. Spese
+            if (expenses_enabled) {
+                const expenses = await CachedCRUD.getExpenses().catch(() => []);
+                const total = expenses.filter(e => e.type !== 'income').reduce((sum, e) => sum + Math.abs(e.amount), 0);
+                this.setSafeText('kpi-expenses-val', Helpers.formatCurrency(total));
+                this.updateRecentExpenses(expenses);
+            }
+
+            // 3. Goals
+            if (goals_enabled) {
+                const goals = await CachedCRUD.getGoals().catch(() => []);
+                this.setSafeText('kpi-goals-val', goals.filter(g => !g.completed).length);
+                this.updateGoalsList(goals);
+            }
 
         } catch (e) {
-            console.error('❌ Update Failed:', e);
+            console.error('Dashboard Update Failed:', e);
         } finally {
             this.updateInProgress = false;
         }
     },
 
-    updateGoalsList(goals) {
-        const container = document.getElementById('dashboard-goals-container');
-        if (!container) return;
-
-        const activeGoals = goals.filter(g => !g.completed).slice(0, 4);
-
-        if (activeGoals.length === 0) {
-            container.innerHTML = `<div class="col-span-full p-12 text-center border-2 border-dashed border-slate-700 rounded-3xl text-slate-500 font-medium italic">Pianifica nuovi traguardi 🎯</div>`;
-            return;
-        }
-
-        container.innerHTML = activeGoals.map(g => {
-            const total = g.subtasks?.length || 0;
-            const completed = g.subtasks?.filter(st => st.completed).length || 0;
-            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-            const daysUntil = Math.ceil((new Date(g.targetDate) - new Date()) / (1000 * 60 * 60 * 24));
-            const isOverdue = daysUntil < 0;
-
-            return `
-                <div class="bg-slate-800/40 border-2 border-slate-700/50 rounded-[2rem] p-6 hover:border-purple-500/30 transition-all group/goal flex flex-col h-full">
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="min-w-0">
-                            <h4 class="font-bold text-white truncate text-xl tracking-tight group-hover/goal:text-purple-400 transition-colors">${Helpers.escapeHtml(g.title)}</h4>
-                            <p class="text-[10px] font-black uppercase tracking-[0.1em] ${isOverdue ? 'text-rose-500 animate-pulse' : 'text-slate-500'} mt-1">
-                                ${isOverdue ? '⚠️ Scaduto' : `⌛ ${daysUntil} giorni rimanenti`}
-                            </p>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-2xl font-black text-white tracking-tighter">${percentage}%</span>
-                        </div>
-                    </div>
-
-                    <div class="h-2 w-full bg-slate-900 rounded-full overflow-hidden mb-6 border border-white/5">
-                        <div class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-1000 shadow-[0_0_15px_rgba(168,85,247,0.4)]" style="width: ${percentage}%"></div>
-                    </div>
-
-                    <div class="space-y-2.5 flex-1">
-                        ${(g.subtasks || []).slice(0, 3).map((st, i) => `
-                            <div class="flex items-center gap-4 p-3 rounded-2xl bg-slate-900/40 border border-transparent hover:border-white/5 transition-all cursor-pointer group/step"
-                                 onclick="Dashboard.handleToggleGoalSubtask('${g.id}', ${i})">
-                                <div class="w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 transition-all 
-                                     ${st.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600 group-hover/step:border-purple-500'}">
-                                    ${st.completed ? '<span class="text-xs">✓</span>' : ''}
-                                </div>
-                                <span class="text-sm font-medium truncate ${st.completed ? 'text-slate-500 line-through' : 'text-slate-200'}">${Helpers.escapeHtml(st.title)}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>`;
-        }).join('');
+    setSafeText(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
     },
 
-    renderActionBtn(icon, text, color, onclick) {
-        const colors = { blue: 'from-blue-500 to-indigo-600', purple: 'from-purple-500 to-pink-600', emerald: 'from-emerald-500 to-teal-600' };
-        return `<button onclick="${onclick}" class="w-full flex items-center gap-4 p-4 bg-gradient-to-r ${colors[color]} rounded-2xl hover:scale-[1.02] active:scale-95 transition-all shadow-xl border border-white/10 group"><span class="text-2xl">${icon}</span><span class="text-white font-bold tracking-tight">${text}</span></button>`;
-    },
-
+    // RIPRISTINATA LA LISTA TASK "PREMIUM" (Con sezioni Oggi, Domani, In Arrivo)
     updateTasksList(tasks) {
         const container = document.getElementById('tasks-list-container');
         if (!container) return;
@@ -239,10 +216,11 @@ const Dashboard = {
         const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
         const tomorrowStr = tomorrow.toDateString();
 
-        const todayTasks = tasks.filter(t => !t.completed && new Date(t.date).toDateString() === todayStr);
-        const tomorrowTasks = tasks.filter(t => !t.completed && new Date(t.date).toDateString() === tomorrowStr);
-        const upcomingTasks = tasks
-            .filter(t => !t.completed && new Date(t.date) > tomorrow)
+        const activeTasks = tasks.filter(t => !t.completed);
+        const todayTasks = activeTasks.filter(t => new Date(t.date).toDateString() === todayStr);
+        const tomorrowTasks = activeTasks.filter(t => new Date(t.date).toDateString() === tomorrowStr);
+        const upcomingTasks = activeTasks
+            .filter(t => new Date(t.date) > tomorrow)
             .sort((a, b) => new Date(a.date) - new Date(b.date))
             .slice(0, 3);
 
@@ -262,28 +240,16 @@ const Dashboard = {
         }
         if (upcomingTasks.length > 0) {
             html += `<div class="text-[10px] font-black uppercase text-amber-400 tracking-widest mt-8 mb-4 pl-2 opacity-60">In Arrivo</div>`;
-            html += upcomingTasks.map(t => {
-                const taskDate = new Date(t.date);
-                const diffDays = Math.ceil((taskDate - now) / (1000 * 60 * 60 * 24));
-                const label = diffDays === 2 ? "Dopodomani" : `Tra ${diffDays} giorni`;
-                return this.renderTaskRow(t, label);
-            }).join('');
+            html += upcomingTasks.map(t => this.renderTaskRow(t)).join('');
         }
         container.innerHTML = html;
     },
 
-    renderTaskRow(t, customDateLabel = null) {
-        const isOverdue = Helpers.isOverdue(t.date);
-        const descriptionHtml = t.description 
-            ? `<p class="text-xs text-slate-400 mt-1.5 line-clamp-2 leading-relaxed italic">${Helpers.escapeHtml(t.description)}</p>` 
-            : '';
-        const timeLabel = customDateLabel || Helpers.formatDate(t.date, 'time');
-
+    renderTaskRow(t) {
+        const timeLabel = Helpers.formatDate(t.date, 'time');
         return `
-            <div class="flex items-start gap-5 p-5 bg-slate-800/40 border border-slate-700/50 rounded-2xl hover:bg-slate-800/80 hover:border-indigo-500/30 transition-all cursor-default mb-3 group relative overflow-hidden">
-                <button onclick="Dashboard.handleToggleTask('${t.id}')" 
-                        title="Completa task"
-                        class="mt-1 w-6 h-6 rounded-full border-2 border-slate-500 group-hover:border-indigo-400 flex items-center justify-center transition-colors shrink-0">
+            <div class="flex items-start gap-5 p-5 bg-slate-800/40 border border-slate-700/50 rounded-2xl hover:bg-slate-800/80 hover:border-indigo-500/30 transition-all cursor-default mb-3 group">
+                <button onclick="Dashboard.handleToggleTask('${t.id}')" class="mt-1 w-6 h-6 rounded-full border-2 border-slate-500 group-hover:border-indigo-400 flex items-center justify-center transition-colors shrink-0">
                     <div class="w-2.5 h-2.5 bg-indigo-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </button>
                 <div class="flex-1 min-w-0">
@@ -291,16 +257,10 @@ const Dashboard = {
                         <p class="font-bold text-slate-200 group-hover:text-white transition-colors truncate text-lg tracking-tight">${Helpers.escapeHtml(t.title)}</p>
                         <span class="text-[10px] font-black text-slate-500 uppercase bg-slate-900/50 px-2 py-1 rounded-md border border-slate-700/50 whitespace-nowrap">${timeLabel}</span>
                     </div>
-                    ${descriptionHtml}
                 </div>
-                <button onclick="Dashboard.handleEditTask('${t.id}')" 
-                        title="Modifica in Agenda"
-                        class="p-2 text-slate-500 hover:text-white hover:bg-slate-700 rounded-xl transition-all opacity-0 group-hover:opacity-100 shrink-0 shadow-lg">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-                    </svg>
+                <button onclick="showSection('agenda')" class="p-2 text-slate-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all">
+                    ✏️
                 </button>
-                ${isOverdue ? `<div class="absolute top-0 right-0 w-1 h-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]"></div>` : ''}
             </div>`;
     },
 
@@ -318,43 +278,33 @@ const Dashboard = {
             </div>`).join('') || '<p class="text-slate-600 text-center py-4">Nessuna spesa recente</p>';
     },
 
-    setSafeText(id, text) {
-        const el = document.getElementById(id);
-        if (el) el.textContent = text;
-    },
-
-    calculateStats(tasks, expenses, goals) {
-        const now = new Date();
-        const todayStr = now.toDateString();
-        const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
-        const { startDate, endDate } = Helpers.getCustomMonthRange(now);
-        return {
-            todayTasks: tasks.filter(t => !t.completed && new Date(t.date).toDateString() === todayStr).length,
-            tomorrowTasks: tasks.filter(t => !t.completed && new Date(t.date).toDateString() === tomorrow.toDateString()).length,
-            completedTasks: tasks.filter(t => t.completed).length,
-            activeGoals: goals.filter(g => !g.completed).length,
-            monthExpenses: expenses.filter(e => e.type !== 'income' && (!e.tags || !e.tags.includes('Investimenti')) && (new Date(e.date.split('T')[0] + 'T12:00:00') >= startDate && new Date(e.date.split('T')[0] + 'T12:00:00') <= endDate)).reduce((sum, e) => sum + Math.abs(parseFloat(e.amount)), 0)
-        };
+    updateGoalsList(goals) {
+        const container = document.getElementById('dashboard-goals-container');
+        if (!container) return;
+        const active = goals.filter(g => !g.completed).slice(0, 2);
+        
+        container.innerHTML = active.map(g => {
+            const total = g.subtasks?.length || 0;
+            const completed = g.subtasks?.filter(s => s.completed).length || 0;
+            const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+            
+            return `
+            <div class="p-6 bg-slate-800/40 border border-slate-700/50 rounded-[2rem] hover:border-purple-500/30 transition-all group animate-fadeIn">
+                <div class="flex justify-between items-start mb-4">
+                    <h4 class="font-bold text-white text-xl tracking-tight">${Helpers.escapeHtml(g.title)}</h4>
+                    <span class="text-2xl font-black text-purple-400">${percent}%</span>
+                </div>
+                <div class="h-2 w-full bg-slate-900 rounded-full overflow-hidden mb-4">
+                    <div class="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-1000" style="width: ${percent}%"></div>
+                </div>
+                <button onclick="showSection('goals')" class="text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Vedi Dettagli →</button>
+            </div>`;
+        }).join('') || `<div class="col-span-full p-12 text-center border-2 border-dashed border-slate-700 rounded-3xl text-slate-500 font-medium italic">Pianifica nuovi traguardi 🎯</div>`;
     },
 
     async handleToggleTask(taskId) {
-        try {
-            await CachedCRUD.toggleTaskCompleted(taskId);
-            Helpers.showToast('Task aggiornato! 🎉', 'success');
-        } catch (e) { console.error(e); }
-    },
-
-    async handleToggleGoalSubtask(goalId, index) {
-        try {
-            await CachedCRUD.toggleGoalSubtask(goalId, index);
-            await this.updateValues();
-            Helpers.showToast('Step aggiornato! 🚀', 'success');
-        } catch (e) { console.error(e); }
-    },
-
-    async handleEditTask(taskId) {
-        showSection('agenda');
-        setTimeout(() => { if (window.Agenda) window.Agenda.editTask(taskId); }, 300);
+        await CachedCRUD.toggleTaskCompleted(taskId);
+        // EventBus attiverà il refresh automatico
     }
 };
 

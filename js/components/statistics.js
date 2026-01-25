@@ -7,7 +7,7 @@ const Statistics = {
     currentYear: new Date().getFullYear(),
     viewMode: 'month', // 'month', 'year', 'all'
     expenses: [],
-
+    tooltipTimeout: null,
     safeGetSetting(key, fallback) {
         try {
             if (window.SettingsManager) return window.SettingsManager.get(key) ?? fallback;
@@ -636,90 +636,80 @@ const Statistics = {
     },
 
     showHeatmapTooltip(event, dateStr, total) {
+        if (this.tooltipTimeout) clearTimeout(this.tooltipTimeout);
+
         if (total === 0) {
             this.hideHeatmapTooltip();
             return;
         }
 
-        const tooltip = document.getElementById('hmTooltip');
+        let tooltip = document.getElementById('hmTooltip');
         const listContainer = document.getElementById('hmList');
         
+        // --- FIX CRUCIALE: Sposta nel body per uscire dal contenitore con overflow ---
+        if (tooltip && tooltip.parentElement !== document.body) {
+            tooltip.parentElement.removeChild(tooltip);
+            document.body.appendChild(tooltip);
+        }
+
         if (!tooltip || !listContainer) return;
 
-        // Aggiorna solo se cambia la data
+        // Popola dati solo se cambia la data
         if (tooltip.dataset.activeDate !== dateStr) {
+            const dayExpenses = this.getNormalExpenses(this.expenses).filter(e => e.date.startsWith(dateStr) && (!e.type || e.type === 'expense'));
             
-            // 1. Trova le spese
-            const dayExpenses = this.getNormalExpenses(this.expenses).filter(e => 
-                e.date.startsWith(dateStr) && (!e.type || e.type === 'expense')
-            );
-
-            // 2. Aggiorna Header (Data e Totale sulla stessa riga, formattazione compatta)
-            const dateObj = new Date(dateStr);
-            const dateFormatted = dateObj.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }); // Es: "12 Gen"
-            
-            document.getElementById('hmDate').innerHTML = `<span class="capitalize">${dateFormatted}</span>`;
+            document.getElementById('hmDate').innerHTML = `<span class="capitalize">${new Date(dateStr).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}</span>`;
             document.getElementById('hmTotal').textContent = Helpers.formatCurrency(total);
             
-            // 3. Genera Lista (Blindata contro "undefined")
             listContainer.innerHTML = dayExpenses.map(e => {
-                let cat = null;
-                if (window.Categories && typeof window.Categories.getAll === 'function') {
-                    cat = window.Categories.getAll().find(c => c.id === e.category);
-                }
-                const icon = cat ? cat.icon : '💸';
-                
-                // --- FIX DEFINITIVO NOMI ---
-                // Cerca un campo valido
-                let rawName = e.description || e.title || e.name || e.note || e.notes || 'Spesa';
-                // Se è letteralmente la stringa "undefined" o è vuota, usa fallback
-                let finalName = (String(rawName).trim() === 'undefined' || String(rawName).trim() === '') 
-                                ? 'Spesa generica' 
-                                : rawName;
-
-                return `
-                    <div class="flex items-center justify-between gap-3 text-sm border-b border-slate-700/50 last:border-0 pb-2 last:pb-0">
-                        <div class="flex items-center gap-2 overflow-hidden">
-                            <span class="text-lg opacity-80 shrink-0">${icon}</span>
-                            <span class="truncate text-slate-200 font-medium">${finalName}</span>
-                        </div>
-                        <span class="font-bold text-white whitespace-nowrap">${Helpers.formatCurrency(e.amount).split(',')[0]}</span>
-                    </div>
-                `;
+                const cat = window.Categories?.getAll().find(c => c.id === e.category);
+                const name = (e.description || 'Spesa').trim() === 'undefined' ? 'Spesa' : e.description;
+                return `<div class="flex justify-between text-sm border-b border-slate-700/50 pb-2 mb-2 last:border-0"><div class="flex items-center gap-2"><span class="text-lg">${cat?.icon || '💸'}</span><span class="truncate text-slate-200">${name}</span></div><span class="font-bold text-white">${Helpers.formatCurrency(e.amount).split(',')[0]}</span></div>`;
             }).join('');
             
             tooltip.dataset.activeDate = dateStr;
-            tooltip.classList.remove('hidden');
         }
 
-        // 4. Posizionamento (Ottimizzato per non coprire il mouse)
+        tooltip.classList.remove('hidden');
+        tooltip.style.opacity = '1';
+
+        // --- CALCOLO POSIZIONE (Sopra/Sotto) ---
         const x = event.clientX;
         const y = event.clientY;
-        
-        // Calcola dimensioni tooltip (stimata o reale se visibile)
         const rect = tooltip.getBoundingClientRect();
-        const w = rect.width || 240;
-        const h = rect.height || 200;
+        const winHeight = window.innerHeight;
+        const winWidth = window.innerWidth;
 
-        // Default: in basso a destra del mouse
-        let left = x + 15; 
-        let top = y + 15;
+        let left = x + 20;
+        let top = y + 20;
 
-        // Se esce a destra, sposta a sinistra
-        if (left + w > window.innerWidth) left = x - w - 15;
-        // Se esce in basso, sposta in alto
-        if (top + h > window.innerHeight) top = y - h - 15;
+        // Se esce a destra -> sposta a sinistra
+        if (left + rect.width > winWidth) {
+            left = x - rect.width - 20;
+        }
+
+        // Se è troppo in basso (ultimi 300px dello schermo) -> sposta SOPRA
+        if (y > winHeight - 300) {
+            top = y - rect.height - 20;
+        }
 
         tooltip.style.left = `${left}px`;
         tooltip.style.top = `${top}px`;
-        tooltip.style.opacity = '1';
     },
 
+    // 3. Sostituisci interamente la funzione hideHeatmapTooltip con questa:
     hideHeatmapTooltip() {
         const tooltip = document.getElementById('hmTooltip');
         if (tooltip) {
-            tooltip.classList.add('hidden');
-            tooltip.dataset.activeDate = ''; // Reset
+            this.tooltipTimeout = setTimeout(() => {
+                tooltip.style.opacity = '0';
+                setTimeout(() => {
+                    if (tooltip.style.opacity === '0') {
+                        tooltip.classList.add('hidden');
+                        tooltip.dataset.activeDate = '';
+                    }
+                }, 150);
+            }, 50);
         }
     },
 
