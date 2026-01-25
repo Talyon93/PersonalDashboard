@@ -1,171 +1,177 @@
 /**
- * NAVIGATION.JS - LIVE UPDATE READY
- * Include una funzione pubblica per aggiornare la sidebar istantaneamente.
+ * NAVIGATION.JS - CLEAN & DYNAMIC
+ * Usa direttamente le icone definite nei moduli registrati. Niente duplicati.
  */
 
-const STORAGE_KEY = 'myfinance_module_states';
+// 1. Render Sidebar
+window.renderSidebar = function() {
+    const navContainer = document.querySelector('#sidebar nav');
+    if (!navContainer || !window.ModuleManager) return;
 
-// 1. Gestione UI (Mostra/Nascondi menu)
-function applyUI(states) {
-    if (!states) return;
+    navContainer.innerHTML = '';
 
-    const map = {
-        'group-finance': states.expenses_enabled, 
-        'group-goals': states.goals_enabled
-    };
+    // Recupera moduli attivi dal sistema
+    const modules = ModuleManager.getActiveModules();
+    
+    // Filtra per sezioni
+    const mainModules = modules.filter(m => m.category !== 'settings' && m.id !== 'modules');
+    const settingsModules = modules.filter(m => m.category === 'settings');
 
-    let updated = false;
-    for (const [id, active] of Object.entries(map)) {
-        const el = document.getElementById(id);
-        if (el) {
-            if (active) {
-                el.classList.remove('hidden');
-                el.style.display = ''; 
-                // Animazione opzionale
-                el.classList.add('animate-fadeIn'); 
-            } else {
-                el.classList.add('hidden');
-                el.classList.remove('animate-fadeIn');
-            }
-            updated = true;
-        }
-    }
-    return updated;
-}
+    let html = `<div class="flex flex-col h-full">`;
 
-// 2. Riparazione Profilo
-async function repairProfile(user) {
-    console.log('🔧 Navigation: Creazione riga in user_modules...');
-    const { data, error } = await supabaseClient
-        .from('user_modules')
-        .upsert({
-            user_id: user.id,
-            updated_at: new Date(),
-            expenses_enabled: true,
-            goals_enabled: true
-        })
-        .select()
-        .single();
+    // --- 1. MODULI PRINCIPALI (Scrollable) ---
+    html += `<div class="flex-1 space-y-2 py-4 overflow-y-auto no-scrollbar">`;
+    mainModules.forEach(mod => {
+        html += renderLink(mod);
+    });
+    html += `</div>`;
 
-    if (error) {
-        console.error('❌ Errore riparazione DB:', error);
-        return null;
-    }
-    return data;
-}
+    // --- 2. ZONA INFERIORE (Aggiungi Moduli + Settings + Logout) ---
+    html += `<div class="mt-auto pt-4 border-t border-slate-800/50 space-y-2">`;
 
-// 3. Fetch dal Database
-async function fetchAndApply() {
-    if (!window.supabaseClient) return false;
-
-    try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) return false;
-
-        let { data, error } = await supabaseClient
-            .from('user_modules')
-            .select('expenses_enabled, goals_enabled')
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-        if (!data || error) {
-            data = await repairProfile(user);
-        }
-
-        if (data) {
-            applyUI(data);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-            if (window.ModulesHub) ModulesHub.states = data;
-            return true;
-        }
-    } catch (e) { console.error('Errore Fetch Navigation:', e); }
-    return false;
-}
-
-// 4. Navigazione Principale
-window.showSection = async function(sectionName) {
-    const cached = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (cached) applyUI(cached);
-    fetchAndApply(); // Background check
-
-    let states = cached;
-    if (window.ModulesHub && ModulesHub.states) states = ModulesHub.states;
-    if (!states) states = { expenses_enabled: true, goals_enabled: true }; 
-
-    // Security Check
-    if ((sectionName === 'expenses' || sectionName === 'statistics') && !states.expenses_enabled) {
-        window.triggerModuleUpsell('Finanza');
-        return;
-    }
-    if (sectionName === 'goals' && !states.goals_enabled) {
-        window.triggerModuleUpsell('Obiettivi');
-        return;
+    // A. Bottone "Aggiungi Moduli"
+    // Cerchiamo il modulo registrato
+    const modulesMod = modules.find(m => m.id === 'modules');
+    if (modulesMod) {
+        html += renderLink(modulesMod);
+    } else {
+        // Fallback di sicurezza (se modules.js non fosse caricato)
+        const isActive = window.currentSection === 'modules';
+        html += `
+            <div class="mb-3 px-2">
+                <a href="#" onclick="handleNavClick(event, 'modules')"
+                   class="flex items-center px-4 py-3 rounded-xl border border-dashed border-slate-700 hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all group ${isActive ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-300' : 'text-slate-400'}">
+                    <span class="mr-3 text-lg group-hover:text-indigo-400 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z"></path></svg>
+                    </span>
+                    <span class="font-bold text-xs uppercase tracking-wider group-hover:text-indigo-300 transition-colors">Aggiungi Moduli</span>
+                </a>
+            </div>
+        `;
     }
 
-    document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
-    const target = document.getElementById(sectionName + 'Content');
-    if (target) target.classList.remove('hidden');
-
-    // Active State
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('bg-indigo-600/10', 'border-indigo-500/20', 'text-indigo-100', 'text-indigo-300', 'bg-slate-800/30');
-        link.classList.add('text-slate-400');
-        
-        if (link.dataset.section === sectionName) {
-             link.classList.remove('text-slate-400');
-             if (sectionName === 'statistics') {
-                 link.classList.add('text-indigo-300', 'bg-slate-800/30');
-             } else {
-                 link.classList.add('bg-indigo-600/10', 'border', 'border-indigo-500/20', 'text-indigo-100');
-             }
-        }
+    // B. Impostazioni
+    settingsModules.forEach(mod => {
+        html += renderLink(mod);
     });
 
-    // Lazy Load
-    const components = {
-        'dashboard': window.Dashboard,
-        'expenses': window.Expenses,
-        'statistics': window.Statistics,
-        'agenda': window.Agenda,
-        'goals': window.Goals,
-        'settings': window.Settings,
-        'modules': window.ModulesHub
-    };
+    // C. Logout
+    html += `
+        <a href="#" onclick="supabaseClient.auth.signOut().then(()=>window.location.reload())" 
+           class="nav-link flex items-center px-4 py-3 rounded-xl border border-transparent text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200 group">
+            <span class="mr-3 text-lg group-hover:text-red-400 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+            </span>
+            <span class="font-medium text-sm">Esci</span>
+        </a>
+    `;
+    
+    html += `</div></div>`;
+    navContainer.innerHTML = html;
+};
 
-    const component = components[sectionName];
-    if (component) {
-        if (target && target.innerHTML.trim() === '') {
-             target.innerHTML = `<div class="flex justify-center py-20 opacity-50"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div></div>`;
+// Helper: Genera Link
+function renderLink(mod) {
+    const isActive = window.currentSection === mod.id;
+    const hasSubmenu = mod.subItems && mod.subItems.length > 0;
+    const isSubActive = hasSubmenu && mod.subItems.some(sub => sub.section === window.currentSection);
+    const isOpen = isActive || isSubActive;
+
+    const activeClass = 'bg-indigo-600/10 border-indigo-500/20 text-indigo-100 shadow-[0_0_15px_rgba(79,70,229,0.1)]';
+    const inactiveClass = 'text-slate-400 border-transparent hover:text-white hover:bg-slate-800/50';
+    
+    // USA L'ICONA REGISTRATA (con fallback generico se manca)
+    let icon = mod.icon || '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>';
+
+    let html = `
+        <div class="mb-1">
+            <a href="#" 
+               onclick="handleNavClick(event, '${mod.id}')"
+               class="nav-link flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 ${isActive ? activeClass : inactiveClass}">
+                
+                <div class="flex items-center">
+                    <span class="mr-3 text-lg ${isActive ? 'text-indigo-400' : 'text-slate-500'}">${icon}</span>
+                    <span class="font-medium text-sm tracking-wide">${mod.name}</span>
+                </div>
+
+                ${hasSubmenu ? `
+                    <svg class="w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180 text-indigo-400' : 'text-slate-600'}" 
+                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                ` : (isActive ? '<div class="w-1.5 h-1.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]"></div>' : '')}
+            </a>
+    `;
+
+    if (hasSubmenu && isOpen) {
+        html += `<div class="mt-1 space-y-1 animate-slideDown overflow-hidden">`;
+        mod.subItems.forEach(sub => {
+            const subActive = window.currentSection === sub.section;
+            const subClassActive = 'text-indigo-300 bg-slate-800/30 font-semibold';
+            const subClassInactive = 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/20';
+
+            html += `
+                <a href="#" 
+                   onclick="handleNavClick(event, '${sub.section}')"
+                   class="flex items-center pl-12 pr-4 py-2 text-xs rounded-lg transition-colors ${subActive ? subClassActive : subClassInactive}">
+                    ${subActive ? '● ' : ''} ${sub.label}
+                </a>
+            `;
+        });
+        html += `</div>`;
+    }
+
+    html += `</div>`;
+    return html;
+}
+
+window.handleNavClick = function(e, sectionId) {
+    e.preventDefault();
+    if (window.showSection) window.showSection(sectionId);
+};
+
+window.showSection = async function(sectionId) {
+    window.currentSection = sectionId;
+    window.renderSidebar();
+
+    document.querySelectorAll('.content-section').forEach(el => el.classList.add('hidden'));
+    
+    let target = document.getElementById(sectionId + 'Content');
+    if (!target) {
+        const main = document.querySelector('main > div') || document.body;
+        target = document.createElement('div');
+        target.id = sectionId + 'Content';
+        target.className = 'content-section hidden animate-fadeIn';
+        const dash = document.getElementById('dashboardContent');
+        if(dash && dash.parentNode) dash.parentNode.appendChild(target);
+        else main.appendChild(target);
+    }
+    
+    target.classList.remove('hidden');
+
+    // Cerca il modulo nel Manager (metodo robusto)
+    let mod = null;
+    if (window.ModuleManager && window.ModuleManager._modules) {
+        if (window.ModuleManager._modules.has(sectionId)) {
+            mod = window.ModuleManager._modules.get(sectionId);
+        } else {
+            // Cerca nei sottomenu
+            for (const [key, m] of window.ModuleManager._modules) {
+                if (m.subItems && m.subItems.some(s => s.section === sectionId)) {
+                    mod = m;
+                    break;
+                }
+            }
         }
+    }
+
+    if (mod && mod.render) {
         try {
-            if (component.init) await component.init();
-            else if (component.render) await component.render();
-        } catch (e) { console.error(e); }
+            await mod.render(target);
+        } catch (e) {
+            console.error(`Errore render ${sectionId}:`, e);
+        }
+    } else {
+        console.warn(`Modulo '${sectionId}' non trovato.`);
     }
 };
-
-window.triggerModuleUpsell = function(name) {
-    if (window.Helpers) Helpers.showToast(`🔒 Modulo ${name} non attivo.`, "info");
-    window.showSection('modules');
-};
-
-// === NUOVA FUNZIONE PER AGGIORNAMENTO ISTANTANEO ===
-// Questa viene chiamata da modules.js quando clicchi i bottoni
-window.refreshSidebar = function(newStates) {
-    console.log('⚡ Refresh Sidebar Live:', newStates);
-    applyUI(newStates);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newStates));
-};
-
-// Avvio
-document.addEventListener('DOMContentLoaded', () => {
-    const cached = localStorage.getItem(STORAGE_KEY);
-    if (cached) applyUI(JSON.parse(cached));
-    
-    let tentativi = 0;
-    const intv = setInterval(async () => {
-        tentativi++;
-        const ok = await fetchAndApply();
-        if (ok || tentativi > 5) clearInterval(intv);
-    }, 1000);
-});

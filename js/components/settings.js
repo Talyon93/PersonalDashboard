@@ -93,7 +93,6 @@ const Settings = {
 
         container.innerHTML = `
             <div class="p-6 animate-fadeIn">
-                <!-- Header -->
                 <div class="mb-8">
                     <h2 class="text-4xl font-black bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-2">
                         ⚙️ Impostazioni
@@ -101,10 +100,8 @@ const Settings = {
                     <p class="text-slate-400">Configura l'applicazione secondo le tue preferenze</p>
                 </div>
 
-                <!-- Settings Cards -->
                 <div class="space-y-6">
                     
-                    <!-- Budget Mensile -->
                     <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-6">
                         <div class="flex items-center gap-3 mb-4">
                             <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center text-2xl">
@@ -125,7 +122,6 @@ const Settings = {
                         </div>
                         <p class="text-xs text-slate-500 mt-3">💡 Il budget viene confrontato con le tue spese mensili</p>
                         
-                        <!-- Preview -->
                         <div class="mt-4 p-4 bg-slate-700/30 rounded-xl">
                             <div class="flex items-center justify-between text-sm">
                                 <span class="text-slate-400">Budget corrente:</span>
@@ -134,7 +130,6 @@ const Settings = {
                         </div>
                     </div>
 
-                    <!-- Primo Giorno del Mese -->
                     <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-6">
                         <div class="flex items-center gap-3 mb-4">
                             <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center text-2xl">
@@ -168,7 +163,6 @@ const Settings = {
                         <p class="text-xs text-slate-500 mt-3">💡 Esempio: se stipendio il 25, il "mese" va dal 25 al 24 del mese successivo</p>
                     </div>
 
-                    <!-- Visualizzazione -->
                     <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-6">
                         <div class="flex items-center gap-3 mb-4">
                             <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center text-2xl">
@@ -181,7 +175,6 @@ const Settings = {
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
-                            <!-- Currency -->
                             <div>
                                 <label class="block text-sm font-semibold text-slate-300 mb-2">Valuta</label>
                                 <select id="currencyInput" 
@@ -192,7 +185,6 @@ const Settings = {
                                 </select>
                             </div>
 
-                            <!-- Date Format -->
                             <div>
                                 <label class="block text-sm font-semibold text-slate-300 mb-2">Formato Data</label>
                                 <select id="dateFormatInput" 
@@ -205,7 +197,6 @@ const Settings = {
                         </div>
                     </div>
 
-                    <!-- Avanzate -->
                     <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-6">
                         <div class="flex items-center gap-3 mb-4">
                             <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center text-2xl">
@@ -217,7 +208,6 @@ const Settings = {
                             </div>
                         </div>
 
-                        <!-- Notifiche -->
                         <div class="space-y-3 mb-6">
                             <label class="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition cursor-pointer">
                                 <span class="text-white font-semibold">⚠️ Notifiche Task e Budget</span>
@@ -228,7 +218,6 @@ const Settings = {
                             <p class="text-xs text-slate-500 px-3">Abilita account e torna in linea di login</p>
                         </div>
 
-                        <!-- Account Info -->
                         <div class="p-4 bg-slate-700/30 rounded-xl border border-slate-600">
                             <p class="text-sm text-slate-400 mb-2">
                                 <span class="font-semibold text-white">Email:</span> ${userEmail}
@@ -237,7 +226,6 @@ const Settings = {
                         </div>
                     </div>
 
-                    <!-- Save Button -->
                     <div class="flex gap-4">
                         <button onclick="Settings.handleSaveSettings()" 
                                 class="flex-1 px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-xl hover:scale-105 transition-all shadow-2xl font-bold text-lg">
@@ -249,7 +237,6 @@ const Settings = {
                         </button>
                     </div>
 
-                    <!-- Danger Zone -->
                     <div class="bg-gradient-to-br from-red-900/20 to-red-800/20 rounded-2xl shadow-2xl border-2 border-red-500/30 p-6">
                         <div class="flex items-center gap-3 mb-4">
                             <div class="w-12 h-12 bg-red-500/20 border-2 border-red-500 rounded-xl flex items-center justify-center text-2xl">
@@ -420,4 +407,19 @@ const Settings = {
 
 // Export globale
 window.Settings = Settings;
-console.log('✅ Settings WOW module loaded');
+
+// ==========================================
+// REGISTRAZIONE MODULARE
+// ==========================================
+if (window.ModuleManager) {
+    ModuleManager.register({
+        id: 'settings',
+        name: 'Impostazioni',
+        icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>',
+        category: 'settings',
+        order: 99,
+        isCore: true, // Sempre attivo
+        init: () => Settings.init(),
+        render: () => Settings.render()
+    });
+}

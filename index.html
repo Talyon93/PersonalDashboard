@@ -21,6 +21,7 @@
     <script src="js/data-cache.js"></script>
     <script src="js/ftue.js"></script>
     
+    <script src="js/module-manager.js"></script>
     <script src="js/components/expenses/categories.js"></script>
     <script src="js/components/expenses/merchant-mappings.js"></script>
     <script src="js/components/expenses/expense-crud.js"></script>
@@ -65,72 +66,8 @@
 
             <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-hide">
                 
-                <div>
-                    <p class="px-4 text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">Principale</p>
-                    
-                    <a href="#" data-section="dashboard" class="nav-link flex items-center px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200">
-                        <svg class="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
-                        <span class="font-medium text-sm">Dashboard</span>
-                    </a>
-
-                    <a href="#" data-section="agenda" class="nav-link flex items-center px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200">
-                        <svg class="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                        <span class="font-medium text-sm">Agenda</span>
-                    </a>
-                </div>
-
-                <div id="group-finance" class="hidden pt-4 transition-all duration-300">
-                    <p class="px-4 text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">Finanza</p>
-                    
-                    <a href="#" data-section="expenses" class="nav-link relative z-10 flex items-center px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200">
-                        <svg class="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span class="font-medium text-sm">Spese & Budget</span>
-                    </a>
-
-                    <div class="relative flex items-center mt-1">
-                        <div class="absolute left-6 -top-4 bottom-1/2 w-4 border-l border-b border-slate-700/50 rounded-bl-lg pointer-events-none"></div>
-                        <a href="#" data-section="statistics" class="nav-link flex-1 flex items-center ml-10 px-3 py-2 rounded-lg text-slate-500 hover:text-indigo-300 hover:bg-slate-800/30 transition-all duration-200">
-                            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2-2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                            <span class="font-medium text-xs">Report & Analytics</span>
-                        </a>
-                    </div>
-                </div>
-
-                <div id="group-goals" class="hidden pt-4">
-                    <p class="px-4 text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">Crescita</p>
-                    <a href="#" data-section="goals" class="nav-link flex items-center px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200">
-                        <svg class="w-5 h-5 mr-3 text-amber-500/80" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                        <span class="font-medium text-sm">Obiettivi</span>
-                    </a>
-                </div>
-
             </nav>
 
-            <div class="p-4 border-t border-slate-800/50 bg-[#0B1120]">
-                <button onclick="window.showSection('modules')" class="w-full group relative flex flex-col items-center justify-center p-4 rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/60 transition-all duration-300">
-                    <div class="w-10 h-10 mb-2 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center group-hover:scale-110 group-hover:border-indigo-500 group-hover:text-indigo-400 transition-all">
-                        <svg class="w-5 h-5 text-slate-400 group-hover:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                    </div>
-                    <span class="text-xs font-bold text-slate-300 group-hover:text-white mb-0.5">Aggiungi Moduli</span>
-                    <span class="text-[10px] text-slate-500 text-center leading-tight">Personalizza la tua esperienza</span>
-                </button>
-                
-                <div class="mt-4 flex items-center justify-between px-2">
-                    <div class="flex items-center space-x-2">
-                         <div id="userAvatar" class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-bold">U</div>
-                         <span id="userName" class="text-xs text-slate-400 truncate w-20">Utente</span>
-                    </div>
-                    
-                    <div class="flex items-center space-x-1">
-                        <button onclick="window.showSection('settings')" class="p-1.5 text-slate-500 hover:text-indigo-400 transition-colors rounded-lg hover:bg-slate-800">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                        </button>
-                        <button id="logoutBtn" class="p-1.5 text-slate-500 hover:text-red-400 transition-colors rounded-lg hover:bg-slate-800">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
         </aside>
 
         <main class="flex-1 overflow-y-auto">

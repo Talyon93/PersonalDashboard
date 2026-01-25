@@ -1,6 +1,6 @@
 /**
- * Agenda Component - FINAL PILL EDITION
- * Sincronizzato con il design "Finanze"
+ * Agenda Component - MODULAR REGISTRATION
+ * Si auto-registra nel sistema tramite ModuleManager.
  */
 
 const Agenda = {
@@ -12,7 +12,7 @@ const Agenda = {
 
     async init() {
         await this.loadTasks();
-        await this.render();
+        // Nota: Il render viene chiamato dal Navigation system quando serve
     },
 
     async loadTasks() {
@@ -28,7 +28,7 @@ const Agenda = {
         const container = document.getElementById('agendaContent');
         if (!container) return;
 
-        // 1. SCAFFOLDING STATICO (Titolo e testata)
+        // 1. SCAFFOLDING STATICO
         if (!this.isInitialized || container.querySelector('h2') === null) {
             container.innerHTML = `
                 <div class="mb-10 animate-fadeIn">
@@ -55,7 +55,7 @@ const Agenda = {
     },
 
     async updateView() {
-        // A. AGGIORNA PULSANTI IN ALTO (Calendario/Lista/Finiti)
+        // A. PULSANTI
         const controls = document.getElementById('agenda-top-controls');
         if (controls) {
             controls.innerHTML = `
@@ -70,7 +70,7 @@ const Agenda = {
             `;
         }
 
-        // B. AGGIORNA SELETTORE DATA (Stile Finanze/Analytics)
+        // B. SELETTORE DATA
         const selector = document.getElementById('agenda-period-selector');
         if (selector) {
             const monthLabel = this.currentDate.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
@@ -79,15 +79,11 @@ const Agenda = {
                     <button onclick="Agenda.changeMonth(-1)" class="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
                     </button>
-                    
                     <h3 class="text-xl font-bold text-white px-4 min-w-[200px] text-center capitalize tracking-tight select-none">${monthLabel}</h3>
-                    
                     <button onclick="Agenda.changeMonth(1)" class="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                    
                     <div class="w-px h-6 bg-slate-700/50 mx-1"></div>
-                    
                     <button onclick="Agenda.goToToday()" title="Vai a Oggi" class="w-10 h-10 flex items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     </button>
@@ -95,7 +91,7 @@ const Agenda = {
             `;
         }
 
-        // C. RENDER CONTENUTO PRINCIPALE
+        // C. RENDER CONTENUTO
         const main = document.getElementById('agenda-main-container');
         if (main) {
             main.innerHTML = (this.currentView === 'calendar') ? this.renderCalendar() : this.renderList();
@@ -123,7 +119,6 @@ const Agenda = {
         for (let day = 1; day <= daysInMonth; day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
-            
             const dayTasks = this.tasks.filter(t => t.date.startsWith(dateStr));
             const activeTasks = dayTasks.filter(t => !t.completed);
             const completedCount = dayTasks.filter(t => t.completed).length;
@@ -132,7 +127,6 @@ const Agenda = {
                 <div onclick="Agenda.showDayModal('${dateStr}')" 
                      class="group min-h-[140px] p-4 rounded-3xl border-2 transition-all cursor-pointer flex flex-col relative overflow-hidden
                             ${isToday ? 'bg-blue-600/10 border-blue-500/50 shadow-lg' : 'bg-slate-900/40 border-slate-700/50 hover:border-indigo-500/30 hover:bg-slate-800/40'}">
-                    
                     <div class="flex justify-between items-start mb-3">
                         <span class="text-xl font-black ${isToday ? 'text-blue-400' : 'text-slate-300'}">${day}</span>
                         <div class="flex gap-1.5">
@@ -140,7 +134,6 @@ const Agenda = {
                             ${completedCount > 0 ? `<div class="w-2.5 h-2.5 rounded-full bg-emerald-500/40"></div>` : ''}
                         </div>
                     </div>
-
                     <div class="flex-1 space-y-1.5 overflow-hidden">
                         ${activeTasks.slice(0, 3).map(t => {
                             const pColor = t.priority === 'high' ? 'bg-rose-500/20 border-rose-500/30 text-rose-300' : 
@@ -321,4 +314,22 @@ const Agenda = {
     editTask(id) { const t = this.tasks.find(x => x.id === id); if(t) this.showAddModal(t); }
 };
 
+// ==========================================
+// REGISTRAZIONE MODULARE
+// ==========================================
+// Mantiene window.Agenda per compatibilità con i click inline nell'HTML,
+// ma si registra anche nel ModuleManager per apparire nella sidebar.
 window.Agenda = Agenda;
+
+if (window.ModuleManager) {
+    ModuleManager.register({
+        id: 'agenda',
+        name: 'Agenda',
+        icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>',
+        order: 1,
+        category: 'main',
+        isCore: true, // Non disattivabile
+        init: () => Agenda.init(),
+        render: () => Agenda.render()
+    });
+}

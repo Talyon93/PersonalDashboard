@@ -182,14 +182,12 @@ const Goals = {
                 isCompleted ? 'border-green-500' : `border-${priorityColor}-500/50`
             } hover:border-${isCompleted ? 'green' : priorityColor}-400 transition-all overflow-hidden">
                 
-                <!-- Glow effect -->
                 <div class="absolute inset-0 bg-gradient-to-r ${
                     isCompleted ? 'from-green-500/10 to-emerald-500/10' : 
                     `from-${priorityColor}-500/5 to-${priorityColor}-600/5`
                 } opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
                 <div class="relative p-6">
-                    <!-- Header -->
                     <div class="flex items-start justify-between mb-4">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-2">
@@ -218,7 +216,6 @@ const Goals = {
                         </div>
                     </div>
 
-                    <!-- Progress Bar -->
                     <div class="mb-6">
                         <div class="flex items-center justify-between mb-2">
                             <span class="text-sm font-semibold text-slate-400">Progresso</span>
@@ -232,7 +229,6 @@ const Goals = {
                             </div>
                         </div>
                         
-                        <!-- Animated progress bar -->
                         <div class="relative h-4 bg-slate-700/50 rounded-full overflow-hidden border border-slate-600">
                             <div class="absolute inset-0 bg-gradient-to-r ${
                                 percentage === 100 ? 'from-green-500 to-emerald-600' :
@@ -261,7 +257,6 @@ const Goals = {
                         </div>
                     </div>
 
-                    <!-- Subtasks -->
                     <div class="space-y-2 mb-4 max-h-48 overflow-y-auto">
                         ${goal.subtasks.length === 0 ? `
                             <p class="text-sm text-slate-500 italic py-4 text-center">Nessun subtask definito</p>
@@ -290,7 +285,6 @@ const Goals = {
                         `).join('')}
                     </div>
 
-                    <!-- Footer -->
                     <div class="flex items-center justify-between pt-4 border-t border-slate-700">
                         <div class="flex items-center gap-2 text-sm text-slate-400">
                             <span>🎯</span>
@@ -355,7 +349,6 @@ const Goals = {
         const modalHTML = `
             <div id="goalModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn overflow-y-auto">
                 <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-700 animate-slideUp my-8">
-                    <!-- Header -->
                     <div class="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4 flex items-center justify-between rounded-t-2xl">
                         <h3 class="text-2xl font-bold text-white">✨ Nuovo Obiettivo</h3>
                         <button onclick="Goals.closeModal()" class="text-white/80 hover:text-white transition">
@@ -365,9 +358,7 @@ const Goals = {
                         </button>
                     </div>
 
-                    <!-- Form -->
                     <form onsubmit="Goals.handleAddGoal(event)" class="p-6 space-y-6">
-                        <!-- Title -->
                         <div>
                             <label class="block text-sm font-semibold text-slate-300 mb-2">Titolo Obiettivo *</label>
                             <input type="text" id="goalTitle" required
@@ -375,7 +366,6 @@ const Goals = {
                                    class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none">
                         </div>
 
-                        <!-- Description -->
                         <div>
                             <label class="block text-sm font-semibold text-slate-300 mb-2">Descrizione</label>
                             <textarea id="goalDescription" rows="3"
@@ -383,14 +373,12 @@ const Goals = {
                                       class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:border-purple-500 focus:outline-none resize-none"></textarea>
                         </div>
 
-                        <!-- Target Date -->
                         <div>
                             <label class="block text-sm font-semibold text-slate-300 mb-2">Data Obiettivo *</label>
                             <input type="date" id="goalTargetDate" required
                                    class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none">
                         </div>
 
-                        <!-- Subtasks -->
                         <div>
                             <div class="flex items-center justify-between mb-3">
                                 <label class="text-sm font-semibold text-slate-300">Subtask (Step intermedi)</label>
@@ -400,11 +388,9 @@ const Goals = {
                                 </button>
                             </div>
                             <div id="subtasksList" class="space-y-2 max-h-64 overflow-y-auto pr-2">
-                                <!-- Subtasks will be added here -->
-                            </div>
+                                </div>
                         </div>
 
-                        <!-- Buttons -->
                         <div class="flex gap-3 pt-4">
                             <button type="submit" 
                                     class="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg hover:scale-105 transition-all shadow-lg font-semibold">
@@ -500,7 +486,6 @@ const Goals = {
         const modalHTML = `
             <div id="goalModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn overflow-y-auto">
                 <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-700 animate-slideUp my-8">
-                    <!-- Header -->
                     <div class="bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-4 flex items-center justify-between rounded-t-2xl">
                         <h3 class="text-2xl font-bold text-white">✏️ Modifica Obiettivo</h3>
                         <button onclick="Goals.closeModal()" class="text-white/80 hover:text-white transition">
@@ -510,9 +495,7 @@ const Goals = {
                         </button>
                     </div>
 
-                    <!-- Form -->
                     <form onsubmit="Goals.handleEditGoal(event, '${goal.id}')" class="p-6 space-y-6">
-                        <!-- Title -->
                         <div>
                             <label class="block text-sm font-semibold text-slate-300 mb-2">Titolo Obiettivo *</label>
                             <input type="text" id="goalTitle" required
@@ -520,14 +503,12 @@ const Goals = {
                                    class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none">
                         </div>
 
-                        <!-- Description -->
                         <div>
                             <label class="block text-sm font-semibold text-slate-300 mb-2">Descrizione</label>
                             <textarea id="goalDescription" rows="3"
                                       class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none resize-none">${Helpers.escapeHtml(goal.description || '')}</textarea>
                         </div>
 
-                        <!-- Target Date -->
                         <div>
                             <label class="block text-sm font-semibold text-slate-300 mb-2">Data Obiettivo *</label>
                             <input type="date" id="goalTargetDate" required
@@ -535,7 +516,6 @@ const Goals = {
                                    class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none">
                         </div>
 
-                        <!-- Subtasks -->
                         <div>
                             <div class="flex items-center justify-between mb-3">
                                 <label class="text-sm font-semibold text-slate-300">Subtask</label>
@@ -567,7 +547,6 @@ const Goals = {
                             </div>
                         </div>
 
-                        <!-- Buttons -->
                         <div class="flex gap-3 pt-4">
                             <button type="submit" 
                                     class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:scale-105 transition-all shadow-lg font-semibold">
@@ -665,4 +644,19 @@ const Goals = {
 
 // Export globale
 window.Goals = Goals;
-console.log('✅ Goals WOW module loaded');
+
+// ==========================================
+// REGISTRAZIONE MODULARE
+// ==========================================
+if (window.ModuleManager) {
+    ModuleManager.register({
+        id: 'goals',
+        dbKey: 'goals_enabled',
+        name: 'Obiettivi',
+        icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>',
+        category: 'growth',
+        order: 20,
+        init: () => Goals.init(),
+        render: () => Goals.render()
+    });
+}

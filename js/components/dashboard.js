@@ -1,6 +1,6 @@
 /**
  * Dashboard Component - ULTRA PREMIUM RESTORED
- * Grafica originale completa + Aggiornamento Real-Time dei Moduli.
+ * Grafica originale completa + Integrazione ModuleManager.
  */
 const Dashboard = {
     isInitialized: false,
@@ -9,33 +9,41 @@ const Dashboard = {
     async init() {
         if (this._listenersReady) return;
         
-        // Se i dati cambiano (es. attivi un modulo), ridisegna tutto
-        EventBus.on('dataChanged', () => {
-            if (!document.getElementById('dashboardContent').classList.contains('hidden')) {
-                this.render(); 
-            }
-        });
+        // Se i dati cambiano (es. aggiungi task), ridisegna
+        if (window.EventBus) {
+            EventBus.on('dataChanged', () => {
+                const content = document.getElementById('dashboardContent');
+                if (content && !content.classList.contains('hidden')) {
+                    this.render(); 
+                }
+            });
+        }
         
         this._listenersReady = true;
         await this.render();
     },
 
-    // Funzione Helper: Recupera lo stato PIÙ AGGIORNATO (Memoria o Cache)
+    // Funzione Helper: Recupera lo stato dai Moduli attivi
     getCurrentStates() {
-        if (window.ModulesHub && ModulesHub.states) {
-            return ModulesHub.states;
+        // Chiediamo al ModuleManager se i moduli sono attivi
+        if (window.ModuleManager) {
+            return {
+                expenses_enabled: ModuleManager.isActive('expenses'),
+                goals_enabled: ModuleManager.isActive('goals')
+            };
         }
-        const cached = localStorage.getItem('myfinance_module_states');
-        if (cached) return JSON.parse(cached);
         
-        return { expenses_enabled: false, goals_enabled: false };
+        // Fallback di sicurezza
+        return { expenses_enabled: true, goals_enabled: true };
     },
 
     async render() {
         const container = document.getElementById('dashboardContent');
         if (!container) return;
 
-        // 1. Ridisegna la struttura (Layout a colonne dinamico)
+        console.log('📊 Rendering Dashboard...');
+
+        // 1. Ridisegna la struttura in base ai moduli attivi
         this.renderStructure(container);
         this.isInitialized = true;
 
@@ -46,7 +54,7 @@ const Dashboard = {
     renderStructure(container) {
         const { expenses_enabled, goals_enabled } = this.getCurrentStates();
 
-        // Se expenses è OFF, la colonna principale si allarga
+        // Layout adattivo: Se expenses è OFF, la colonna principale si allarga
         const mainColSpan = expenses_enabled ? 'lg:col-span-8' : 'lg:col-span-12';
 
         container.innerHTML = `
@@ -68,13 +76,13 @@ const Dashboard = {
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                 
                 ${this.renderKPICard('Task Attivi', 'kpi-tasks-val', '📅', 'from-blue-600 to-indigo-700', 'Pianificati Oggi', 
-                    `showSection('agenda'); setTimeout(() => Agenda.showAddModal(), 100)`)}
+                    `window.showSection('agenda'); setTimeout(() => Agenda.showAddModal(), 100)`)}
                 
                 ${goals_enabled ? this.renderKPICard('Obiettivi', 'kpi-goals-val', '🎯', 'from-purple-600 to-pink-700', 'Focus Traguardi', 
-                    `showSection('goals'); setTimeout(() => Goals.showAddModal(), 100)`) : ''}
+                    `window.showSection('goals'); setTimeout(() => Goals.showAddModal(), 100)`) : ''}
                 
                 ${expenses_enabled ? this.renderKPICard('Spese Mese', 'kpi-expenses-val', '💰', 'from-rose-600 to-pink-700', 'Uscite Totali', 
-                    `showSection('expenses'); setTimeout(() => ExpenseModals.showAdd(), 100)`) : ''}
+                    `window.showSection('expenses'); setTimeout(() => ExpenseModals.showAdd(), 100)`) : ''}
                 
                 ${this.renderKPICard('Completati', 'kpi-completed-val', '✅', 'from-emerald-600 to-teal-700', 'Attività concluse')}
             </div>
@@ -177,7 +185,7 @@ const Dashboard = {
             this.setSafeText('active-tasks-badge', `${todayCount} OGGI, ${tomorrowCount} DOMANI`);
             this.setSafeText('header-date', Helpers.formatDate(new Date(), 'full'));
 
-            this.updateTasksList(tasks); // Qui usiamo la versione "Ricca"
+            this.updateTasksList(tasks); 
 
             // 2. Spese
             if (expenses_enabled) {
@@ -206,7 +214,6 @@ const Dashboard = {
         if (el) el.textContent = text;
     },
 
-    // RIPRISTINATA LA LISTA TASK "PREMIUM" (Con sezioni Oggi, Domani, In Arrivo)
     updateTasksList(tasks) {
         const container = document.getElementById('tasks-list-container');
         if (!container) return;
@@ -258,7 +265,7 @@ const Dashboard = {
                         <span class="text-[10px] font-black text-slate-500 uppercase bg-slate-900/50 px-2 py-1 rounded-md border border-slate-700/50 whitespace-nowrap">${timeLabel}</span>
                     </div>
                 </div>
-                <button onclick="showSection('agenda')" class="p-2 text-slate-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all">
+                <button onclick="window.showSection('agenda')" class="p-2 text-slate-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all">
                     ✏️
                 </button>
             </div>`;
@@ -297,7 +304,7 @@ const Dashboard = {
                 <div class="h-2 w-full bg-slate-900 rounded-full overflow-hidden mb-4">
                     <div class="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-1000" style="width: ${percent}%"></div>
                 </div>
-                <button onclick="showSection('goals')" class="text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Vedi Dettagli →</button>
+                <button onclick="window.showSection('goals')" class="text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Vedi Dettagli →</button>
             </div>`;
         }).join('') || `<div class="col-span-full p-12 text-center border-2 border-dashed border-slate-700 rounded-3xl text-slate-500 font-medium italic">Pianifica nuovi traguardi 🎯</div>`;
     },
@@ -308,4 +315,24 @@ const Dashboard = {
     }
 };
 
+// ==========================================
+// REGISTRAZIONE MODULARE DASHBOARD
+// ==========================================
+if (window.ModuleManager) {
+    ModuleManager.register({
+        id: 'dashboard',
+        name: 'Dashboard',
+        // Icona Premium SVG (Grid Layout)
+        icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>',
+        category: 'main', 
+        order: 0, 
+        isCore: true, 
+        init: async () => {
+            await Dashboard.init();
+        },
+        render: async () => {
+            await Dashboard.render();
+        }
+    });
+}
 window.Dashboard = Dashboard;

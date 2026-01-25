@@ -36,6 +36,7 @@ const Statistics = {
     async render() {
         if (this.expenses.length === 0) await this.loadData();
         
+        // IL PUNTO CRUCIALE: Deve cercare 'statisticsContent'
         const container = document.getElementById('statisticsContent');
         if (!container) return;
 
