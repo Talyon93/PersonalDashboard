@@ -179,7 +179,34 @@ const CachedCRUD = {
      */
     getMerchantMappings() {
         return MerchantMapping.getAll();
-    }
+    },
+
+    async getSettings() {
+        // Definisce come scaricare i settings se non sono in cache
+        const fetchSettings = async () => {
+            const user = await window.supabaseClient.auth.getUser();
+            if (!user.data.user) return null;
+            const { data } = await window.supabaseClient
+                .from('user_settings')
+                .select('*')
+                .eq('user_id', user.data.user.id)
+                .single();
+            return data;
+        };
+        // Usa la chiave 'settings' definita in data-cache.js
+        return await DataCache.get('settings', fetchSettings);
+    },
+
+    async updateSettings(newSettings) {
+        // Aggiorna manualmente la cache senza dover rileggere dal DB
+        if (window.DataCache) {
+            // Invalida vecchia cache
+            window.DataCache.invalidate('settings');
+            // Opzionale: Se DataCache supportasse il set manuale, potremmo farlo qui.
+            // Per ora invalidiamo, così la prossima lettura sarà fresca dal DB.
+        }
+        return true; 
+    },
 };
 
 // Export globale

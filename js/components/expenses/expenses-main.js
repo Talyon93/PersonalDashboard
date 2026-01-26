@@ -1,6 +1,6 @@
 /**
  * Expenses Main Module - MODULAR PARENT & WIDGETS
- * Gestisce le spese, REGISTRA il modulo "Finanza" e i WIDGETS per la Dashboard.
+ * Gestisce le spese, REGISTRA il modulo "Finanza", i WIDGETS e la CONFIGURAZIONE interna.
  */
 
 const Expenses = {
@@ -16,17 +16,156 @@ const Expenses = {
         await this.render();
     },
 
+    // --- LOGICA DI RENDER PRINCIPALE CON ROUTING ---
     async render() {
         const container = document.getElementById('expensesContent');
         if (!container) return;
 
-        if (!this.isInitialized || container.querySelector('h2') === null) {
-            this.renderStructure(container);
-            this.isInitialized = true;
+        // ROUTER INTERNO: Decide cosa mostrare in base alla sezione attiva
+        if (window.currentSection === 'expenses-settings') {
+            await this.renderSettings(container);
+        } else {
+            // Render Dashboard Spese (Standard)
+            // Se c'è ancora il contenuto dei settings o è vuoto, ricostruiamo la struttura
+            if (!this.isInitialized || container.querySelector('#expenses-kpi-row') === null) {
+                this.renderStructure(container);
+                this.isInitialized = true;
+            }
+            await this.updateView();
         }
-        await this.updateView();
     },
 
+    // --- NUOVA SEZIONE: RENDER CONFIGURAZIONE MODULO ---
+    async renderSettings(container) {
+        // 1. Fetch DIRETTA da Supabase (Bypassa Cache per sicurezza nel form di edit)
+        let settings = { monthly_budget: 700, first_day_of_month: 25 };
+        
+        try {
+            const user = await window.supabaseClient.auth.getUser();
+            if (user.data.user) {
+                const { data, error } = await window.supabaseClient
+                    .from('user_settings')
+                    .select('monthly_budget, first_day_of_month')
+                    .eq('user_id', user.data.user.id)
+                    .single();
+                
+                if (data) {
+                    settings = { ...settings, ...data };
+                }
+            }
+        } catch (e) { 
+            console.warn('Errore recupero settings diretti', e); 
+            // Fallback
+            if (window.CachedCRUD && window.CachedCRUD.getSettings) {
+                const s = await window.CachedCRUD.getSettings();
+                if (s) settings = { ...settings, ...s };
+            }
+        }
+
+        container.innerHTML = `
+            <div class="p-6 animate-fadeIn max-w-4xl mx-auto pb-32">
+                <div class="mb-8 flex items-center gap-4">
+                    <div class="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-black text-white">Configurazione Finanze</h2>
+                        <p class="text-slate-400">Personalizza budget e cicli contabili</p>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="bg-slate-800/50 backdrop-blur-md rounded-2xl border border-slate-700/50 p-6 shadow-xl">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-2xl shadow-lg">💰</div>
+                            <div>
+                                <h3 class="text-xl font-bold text-white">Budget Mensile</h3>
+                                <p class="text-sm text-slate-400">Il tuo obiettivo di spesa mensile</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-4 items-center">
+                            <input type="number" id="exp_setting_budget" value="${settings.monthly_budget}" 
+                                class="flex-1 bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white font-bold text-2xl focus:border-emerald-500 focus:outline-none transition-colors" placeholder="0.00">
+                            <span class="text-2xl font-bold text-slate-500">€</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800/50 backdrop-blur-md rounded-2xl border border-slate-700/50 p-6 shadow-xl">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-2xl shadow-lg">📅</div>
+                            <div>
+                                <h3 class="text-xl font-bold text-white">Ciclo Contabile</h3>
+                                <p class="text-sm text-slate-400">Giorno in cui si rinnova il mese (es. stipendio)</p>
+                            </div>
+                        </div>
+                        <select id="exp_setting_day" class="w-full bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white font-bold text-lg focus:border-purple-500 focus:outline-none transition-colors appearance-none cursor-pointer">
+                            ${Array.from({length: 28}, (_, i) => i + 1).map(day => `
+                                <option value="${day}" ${day == settings.first_day_of_month ? 'selected' : ''}>Giorno ${day}</option>
+                            `).join('')}
+                        </select>
+                        <div class="mt-4 p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+                            <p class="text-xs text-purple-300">💡 <strong>Nota:</strong> Se imposti il giorno 27, le statistiche di "Gennaio" calcoleranno le spese dal 27 Gennaio al 26 Febbraio.</p>
+                        </div>
+                    </div>
+
+                    <div class="fixed bottom-8 right-8 z-50">
+                        <button onclick="Expenses.saveModuleSettings()" 
+                            class="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold rounded-2xl shadow-2xl transform active:scale-95 transition-all flex items-center gap-2 border border-white/10">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                            Salva e Ricarica
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    // --- NUOVA LOGICA: SALVATAGGIO CON RELOAD FORZATO ---
+    async saveModuleSettings() {
+        const budget = parseFloat(document.getElementById('exp_setting_budget').value) || 0;
+        const day = parseInt(document.getElementById('exp_setting_day').value) || 1;
+        
+        try {
+            const user = await window.supabaseClient.auth.getUser();
+            if (!user.data.user) throw new Error("Utente non loggato");
+
+            // 1. Aggiorna DB
+            const { error } = await window.supabaseClient
+                .from('user_settings')
+                .update({ 
+                    monthly_budget: budget,
+                    first_day_of_month: day,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('user_id', user.data.user.id);
+
+            if (error) throw error;
+
+            // 2. Feedback Visivo
+            Helpers.showToast('✅ Configurazioni salvate! Ricarico...', 'success');
+            
+            // 3. PULIZIA CACHE DI SICUREZZA (Prima del reload, per sicurezza)
+            if (window.DataCache) {
+                if (typeof window.DataCache.clearAll === 'function') {
+                     window.DataCache.clearAll();
+                } else {
+                     localStorage.clear(); // Metodo brutale ma efficace
+                }
+            }
+
+            // 4. FORZA RELOAD DOPO 1 SECONDO
+            // Questo assicura che al riavvio l'app scarichi tutto nuovo dal DB
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+
+        } catch (e) {
+            console.error(e);
+            Helpers.showToast('❌ Errore durante il salvataggio', 'error');
+        }
+    },
+
+    // --- STRUTTURA DASHBOARD CLASSICA ---
     renderStructure(container) {
         container.innerHTML = `
             <div class="mb-10 animate-fadeIn">
@@ -291,14 +430,11 @@ const Expenses = {
 
         const totalSpent = monthExpenses.reduce((sum, e) => sum + Math.abs(e.amount), 0);
         
-        // --- RECUPERO BUDGET ALLINEATO CON STATISTICS.JS ---
-        let budgetTarget = 700; // Fallback di default come in Statistics.js
+        // --- RECUPERO BUDGET DA SETTINGS ---
+        let budgetTarget = 700;
         try {
-            if (window.SettingsManager) {
-                // Usa SettingsManager come fa statistics.js
-                budgetTarget = parseFloat(window.SettingsManager.get('monthlyBudget')) || 700;
-            } else if (window.CachedCRUD && window.CachedCRUD.getSettings) {
-                // Fallback su CachedCRUD se SettingsManager non c'è ancora
+            if (window.CachedCRUD && window.CachedCRUD.getSettings) {
+                // Notare l'uso di 'true' per forzare refresh se supportato dal metodo
                 const settings = await window.CachedCRUD.getSettings();
                 if (settings && settings.monthly_budget) {
                     budgetTarget = parseFloat(settings.monthly_budget);
@@ -364,15 +500,24 @@ if (window.ModuleManager) {
         icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>', 
         category: 'finance',
         order: 10,
-        subItems: [ { label: 'Report & Analytics', section: 'statistics' } ],
+        // SOTTO MENU: QUI AGGIUNGIAMO "CONFIGURAZIONE"
+        subItems: [ 
+            { label: 'Report & Analytics', section: 'statistics' },
+            { label: 'Configurazione', section: 'expenses-settings' } 
+        ],
         init: async () => {
             await Expenses.init();
             if (window.Statistics && window.Statistics.loadData) await window.Statistics.loadData();
         },
         render: async (container) => {
+            // ROUTING GLOBALE PER IL MODULO
             if (window.currentSection === 'statistics') {
                 if (window.Statistics) await window.Statistics.render();
+            } else if (window.currentSection === 'expenses-settings') {
+                // Render Settings Pagina
+                await Expenses.renderSettings(container);
             } else {
+                // Render Dashboard Pagina
                 await Expenses.render();
             }
         },
