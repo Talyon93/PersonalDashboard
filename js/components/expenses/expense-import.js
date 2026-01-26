@@ -1,260 +1,287 @@
 /**
- * Expense Import Module - "Blind Scan" + Smart Date Fix
- * Corregge automaticamente date invertite (Mese 31 -> Giorno 31)
+ * Expense Import Module - UNIVERSAL SMART SCANNER V2.3 🧠
+ * Fixes: Ignora righe di "Saldo Iniziale/Finale" che non sono transazioni reali.
  */
 
 const ExpenseImport = {
-    async processFile(file, bankType) {
-        console.log(`📂 Processing ${file.name} for ${bankType}`);
+    // Keywords for column detection (Multilanguage IT/EN)
+    keywords: {
+        // REMOVED 'valuta' to prevent detecting "Valuta" (Currency) column as Date
+        date: ['data', 'date', 'giorno', 'time', 'dt'], 
+        amount: ['importo', 'amount', 'euro', 'eur', 'uscite', 'debit', 'costo', 'price', 'prezzo'],
+        description: ['descrizione', 'description', 'causale', 'merchant', 'dettagli', 'payee', 'controparte', 'testo', 'prodotto', 'negozio', 'counterparty'],
+        category: ['categoria', 'category', 'cat'],
+        outflow: ['uscite', 'debit', 'withdraw', 'spesa', 'out'],
+        inflow: ['entrate', 'credit', 'deposit', 'in']
+    },
+
+    async processFile(file) {
+        console.log(`🧠 Smart Analyzing V2.3: ${file.name}`);
         try {
             let expenses = [];
             
             if (file.name.toLowerCase().endsWith('.csv')) {
                 const text = await file.text();
-                expenses = this.parseCSV(text, bankType);
+                expenses = this.parseUniversalCSV(text);
             } else {
-                if (typeof XLSX === 'undefined') throw new Error('Excel lib missing');
-                expenses = await this.parseExcel(file, bankType);
+                if (typeof XLSX === 'undefined') throw new Error('Excel library missing (XLSX)');
+                expenses = await this.parseExcel(file);
             }
 
-            console.log(`✅ Imported ${expenses.length} transactions`);
+            console.log(`✅ Importazione completata: ${expenses.length} transazioni.`);
+            
+            if (expenses.length === 0) {
+                alert("⚠️ Nessuna transazione trovata. Verifica l'intestazione del file (Data, Importo, Descrizione).");
+            }
+            
             return expenses;
         } catch (error) {
-            console.error('Import Error:', error);
-            throw error;
+            console.error('❌ Import Error:', error);
+            alert(`Errore importazione: ${error.message}`);
+            return [];
         }
     },
 
-    parseCSV(text, bankType) {
-        if (bankType === 'intesa') return this.parseIntesaCSV(text);
-        if (bankType === 'revolut') return this.parseRevolutCSV(text);
-        if (bankType === 'ing') return this.parseIngCSV(text);
-        return [];
-    },
+    parseUniversalCSV(text) {
+        const lines = text.trim().split('\n').filter(l => l.trim().length > 0);
+        if (lines.length < 2) return [];
 
-    // ==========================================
-    // 🏦 INTESA SAN PAOLO
-    // ==========================================
-    parseIntesaCSV(text) {
-        return this.genericScanner(text, {
-            startKeywords: ['data', 'importo'],
-            colKeywords: {
-                date: ['data'],
-                desc: ['descrizione', 'operazione', 'dettagli'],
-                amount: ['importo', 'accrediti']
-            },
-            bankTag: '#intesa',
-            dateFormat: 'DD/MM/YYYY', // Hint iniziale
-            amountFormat: 'IT'
-        });
-    },
+        // 1. Detect Delimiter
+        const delimiter = this.detectDelimiter(lines.slice(0, 5));
+        
+        // 2. Map Columns
+        const mapping = this.detectColumns(lines, delimiter);
+        if (!mapping.found) throw new Error("Intestazione non riconosciuta. Cerca colonne: Data, Importo/Uscite, Descrizione.");
 
-    // ==========================================
-    // 💳 REVOLUT
-    // ==========================================
-    parseRevolutCSV(text) {
-        return this.genericScanner(text, {
-            startKeywords: ['descrizione|description', 'importo|amount'], 
-            colKeywords: {
-                date: ['completata', 'completed', 'data', 'date'],
-                desc: ['descrizione', 'description'],
-                amount: ['importo', 'amount'],
-                fee: ['commissione', 'fee'],
-                state: ['stato', 'state']
-            },
-            bankTag: '#revolut',
-            dateFormat: 'AUTO',
-            amountFormat: 'AUTO'
-        });
-    },
+        // 3. Pre-scan for heuristics
+        const isAllPositive = this.checkIfAllPositive(lines, mapping, delimiter);
 
-    // ==========================================
-    // 🍊 ING - CONTO ARANCIO
-    // ==========================================
-    parseIngCSV(text) {
-        return this.genericScanner(text, {
-            startKeywords: ['data contabile', 'uscite', 'entrate'],
-            colKeywords: {
-                date: ['data contabile'],
-                desc: ['descrizione operazione', 'causale'],
-                amount: ['uscite'] // Il sistema cerca le spese (valori negativi)
-            },
-            bankTag: '#ing',
-            dateFormat: 'DD/MM/YYYY',
-            amountFormat: 'IT'
-        });
-    },
-    
-    // ==========================================
-    // 🧠 SCANNER UNIVERSALE
-    // ==========================================
-    genericScanner(text, config) {
-        const lines = text.trim().split('\n');
         const expenses = [];
-        let dataStart = false;
-        let delimiter = ';';
-        let colMap = null;
+        
+        for (let i = mapping.headerIndex + 1; i < lines.length; i++) {
+            const row = this.splitCSVLine(lines[i], delimiter);
+            if (row.length <= Math.max(mapping.cols.date, mapping.cols.amount)) continue;
 
-        for (let i = 0; i < lines.length; i++) {
-            let line = lines[i].trim();
-            if (!line) continue;
-            const lower = line.toLowerCase();
-
-            // 1. CERCA INTESTAZIONE
-            if (!dataStart) {
-                const matchAll = config.startKeywords.every(keyword => {
-                    const options = keyword.split('|');
-                    return options.some(opt => lower.includes(opt));
-                });
-
-                if (matchAll) {
-                    console.log(`🎯 Header trovato alla riga ${i+1}:`, line);
-                    dataStart = true;
-                    
-                    const countSemi = (line.match(/;/g) || []).length;
-                    const countComma = (line.match(/,/g) || []).length;
-                    delimiter = countSemi > countComma ? ';' : ',';
-
-                    const headers = line.split(delimiter).map(h => h.trim().toLowerCase().replace(/"/g, ''));
-                    
-                    colMap = {
-                        date: this.findColIndex(headers, config.colKeywords.date),
-                        desc: this.findColIndex(headers, config.colKeywords.desc),
-                        amount: this.findColIndex(headers, config.colKeywords.amount),
-                        fee: config.colKeywords.fee ? this.findColIndex(headers, config.colKeywords.fee) : -1,
-                        state: config.colKeywords.state ? this.findColIndex(headers, config.colKeywords.state) : -1,
-                    };
-
-                    if (colMap.date === -1 || colMap.amount === -1) {
-                        dataStart = false; 
-                    }
-                }
+            const rawDate = row[mapping.cols.date];
+            const rawDesc = mapping.cols.desc > -1 ? row[mapping.cols.desc] : 'Importazione';
+            
+            // --- FIX V2.3: SALTA RIGHE DI SALDO ---
+            if (this.isBalanceRow(rawDesc)) {
+                console.log(`⏩ Ignorata riga di saldo: "${rawDesc}"`);
                 continue;
             }
 
-            // 2. LEGGI I DATI
-            const cols = this.splitCSVLine(line, delimiter);
-            if (!colMap || cols.length < 2) continue;
-            
-            const rawDate = cols[colMap.date];
-            const rawDesc = cols[colMap.desc];
-            const rawAmount = cols[colMap.amount];
-            
-            if (!rawDate || !rawAmount) continue;
+            // Handle Separate Columns (Inflow vs Outflow)
+            let rawAmount = row[mapping.cols.amount];
+            let isInflow = false;
 
-            if (colMap.state !== -1) {
-                const state = (cols[colMap.state] || '').toUpperCase();
-                if (state && !state.includes('COMPLET') && state !== '') continue;
+            if ((!rawAmount || rawAmount.trim() === '') && mapping.cols.inflow > -1) {
+                rawAmount = row[mapping.cols.inflow];
+                isInflow = true;
             }
 
-            let amount = 0;
-            if (config.amountFormat === 'IT' || delimiter === ';') {
-                amount = this.parseItalianNumber(rawAmount);
+            // Parse Number
+            let amount = this.parseSmartNumber(rawAmount);
+            if (isNaN(amount) || amount === 0) continue;
+
+            let type = 'expense';
+
+            // --- TYPE DETECTION LOGIC ---
+            if (isInflow) {
+                type = 'income';
+                amount = Math.abs(amount);
+            } 
+            else if (mapping.isOutflowCol) {
+                type = 'expense';
+                amount = Math.abs(amount);
+            }
+            else {
+                if (amount > 0) {
+                    if (isAllPositive && mapping.cols.category > -1) {
+                        type = 'expense'; // Heuristic: App export with categories
+                    } else {
+                        type = 'income'; // Standard banking
+                    }
+                } else {
+                    type = 'expense';
+                    amount = Math.abs(amount);
+                }
+            }
+
+            // Category Extraction
+            let category = 'other';
+            if (mapping.cols.category > -1) {
+                category = this.normalizeCategory(row[mapping.cols.category]);
             } else {
-                amount = parseFloat(rawAmount);
+                category = this.categorizeExpense(rawDesc);
             }
 
-            if (isNaN(amount) || amount >= 0) continue; 
-
-            let finalAmount = Math.abs(amount);
-            if (colMap.fee !== -1 && cols[colMap.fee]) {
-                let fee = 0;
-                if (delimiter === ';') fee = this.parseItalianNumber(cols[colMap.fee]);
-                else fee = parseFloat(cols[colMap.fee]);
-                if (!isNaN(fee) && fee < 0) finalAmount += Math.abs(fee);
-            }
-
-            const date = this.parseDateSmart(rawDate, config.dateFormat);
-            if (!date) continue;
+            // Date Parsing
+            const date = this.parseDateSmart(rawDate);
+            if (!date) continue; 
 
             expenses.push({
                 id: Date.now() + Math.random() + i,
                 date: date,
-                description: this.sanitizeInput(rawDesc || 'Spesa Importata'),
-                amount: parseFloat(finalAmount.toFixed(2)),
-                category: this.categorizeExpense(rawDesc),
-                tags: [config.bankTag]
+                description: this.sanitizeInput(rawDesc),
+                amount: amount,
+                type: type,
+                category: category,
+                tags: ['#import']
             });
         }
 
         return expenses;
     },
 
-    // ==========================================
-    // 🛠️ UTILS & DATE ENGINE (FIXED)
-    // ==========================================
-    
-    findColIndex(headers, keywords) {
-        return headers.findIndex(h => keywords.some(k => h.includes(k)));
+    // --- NUOVA FUNZIONE: Controlla se è una riga di saldo ---
+    isBalanceRow(desc) {
+        if (!desc) return false;
+        const d = desc.toLowerCase().trim();
+        // Filtra stringhe comuni di riepilogo
+        return d.startsWith('saldo iniziale') || 
+               d.startsWith('saldo finale') || 
+               d.includes('saldo al') ||
+               d.includes('totale operaz') ||
+               d === 'saldo contabile';
     },
 
-    parseDateSmart(dateStr, formatHint) {
-        if (!dateStr) return null;
-        // Pulisce e normalizza separatori
-        let clean = dateStr.trim().split(' ')[0].replace(/\./g, '/').replace(/-/g, '/');
+    detectDelimiter(sampleLines) {
+        const joined = sampleLines.join('\n');
+        const semis = (joined.match(/;/g) || []).length;
+        const commas = (joined.match(/,/g) || []).length;
+        return semis > commas ? ';' : ',';
+    },
 
-        let parts = clean.split('/');
+    detectColumns(lines, delimiter) {
+        let bestScore = 0;
+        let bestMapping = { found: false, headerIndex: -1, cols: {} };
+
+        for (let i = 0; i < Math.min(lines.length, 20); i++) {
+            const row = this.splitCSVLine(lines[i], delimiter).map(c => c.toLowerCase().trim());
+            let map = { date: -1, amount: -1, desc: -1, inflow: -1, category: -1 };
+            let score = 0;
+            let isOutflow = false;
+
+            row.forEach((cell, idx) => {
+                if (!cell) return;
+
+                if (this.keywords.date.some(k => cell.includes(k))) {
+                    if (map.date === -1) { 
+                        map.date = idx; score += 3; 
+                    }
+                }
+                else if (this.keywords.description.some(k => cell.includes(k))) {
+                    map.desc = idx; score += 2;
+                }
+                else if (this.keywords.category.some(k => cell === k || cell.includes(k))) {
+                    map.category = idx; score += 2;
+                }
+                else if (this.keywords.outflow.some(k => cell === k || cell.includes(k))) {
+                    map.amount = idx; isOutflow = true; score += 3;
+                }
+                else if (this.keywords.inflow.some(k => cell === k || cell.includes(k))) {
+                    map.inflow = idx;
+                }
+                else if (map.amount === -1 && this.keywords.amount.some(k => cell === k || cell.includes(k))) {
+                    map.amount = idx; score += 2;
+                }
+            });
+
+            if (map.date > -1 && (map.amount > -1 || map.inflow > -1)) {
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMapping = { found: true, headerIndex: i, cols: map, isOutflowCol: isOutflow };
+                }
+            }
+        }
+        return bestMapping;
+    },
+
+    checkIfAllPositive(lines, mapping, delimiter) {
+        let positiveCount = 0;
+        let negativeCount = 0;
+        const col = mapping.cols.amount;
+        
+        for (let i = mapping.headerIndex + 1; i < Math.min(lines.length, mapping.headerIndex + 11); i++) {
+            const row = this.splitCSVLine(lines[i], delimiter);
+            if (!row[col]) continue;
+            const val = this.parseSmartNumber(row[col]);
+            if (val > 0) positiveCount++;
+            if (val < 0) negativeCount++;
+        }
+        
+        return positiveCount > 0 && negativeCount === 0;
+    },
+
+    // --- PARSING UTILS ---
+
+    parseSmartNumber(str) {
+        if (!str) return 0;
+        let clean = str.replace(/[^\d.,-]/g, '').trim(); 
+        const lastComma = clean.lastIndexOf(',');
+        const lastDot = clean.lastIndexOf('.');
+
+        if (lastComma > lastDot) {
+            clean = clean.replace(/\./g, '').replace(',', '.');
+        } else {
+            clean = clean.replace(/,/g, '');
+        }
+        return parseFloat(clean) || 0;
+    },
+
+    parseDateSmart(dateStr) {
+        if (!dateStr) return null;
+        let clean = dateStr.trim().split(' ')[0].split('T')[0];
+        clean = clean.replace(/\./g, '/').replace(/-/g, '/');
+
+        const parts = clean.split('/');
         if (parts.length !== 3) return null;
 
         let d, m, y;
-        
-        // Caso: YYYY all'inizio (2025/12/31)
-        if (parts[0].length === 4) { 
-            y = parseInt(parts[0]); m = parseInt(parts[1]); d = parseInt(parts[2]);
-        } 
-        // Caso: YYYY alla fine (31/12/2025)
-        else if (parts[2].length === 4) { 
-            y = parseInt(parts[2]);
-            let p1 = parseInt(parts[0]);
-            let p2 = parseInt(parts[1]);
+        const n1 = parseInt(parts[0]);
+        const n2 = parseInt(parts[1]);
+        const n3 = parseInt(parts[2]);
 
-            if (formatHint === 'DD/MM/YYYY') {
-                d = p1; m = p2;
-            } else {
-                if (p1 > 12) { d = p1; m = p2; }
-                else if (p2 > 12) { d = p2; m = p1; }
-                else { d = p1; m = p2; } 
-            }
-        } else {
-            return null;
-        }
-
-        // --- SAFETY CHECK (Il Fix per il tuo errore) ---
-        // Se il "mese" rilevato è > 12 (es. 31), è impossibile. 
-        // Significa che giorno e mese sono invertiti. Scambiamoli.
-        if (m > 12 && d <= 12) {
-             let temp = d; d = m; m = temp;
-        }
-
-        // Anti-Future: Se data futura, prova swap
-        const check = new Date(y, m-1, d);
-        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-        if (check > tomorrow && d <= 12 && m <= 12) {
-             let temp = d; d = m; m = temp;
-        }
+        if (n1 > 31) { y = n1; m = n2; d = n3; }      
+        else if (n3 > 31) { y = n3; m = n2; d = n1; } 
+        else { return null; } 
 
         return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    },
-
-    parseItalianNumber(str) {
-        if (!str) return 0;
-        let clean = str.replace(/[^\d.,-]/g, '');
-        if (clean.includes(',') && !clean.endsWith(',')) {
-            clean = clean.replace(/\./g, '').replace(',', '.');
-        }
-        return parseFloat(clean) || 0;
     },
 
     splitCSVLine(line, delimiter) {
         const res = [];
         let curr = '', quote = false;
-        for (let c of line) {
+        for (let i = 0; i < line.length; i++) {
+            const c = line[i];
             if (c === '"') { quote = !quote; }
-            else if (c === delimiter && !quote) { res.push(curr.trim().replace(/^"|"$/g,'')); curr=''; }
-            else { curr += c; }
+            else if (c === delimiter && !quote) { 
+                res.push(curr.trim().replace(/^"|"$/g,'')); curr=''; 
+            } else { curr += c; }
         }
         res.push(curr.trim().replace(/^"|"$/g,''));
         return res;
+    },
+
+    categorizeExpense(description) {
+        if (!description) return 'other';
+        const d = description.toLowerCase();
+        if (d.includes('coop') || d.includes('conad') || d.includes('lidl') || d.includes('esselunga')) return 'shopping';
+        if (d.includes('mcdonald') || d.includes('glovo') || d.includes('deliveroo') || d.includes('just eat')) return 'food';
+        if (d.includes('benzina') || d.includes('q8') || d.includes('eni')) return 'transport';
+        if (d.includes('netflix') || d.includes('spotify') || d.includes('cinema')) return 'entertainment';
+        return 'other';
+    },
+
+    normalizeCategory(catStr) {
+        if (!catStr) return 'other';
+        const c = catStr.toLowerCase();
+        if (c.includes('cibo') || c.includes('ristora')) return 'food';
+        if (c.includes('spesa') || c.includes('supermerc')) return 'shopping';
+        if (c.includes('trasport') || c.includes('viaggi')) return 'transport';
+        if (c.includes('svago') || c.includes('intratten')) return 'entertainment';
+        return 'other'; 
     },
 
     sanitizeInput(str) {
@@ -262,24 +289,14 @@ const ExpenseImport = {
         return /^[=+\-@\t\r]/.test(s) ? "'"+s : s;
     },
 
-    categorizeExpense(description) {
-        if (!description) return 'other';
-        const d = description.toLowerCase();
-        if (d.includes('coop') || d.includes('conad') || d.includes('lidl') || d.includes('esselunga')) return 'shopping';
-        if (d.includes('mcdonald') || d.includes('glovo') || d.includes('just eat') || d.includes('ristorante')) return 'food';
-        if (d.includes('benzina') || d.includes('q8') || d.includes('uber') || d.includes('trenitalia')) return 'transport';
-        if (d.includes('netflix') || d.includes('spotify') || d.includes('cinema')) return 'entertainment';
-        return 'other';
-    },
-
-    async parseExcel(file, bankType) {
+    async parseExcel(file) {
         return new Promise((resolve) => {
             const r = new FileReader();
             r.onload = (e) => {
                 const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
-                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''});
-                const csv = json.map(row => row.join(';')).join('\n');
-                resolve(this.parseCSV(csv, bankType));
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const csv = XLSX.utils.sheet_to_csv(ws, {FS: ';'});
+                resolve(this.parseUniversalCSV(csv));
             };
             r.readAsArrayBuffer(file);
         });
@@ -287,4 +304,4 @@ const ExpenseImport = {
 };
 
 window.ExpenseImport = ExpenseImport;
-console.log('✅ ExpenseImport: Smart Date Fix Active');
+console.log('✅ ExpenseImport V2.3: Ignore Balance Rows');

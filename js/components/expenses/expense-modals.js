@@ -1,13 +1,13 @@
 /**
- * Expense Modals Module - UX Improved + Drag & Drop Working
- * Gestione Importazione con Dropzone Reale e Stato Dinamico
+ * Expense Modals Module - UX Improved + UNIVERSAL IMPORT
+ * Gestione Importazione Smart (No Bank Selection) + Drag & Drop
  */
 
 const ExpenseModals = {
     tempTags: [],
 
     // ==========================================
-    // 📤 IMPORTAZIONE (UX + DRAG & DROP)
+    // 📤 IMPORTAZIONE SMART (UNIVERSALE)
     // ==========================================
 
     showImport() {
@@ -17,47 +17,45 @@ const ExpenseModals = {
         modal.innerHTML = `
             <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-2xl transform transition-all scale-100">
                 <div class="flex items-center gap-3 mb-6">
-                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-xl">
-                        📤
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-xl text-white shadow-lg">
+                        🧠
                     </div>
-                    <h3 class="text-2xl font-bold text-gray-800">Importa Spese</h3>
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-800">Importazione Intelligente</h3>
+                        <p class="text-xs text-gray-400">Riconoscimento automatico colonne e date</p>
+                    </div>
                 </div>
                 
                 <div class="mb-6">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">1. Seleziona Banca</label>
-                    <div class="relative">
-                        <select id="bankSelect" class="w-full appearance-none bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 pr-8 focus:outline-none focus:border-blue-500 focus:bg-white transition-colors cursor-pointer font-medium">
-                            <option value="intesa">Intesa San Paolo</option>
-                            <option value="revolut">Revolut</option>
-                            <option value="ing">ING / Conto Arancio</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
-                            ▼
+                    <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-4 flex items-start gap-3">
+                        <span class="text-xl">✨</span>
+                        <div class="text-sm text-indigo-800">
+                            <strong>Non serve selezionare la banca.</strong><br>
+                            Il sistema analizza il file e capisce da solo dove sono Data, Descrizione e Importo.<br>
+                            <span class="text-xs opacity-75 mt-1 block">Supporta: Intesa, Revolut, ING, Hype, Excel generici e CSV.</span>
                         </div>
                     </div>
-                </div>
 
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">2. Carica File (CSV o Excel)</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Carica File (CSV o Excel)</label>
                     
                     <div id="dropzoneContainer">
-                        <label id="dropzoneArea" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-blue-50 hover:border-blue-400 transition-all group">
+                        <label id="dropzoneArea" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-indigo-50 hover:border-indigo-400 transition-all group">
                             <div class="flex flex-col items-center justify-center pt-5 pb-6 pointer-events-none">
-                                <div class="mb-2 text-3xl text-gray-400 group-hover:text-blue-500 transition-colors">📄</div>
-                                <p class="mb-1 text-sm text-gray-500 group-hover:text-blue-600"><span class="font-semibold">Clicca per caricare</span> o trascina qui</p>
-                                <p class="text-xs text-gray-400">CSV, XLSX, XLS</p>
+                                <div class="mb-2 text-3xl text-gray-400 group-hover:text-indigo-500 transition-colors">📄</div>
+                                <p class="mb-1 text-sm text-gray-500 group-hover:text-indigo-600"><span class="font-semibold">Clicca per caricare</span> o trascina qui</p>
+                                <p class="text-xs text-gray-400">.CSV, .XLSX, .XLS</p>
                             </div>
                             <input type="file" id="importFile" accept=".csv,.xlsx,.xls" class="hidden" onchange="ExpenseModals.handleFileSelect(this)">
                         </label>
                     </div>
 
                     <div id="filePreviewContainer" class="hidden">
-                        <div class="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                        <div class="flex items-center justify-between p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
                             <div class="flex items-center gap-3 overflow-hidden">
-                                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-xl">📄</div>
+                                <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center text-xl">📄</div>
                                 <div class="min-w-0">
                                     <p id="selectedFileName" class="text-sm font-bold text-gray-800 truncate">nome_file.csv</p>
-                                    <p class="text-xs text-blue-600">Pronto per l'importazione</p>
+                                    <p class="text-xs text-indigo-600">Pronto per l'analisi</p>
                                 </div>
                             </div>
                             <button onclick="ExpenseModals.resetImportUI()" class="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Rimuovi file">
@@ -79,7 +77,7 @@ const ExpenseModals = {
 
                 <div id="importButtons" class="flex gap-3 pt-2">
                     <button id="btnStartImport" onclick="ExpenseModals.handleImport()" disabled class="flex-1 bg-gray-300 text-gray-500 px-6 py-3 rounded-xl cursor-not-allowed font-bold transition-all duration-200">
-                        Avvia Importazione
+                        Avvia Analisi & Import
                     </button>
                     <button onclick="ExpenseModals.close('importModal')" class="px-6 py-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition font-semibold">
                         Annulla
@@ -89,61 +87,43 @@ const ExpenseModals = {
         `;
 
         document.getElementById('modalsContainer').appendChild(modal);
-        
-        // --- INIZIALIZZA DRAG & DROP EVENTS ---
         this.initDragAndDrop();
     },
 
-    /**
-     * Attiva la logica di trascinamento reale
-     */
+    // --- DRAG & DROP LOGIC ---
     initDragAndDrop() {
         const dropzone = document.getElementById('dropzoneArea');
         const input = document.getElementById('importFile');
-
         if (!dropzone) return;
 
-        // Previene il comportamento default del browser (aprire il file)
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropzone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            }, false);
+            dropzone.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
         });
 
-        // Effetto visivo quando trascini sopra (Highlight)
         ['dragenter', 'dragover'].forEach(eventName => {
             dropzone.addEventListener(eventName, () => {
-                dropzone.classList.add('border-blue-500', 'bg-blue-50');
+                dropzone.classList.add('border-indigo-500', 'bg-indigo-50');
                 dropzone.classList.remove('border-gray-300', 'bg-gray-50');
             }, false);
         });
 
-        // Rimuovi effetto quando esci
         ['dragleave', 'drop'].forEach(eventName => {
             dropzone.addEventListener(eventName, () => {
-                dropzone.classList.remove('border-blue-500', 'bg-blue-50');
+                dropzone.classList.remove('border-indigo-500', 'bg-indigo-50');
                 dropzone.classList.add('border-gray-300', 'bg-gray-50');
             }, false);
         });
 
-        // Gestione RILASCIO (Drop)
         dropzone.addEventListener('drop', (e) => {
             const dt = e.dataTransfer;
             const files = dt.files;
-
             if (files && files.length > 0) {
-                // Assegna i file all'input nascosto
                 input.files = files;
-                // Avvia la logica di selezione manuale
                 this.handleFileSelect(input);
             }
         }, false);
     },
 
-    /**
-     * Gestisce la selezione del file: Nasconde Dropzone, Mostra Preview, Abilita Tasto
-     */
     handleFileSelect(input) {
         const file = input.files[0];
         const dropzone = document.getElementById('dropzoneContainer');
@@ -152,64 +132,52 @@ const ExpenseModals = {
         const btn = document.getElementById('btnStartImport');
 
         if (file) {
-            // 1. Aggiorna UI File
             dropzone.classList.add('hidden');
             preview.classList.remove('hidden');
             nameLabel.textContent = file.name;
-
-            // 2. Abilita Bottone (Stile Blu)
             btn.disabled = false;
             btn.classList.remove('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
-            btn.classList.add('bg-gradient-to-r', 'from-blue-500', 'to-blue-600', 'text-white', 'shadow-lg', 'hover:from-blue-600', 'hover:to-blue-700');
+            btn.classList.add('bg-gradient-to-r', 'from-indigo-500', 'to-blue-600', 'text-white', 'shadow-lg', 'hover:from-indigo-600', 'hover:to-blue-700');
         }
     },
 
-    /**
-     * Resetta l'UI se l'utente clicca sulla X
-     */
     resetImportUI() {
         const input = document.getElementById('importFile');
         const dropzone = document.getElementById('dropzoneContainer');
         const preview = document.getElementById('filePreviewContainer');
         const btn = document.getElementById('btnStartImport');
 
-        // Reset Input
         input.value = '';
-
-        // UI Reset
         dropzone.classList.remove('hidden');
         preview.classList.add('hidden');
-
-        // Disabilita Bottone (Stile Grigio)
         btn.disabled = true;
         btn.classList.add('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
-        btn.classList.remove('bg-gradient-to-r', 'from-blue-500', 'to-blue-600', 'text-white', 'shadow-lg', 'hover:from-blue-600', 'hover:to-blue-700');
+        btn.classList.remove('bg-gradient-to-r', 'from-indigo-500', 'to-blue-600', 'text-white', 'shadow-lg', 'hover:from-indigo-600', 'hover:to-blue-700');
     },
 
-    /**
-     * Logica Importazione
-     */
+    // --- LOGICA IMPORTAZIONE AGGIORNATA (NO BANK SELECT) ---
     async handleImport() {
         const fileInput = document.getElementById('importFile');
-        const bankType = document.getElementById('bankSelect').value;
         const btn = document.getElementById('btnStartImport');
 
         if (!fileInput.files[0]) return; 
 
         try {
-            // Disabilita UI durante il caricamento
+            // UI Loading
             btn.disabled = true;
             btn.classList.add('opacity-50', 'cursor-wait');
             
-            this.updateImportProgress(5, '📂 Lettura file in corso...');
+            this.updateImportProgress(10, '🧠 Avvio motore euristico...');
             await new Promise(r => setTimeout(r, 400));
 
-            this.updateImportProgress(30, '🔍 Analisi transazioni...');
-            const expenses = await ExpenseImport.processFile(fileInput.files[0], bankType);
+            this.updateImportProgress(30, '🔍 Scansione struttura file...');
+            
+            // CHIAMATA AL NUOVO SCANNER (Senza parametro BankType)
+            const expenses = await ExpenseImport.processFile(fileInput.files[0]);
 
             if (expenses.length === 0) {
-                Helpers.showToast('❌ Nessuna spesa valida trovata.', 'error');
-                this.updateImportProgress(0, 'Errore: Nessun dato trovato');
+                Helpers.showToast('❌ Il sistema non ha trovato transazioni valide.', 'error');
+                this.updateImportProgress(0, 'Errore: Struttura non riconosciuta');
                 btn.disabled = false;
                 btn.classList.remove('opacity-50', 'cursor-wait');
                 return;
@@ -224,18 +192,23 @@ const ExpenseModals = {
             await new Promise(r => setTimeout(r, 800));
 
             this.close('importModal');
-            await Expenses.render(); 
+            
+            // Refresh Totale
+            if (window.Expenses) await Expenses.render(); 
             if (typeof Dashboard !== 'undefined') await Dashboard.render(); 
+            if (window.Statistics) {
+                 window.Statistics.isInitialized = false; // Forza refresh stats
+                 if (window.currentSection === 'statistics') await window.Statistics.render();
+            }
 
             let message = `✅ ${result.addedCount} importate!`;
-            if (result.skippedCount > 0) message += ` (${result.skippedCount} duplicati saltati)`;
+            if (result.skippedCount > 0) message += ` (${result.skippedCount} duplicati)`;
             Helpers.showToast(message, 'success');
 
         } catch (e) {
             console.error('Errore import:', e);
             this.updateImportProgress(0, '❌ Errore critico');
             Helpers.showToast('Errore import: ' + e.message, 'error');
-            // Riabilita UI in caso di errore
             btn.disabled = false;
             btn.classList.remove('opacity-50', 'cursor-wait');
         }
@@ -250,7 +223,6 @@ const ExpenseModals = {
             container.classList.remove('hidden');
             bar.style.width = `${percent}%`;
             label.textContent = text;
-            
             if (percent >= 100) {
                 bar.classList.remove('bg-blue-600');
                 bar.classList.add('bg-green-500');
@@ -262,13 +234,12 @@ const ExpenseModals = {
     },
 
     // ==========================================
-    // 📂 GESTIONE CATEGORIE (FIXED & PREMIUM)
+    // 📂 GESTIONE CATEGORIE
     // ==========================================
     
     async showCategories() {
         const modal = document.createElement('div');
         modal.id = 'categoriesModal';
-        // Background ultra-dark con sfocatura come da screenshot
         modal.className = 'modal fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center z-50 animate-fadeIn p-4';
         
         modal.innerHTML = `
@@ -310,9 +281,7 @@ const ExpenseModals = {
     },
 
     renderCategoryList() {
-        // Ora getAll() restituisce correttamente tutto
         const allCategories = Categories.getAll();
-
         return allCategories.map(cat => `
             <div class="group flex items-center justify-between p-4 bg-[#1f2937]/50 rounded-2xl border border-slate-700/20 hover:border-slate-600/40 transition-all">
                 <div class="flex items-center gap-4">
@@ -340,18 +309,10 @@ const ExpenseModals = {
         if (!name) return Helpers.showToast('Inserisci un nome!', 'error');
 
         try {
-            // Salvataggio su Supabase tramite il modulo Categories
             await Categories.add(icon, name);
-            
-            // Reset input
             document.getElementById('newCatName').value = '';
-            
-            // Re-render della lista interna al modale
             document.getElementById('categoriesListContainer').innerHTML = this.renderCategoryList();
-            
             Helpers.showToast('Categoria creata con successo!', 'success');
-            
-            // Aggiorna l'interfaccia principale se necessario
             if (window.Expenses) window.Expenses.render();
         } catch (e) {
             Helpers.showToast(e.message, 'error');
@@ -371,7 +332,7 @@ const ExpenseModals = {
     },
 
     // ==========================================
-    // ➕ AGGIUNTA MANUALE & ALTRE MODALI
+    // ➕ AGGIUNTA MANUALE
     // ==========================================
     
     showAdd(type = 'expense') {
