@@ -1,6 +1,6 @@
 /**
- * Agenda Component - MODULAR REGISTRATION
- * Si auto-registra nel sistema tramite ModuleManager.
+ * Agenda Component - MODULAR WIDGETS EDITION (6 WIDGETS)
+ * Gestione completa calendario + 6 Widget per Dashboard.
  */
 
 const Agenda = {
@@ -12,7 +12,6 @@ const Agenda = {
 
     async init() {
         await this.loadTasks();
-        // Nota: Il render viene chiamato dal Navigation system quando serve
     },
 
     async loadTasks() {
@@ -24,11 +23,15 @@ const Agenda = {
         }
     },
 
+    // ============================================================
+    //  MAIN VIEW RENDERING (Full Page)
+    // ============================================================
+
     async render() {
         const container = document.getElementById('agendaContent');
         if (!container) return;
 
-        // 1. SCAFFOLDING STATICO
+        // SCAFFOLDING STATICO
         if (!this.isInitialized || container.querySelector('h2') === null) {
             container.innerHTML = `
                 <div class="mb-10 animate-fadeIn">
@@ -212,7 +215,294 @@ const Agenda = {
             </div>`;
     },
 
-    // --- AZIONI MODALI ---
+    // ============================================================
+    //  WIDGET EXPORT LOGIC
+    // ============================================================
+
+    getWidgets() {
+        return [
+            // Widget 1: KPI (1x1)
+            {
+                id: 'agenda_kpi',
+                name: 'KPI Attività',
+                description: 'Contatore task odierni',
+                size: { cols: 1, rows: 1 }, 
+                render: () => this.renderWidgetKPI()
+            },
+            // Widget 2: Lista (3x1)
+            {
+                id: 'agenda_list',
+                name: 'Lista Priorità',
+                description: 'Lista prossime attività',
+                size: { cols: 3, rows: 1 }, 
+                render: () => this.renderWidgetList()
+            },
+            // Widget 3: Next Focus (2x1)
+            {
+                id: 'agenda_next',
+                name: 'Focus Next Task',
+                description: 'Il prossimo impegno imminente',
+                size: { cols: 2, rows: 1 },
+                render: () => this.renderWidgetNextTask()
+            },
+            // Widget 4: Weekly Load (1x1)
+            {
+                id: 'agenda_week',
+                name: 'Carico Settimanale',
+                description: 'Grafico impegni 7 giorni',
+                size: { cols: 1, rows: 1 },
+                render: () => this.renderWidgetWeeklyLoad()
+            },
+            // Widget 5: Quick Add (1x1)
+            {
+                id: 'agenda_add',
+                name: 'Aggiunta Rapida',
+                description: 'Bottone creazione task',
+                size: { cols: 1, rows: 1 },
+                render: () => this.renderWidgetQuickAdd()
+            },
+            // Widget 6: PRIORITÀ AVANZATE (Nuovo)
+            {
+                id: 'agenda_priorities',
+                name: 'Priorità Avanzate',
+                description: 'Oggi, Domani, In Arrivo',
+                size: { cols: 3, rows: 2 }, // Widget grande a tutta riga
+                render: () => this.renderWidgetPriorities()
+            }
+        ];
+    },
+
+    // --- RENDERERS DEI WIDGET ---
+
+    renderWidgetKPI() {
+        const todayStr = new Date().toDateString();
+        const activeTasks = this.tasks.filter(t => !t.completed);
+        const todayCount = activeTasks.filter(t => new Date(t.date).toDateString() === todayStr).length;
+
+        return `
+            <div class="h-full relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2.5rem] shadow-2xl p-7 text-white group cursor-pointer transition-all hover:scale-[1.02]" onclick="window.showSection('agenda')">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-xl group-hover:bg-white/20 transition-all"></div>
+                <div class="flex flex-col h-full justify-between relative z-10">
+                    <div class="flex justify-between items-start">
+                        <span class="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">Oggi</span>
+                        <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-lg backdrop-blur-md">📅</div>
+                    </div>
+                    <div>
+                        <p class="text-5xl font-black tracking-tighter leading-none">${todayCount}</p>
+                        <p class="text-[9px] font-bold opacity-60 uppercase tracking-widest mt-2">Task Pianificati</p>
+                    </div>
+                </div>
+            </div>`;
+    },
+
+    renderWidgetList() {
+        const now = new Date();
+        const activeTasks = this.tasks.filter(t => !t.completed).sort((a,b) => new Date(a.date) - new Date(b.date));
+        const previewTasks = activeTasks.slice(0, 3);
+        const isEmpty = previewTasks.length === 0;
+
+        let contentHtml = isEmpty ? 
+            `<div class="h-full flex flex-col items-center justify-center text-slate-500 opacity-60"><span class="text-2xl mb-2">☕</span><span class="text-xs font-bold uppercase tracking-widest">Tutto fatto</span></div>` :
+            `<div class="space-y-3">
+                ${previewTasks.map(t => {
+                    const isToday = new Date(t.date).toDateString() === now.toDateString();
+                    return `
+                    <div class="flex items-center gap-4 p-3.5 bg-slate-700/30 rounded-2xl border border-white/5 hover:bg-slate-700/50 transition-colors cursor-pointer group" onclick="Agenda.editTask('${t.id}')">
+                        <div class="w-2.5 h-2.5 rounded-full ${isToday ? 'bg-indigo-400 animate-pulse' : 'bg-slate-600'}"></div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-slate-200 group-hover:text-white truncate">${t.title}</p>
+                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wide">${Helpers.formatDate(t.date, 'short')}</p>
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+
+        return `
+            <div class="h-full bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-7 border border-slate-700/40 shadow-xl flex flex-col">
+                <div class="flex items-center justify-between mb-5">
+                    <h3 class="font-bold text-white flex items-center gap-3">
+                        <span class="w-9 h-9 bg-indigo-500/20 text-indigo-400 rounded-xl flex items-center justify-center text-sm shadow-inner">📋</span>
+                        Priorità
+                    </h3>
+                    <span class="text-[10px] font-black text-indigo-400 bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20 uppercase tracking-wider">${activeTasks.length} OPEN</span>
+                </div>
+                <div class="flex-1 overflow-hidden">${contentHtml}</div>
+            </div>`;
+    },
+
+    renderWidgetNextTask() {
+        const activeTasks = this.tasks.filter(t => !t.completed).sort((a,b) => new Date(a.date) - new Date(b.date));
+        const nextTask = activeTasks[0];
+
+        if (!nextTask) {
+            return `
+            <div class="h-full bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-7 border border-slate-700/40 shadow-xl flex items-center justify-center text-center">
+                <div>
+                    <div class="text-4xl mb-2">🎉</div>
+                    <p class="text-slate-400 font-bold text-sm">Nessun task in arrivo</p>
+                </div>
+            </div>`;
+        }
+
+        const isToday = new Date(nextTask.date).toDateString() === new Date().toDateString();
+        const pColor = nextTask.priority === 'high' ? 'text-rose-400' : 'text-indigo-400';
+
+        return `
+            <div class="h-full bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-7 border border-slate-700/40 shadow-xl flex flex-col justify-between group hover:border-indigo-500/30 transition-all cursor-pointer" onclick="Agenda.editTask('${nextTask.id}')">
+                <div class="flex justify-between items-start">
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700">Next Up</span>
+                    <span class="text-2xl animate-pulse">🔥</span>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-black text-white leading-tight mb-2 line-clamp-2">${nextTask.title}</h3>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-bold ${pColor} uppercase tracking-widest">${isToday ? 'OGGI' : Helpers.formatDate(nextTask.date, 'short')}</span>
+                        <span class="w-1 h-1 bg-slate-600 rounded-full"></span>
+                        <span class="text-xs font-bold text-slate-400">${Helpers.formatDate(nextTask.date, 'time')}</span>
+                    </div>
+                </div>
+            </div>`;
+    },
+
+    renderWidgetWeeklyLoad() {
+        const days = [];
+        const today = new Date();
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(today);
+            d.setDate(today.getDate() + i);
+            const dStr = d.toDateString();
+            const count = this.tasks.filter(t => !t.completed && new Date(t.date).toDateString() === dStr).length;
+            days.push({ day: d.toLocaleDateString('it-IT', { weekday: 'narrow' }), count: count });
+        }
+        
+        const max = Math.max(...days.map(d => d.count), 1);
+
+        return `
+            <div class="h-full bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-6 border border-slate-700/40 shadow-xl flex flex-col justify-between">
+                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">Carico 7gg</p>
+                <div class="flex items-end justify-between h-full gap-1.5 pt-2">
+                    ${days.map(d => {
+                        const h = Math.max((d.count / max) * 100, 10);
+                        const color = d.count > 0 ? 'bg-indigo-500' : 'bg-slate-700';
+                        return `
+                            <div class="flex flex-col items-center gap-1.5 w-full h-full justify-end group">
+                                <div class="w-full rounded-md ${color} transition-all duration-500 group-hover:bg-indigo-400 relative" style="height: ${h}%">
+                                    ${d.count > 0 ? `<div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-white bg-slate-900 px-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">${d.count}</div>` : ''}
+                                </div>
+                                <span class="text-[8px] font-bold text-slate-500 uppercase">${d.day}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>`;
+    },
+
+    renderWidgetQuickAdd() {
+        return `
+            <div onclick="Agenda.showAddModal()" class="h-full bg-slate-800/30 hover:bg-indigo-600/20 backdrop-blur-md rounded-[2.5rem] border-2 border-dashed border-slate-700 hover:border-indigo-500 transition-all cursor-pointer flex flex-col items-center justify-center group text-slate-500 hover:text-indigo-400 gap-3">
+                <div class="w-12 h-12 rounded-full bg-slate-800 border border-slate-600 group-hover:border-indigo-400 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center transition-all shadow-xl">
+                    <span class="text-2xl font-bold mb-1">＋</span>
+                </div>
+                <span class="text-[10px] font-black uppercase tracking-widest">Aggiungi Task</span>
+            </div>`;
+    },
+
+    // NUOVO WIDGET: PRIORITÀ AVANZATE (Oggi, Domani, In Arrivo)
+    renderWidgetPriorities() {
+        const now = new Date();
+        const todayStr = now.toDateString();
+        const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toDateString();
+
+        const todayTasks = this.tasks.filter(t => !t.completed && new Date(t.date).toDateString() === todayStr);
+        const tomorrowTasks = this.tasks.filter(t => !t.completed && new Date(t.date).toDateString() === tomorrowStr);
+        const upcomingTasks = this.tasks
+            .filter(t => !t.completed && new Date(t.date) > tomorrow)
+            .sort((a, b) => new Date(a.date) - new Date(b.date))
+            .slice(0, 3);
+
+        const count = todayTasks.length + tomorrowTasks.length;
+
+        if (count === 0 && upcomingTasks.length === 0) {
+            return `
+                <div class="h-full bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-8 border border-slate-700/40 shadow-xl flex flex-col items-center justify-center text-center">
+                    <div class="w-16 h-16 bg-slate-700/50 rounded-full flex items-center justify-center text-4xl mb-4">☕</div>
+                    <h3 class="text-xl font-bold text-white">Nessun impegno in vista</h3>
+                    <p class="text-slate-400 text-sm mt-1">Goditi il tuo tempo libero!</p>
+                    <button onclick="Agenda.showAddModal()" class="mt-4 text-indigo-400 font-bold uppercase text-xs tracking-widest hover:text-white transition-colors">+ Aggiungi Task</button>
+                </div>`;
+        }
+
+        let html = '';
+        if (todayTasks.length > 0) {
+            html += `<div class="text-[10px] font-black uppercase text-indigo-400 tracking-widest mb-4 pl-2 opacity-80 sticky top-0 bg-slate-900/90 z-10 backdrop-blur-sm py-2">Oggi</div>`;
+            html += todayTasks.map(t => this._renderTaskRow(t)).join('');
+        }
+        if (tomorrowTasks.length > 0) {
+            html += `<div class="text-[10px] font-black uppercase text-purple-400 tracking-widest mt-6 mb-4 pl-2 opacity-80 sticky top-0 bg-slate-900/90 z-10 backdrop-blur-sm py-2">Domani</div>`;
+            html += tomorrowTasks.map(t => this._renderTaskRow(t)).join('');
+        }
+        if (upcomingTasks.length > 0) {
+            html += `<div class="text-[10px] font-black uppercase text-amber-400 tracking-widest mt-6 mb-4 pl-2 opacity-80 sticky top-0 bg-slate-900/90 z-10 backdrop-blur-sm py-2">In Arrivo</div>`;
+            html += upcomingTasks.map(t => {
+                const taskDate = new Date(t.date);
+                const diffDays = Math.ceil((taskDate - now) / (1000 * 60 * 60 * 24));
+                const label = diffDays === 2 ? "Dopodomani" : `Tra ${diffDays}gg`;
+                return this._renderTaskRow(t, label);
+            }).join('');
+        }
+
+        return `
+            <div class="h-full bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-8 border border-slate-700/40 shadow-xl flex flex-col group hover:border-slate-600 transition-all relative overflow-hidden">
+                <div class="flex items-center justify-between mb-6 shrink-0 relative z-20">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                            <span class="text-2xl">📅</span>
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-white tracking-tight">Priorità</h3>
+                            <p class="text-xs text-slate-400 font-medium">Panoramica scadenze</p>
+                        </div>
+                    </div>
+                    <span class="text-xs font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-4 py-2 rounded-full border border-indigo-500/20">
+                        ${todayTasks.length} Oggi, ${tomorrowTasks.length} Domani
+                    </span>
+                </div>
+                <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 relative z-10 space-y-2">
+                    ${html}
+                </div>
+            </div>`;
+    },
+
+    _renderTaskRow(t, customDateLabel = null) {
+        const isOverdue = !t.completed && new Date(t.date) < new Date();
+        const descriptionHtml = t.description 
+            ? `<p class="text-xs text-slate-400 mt-1.5 line-clamp-1 italic truncate">${Helpers.escapeHtml(t.description)}</p>` 
+            : '';
+        const timeLabel = customDateLabel || Helpers.formatDate(t.date, 'time');
+
+        return `
+            <div class="flex items-start gap-4 p-4 bg-slate-800/60 border border-slate-700/50 rounded-2xl hover:bg-slate-700/60 transition-all cursor-pointer group/row relative overflow-hidden mb-2" onclick="Agenda.editTask('${t.id}')">
+                <button onclick="event.stopPropagation(); Agenda.toggleTask('${t.id}')" 
+                        title="Completa"
+                        class="mt-0.5 w-5 h-5 rounded-full border-2 border-slate-500 group-hover/row:border-indigo-400 flex items-center justify-center transition-colors shrink-0">
+                    <div class="w-2 h-2 bg-indigo-400 rounded-full opacity-0 group-hover/row:opacity-100 transition-opacity"></div>
+                </button>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="font-bold text-slate-200 group-hover/row:text-white transition-colors truncate text-sm">${Helpers.escapeHtml(t.title)}</p>
+                        <span class="text-[9px] font-black text-slate-500 uppercase bg-slate-900/50 px-2 py-0.5 rounded-md border border-slate-700/50 whitespace-nowrap">${timeLabel}</span>
+                    </div>
+                    ${descriptionHtml}
+                </div>
+                ${isOverdue ? `<div class="absolute top-0 right-0 w-1 h-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>` : ''}
+            </div>`;
+    },
+
+    // ============================================================
+    //  MODALS & ACTIONS
+    // ============================================================
+
     showDayModal(dateStr) {
         const dayTasks = this.tasks.filter(t => t.date.startsWith(dateStr));
         const [year, month, day] = dateStr.split('-').map(Number);
@@ -283,6 +573,8 @@ const Agenda = {
             if(t) this.showDayModal(t.date.split('T')[0]); 
         }
         await this.updateView();
+        // Aggiorna anche la dashboard se visibile (via EventBus)
+        if(window.EventBus) EventBus.emit('dataChanged');
         Helpers.showToast('Task aggiornato! ✅');
     },
 
@@ -292,6 +584,7 @@ const Agenda = {
         await this.loadTasks();
         if(fromModal && document.getElementById('dayModal')) document.getElementById('dayModal').remove();
         await this.updateView();
+        if(window.EventBus) EventBus.emit('dataChanged');
         Helpers.showToast('Task rimosso');
     },
 
@@ -308,6 +601,7 @@ const Agenda = {
         document.getElementById('taskModal').remove();
         await this.loadTasks();
         await this.updateView();
+        if(window.EventBus) EventBus.emit('dataChanged');
         Helpers.showToast(taskId ? 'Modificato' : 'Creato');
     },
 
@@ -317,8 +611,6 @@ const Agenda = {
 // ==========================================
 // REGISTRAZIONE MODULARE
 // ==========================================
-// Mantiene window.Agenda per compatibilità con i click inline nell'HTML,
-// ma si registra anche nel ModuleManager per apparire nella sidebar.
 window.Agenda = Agenda;
 
 if (window.ModuleManager) {
@@ -328,8 +620,10 @@ if (window.ModuleManager) {
         icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>',
         order: 1,
         category: 'main',
-        isCore: true, // Non disattivabile
+        isCore: true,
         init: () => Agenda.init(),
-        render: () => Agenda.render()
+        render: () => Agenda.render(),
+        // ESPORTAZIONE WIDGET PER DASHBOARD
+        widgets: Agenda.getWidgets()
     });
 }

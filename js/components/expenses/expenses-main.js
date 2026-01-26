@@ -1,6 +1,6 @@
 /**
- * Expenses Main Module - MODULAR PARENT
- * Gestisce le spese e REGISTRA il modulo "Finanza" con il sotto-menu Analytics.
+ * Expenses Main Module - MODULAR PARENT & WIDGETS
+ * Gestisce le spese, REGISTRA il modulo "Finanza" e i WIDGETS per la Dashboard.
  */
 
 const Expenses = {
@@ -11,7 +11,6 @@ const Expenses = {
     async init() {
         if (window.Categories) await Categories.init();
         if (window.MerchantMappings) await MerchantMappings.init();
-        // Inizializza anche il figlio (Analytics)
         if (window.Statistics) await Statistics.init();
         
         await this.render();
@@ -85,7 +84,9 @@ const Expenses = {
                 return d >= start && d <= end;
             });
 
-            document.getElementById('month-label').textContent = Helpers.formatCustomMonthName(new Date(this.currentYear, this.currentMonth, 15));
+            const labelEl = document.getElementById('month-label');
+            if(labelEl) labelEl.textContent = Helpers.formatCustomMonthName(new Date(this.currentYear, this.currentMonth, 15));
+            
             const filtered = ExpenseFilters.hasCategory() ? ExpenseFilters.apply(monthExpenses) : monthExpenses;
             const stats = ExpenseStats.calculate(monthExpenses);
 
@@ -93,7 +94,7 @@ const Expenses = {
             if(kpiRow) kpiRow.innerHTML = `
                 ${this.renderKpiCard('Spese', stats.total, 'from-rose-500 to-pink-600', `${stats.count} transazioni`)}
                 ${this.renderKpiCard('Entrate', stats.income, 'from-emerald-500 to-teal-600', `${stats.incomeCount} transazioni`)}
-                ${this.renderKpiCard('Bilancio', stats.balance, stats.balance >= 0 ? 'from-orange-500 to-red-600' : 'from-orange-600 to-red-700', stats.balance >= 0 ? 'Positivo' : 'Negativo')}
+                ${this.renderKpiCard('Bilancio', stats.balance, stats.balance >= 0 ? 'from-emerald-600 to-green-700' : 'from-rose-600 to-red-700', stats.balance >= 0 ? 'Positivo' : 'Negativo')}
                 ${this.renderKpiCard('Totali', monthExpenses.length, 'from-violet-500 to-purple-600', 'Operazioni totali')}
                 ${this.renderKpiCard('Extra', stats.excludedTotal, 'from-cyan-500 to-blue-600', 'Investimenti/Altro')}
             `;
@@ -119,7 +120,235 @@ const Expenses = {
     confirmResetMonth() { if (confirm(`⚠️ Eliminare tutte le spese del mese corrente?`)) this.deleteMonthExpenses(); },
     async deleteMonthExpenses() { try { await ExpenseCRUD.deleteMonth(this.currentYear, this.currentMonth + 1); if (window.DataCache) window.DataCache.invalidate('expenses'); Helpers.showToast('Mese ripulito', 'success'); await this.render(); } catch (e) { Helpers.showToast('Errore: ' + e.message, 'error'); } },
     exportMonth() { /* ... codice export ... */ },
-    showCategoriesModal() { if (typeof Expenses_showCategoriesModal === 'function') Expenses_showCategoriesModal(); }
+    showCategoriesModal() { if (typeof Expenses_showCategoriesModal === 'function') Expenses_showCategoriesModal(); },
+
+    // ============================================================
+    //  WIDGET EXPORT LOGIC
+    // ============================================================
+
+    getWidgets() {
+        return [
+            {
+                id: 'expenses_balance',
+                name: 'Bilancio Mese',
+                description: 'Entrate vs Uscite',
+                size: { cols: 1, rows: 1 },
+                render: () => this.renderWidgetBalance()
+            },
+            {
+                id: 'expenses_recent',
+                name: 'Ultime Spese',
+                description: 'Lista verticale',
+                size: { cols: 1, rows: 2 }, // ESTESO IN VERTICALE
+                render: () => this.renderWidgetRecent()
+            },
+            {
+                id: 'expenses_trend',
+                name: 'Trend 7gg',
+                description: 'Grafico settimanale',
+                size: { cols: 1, rows: 1 },
+                render: () => this.renderWidgetTrend()
+            },
+            {
+                id: 'expenses_budget',
+                name: 'Stato Budget',
+                description: 'Speso vs Opzioni',
+                size: { cols: 2, rows: 1 },
+                render: () => this.renderWidgetBudget()
+            }
+        ];
+    },
+
+    async renderWidgetBalance() {
+        const expenses = await window.CachedCRUD.getExpenses();
+        const now = new Date();
+        const currentMonthExpenses = expenses.filter(e => {
+            const d = new Date(e.date);
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        });
+        
+        const income = currentMonthExpenses.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
+        const outcome = currentMonthExpenses.filter(e => e.type !== 'income').reduce((s, e) => s + Math.abs(e.amount), 0);
+        const balance = income - outcome;
+        
+        const isPositive = balance >= 0;
+        const bgGradient = isPositive ? 'from-emerald-600 to-green-700' : 'from-rose-600 to-pink-700';
+
+        return `
+            <div class="h-full relative overflow-hidden bg-gradient-to-br ${bgGradient} rounded-[2.5rem] shadow-2xl p-7 text-white group cursor-pointer transition-all hover:scale-[1.02]" onclick="window.showSection('expenses')">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-xl group-hover:bg-white/20 transition-all"></div>
+                <div class="flex flex-col h-full justify-between relative z-10">
+                    <div class="flex justify-between items-start">
+                        <span class="text-[10px] font-black uppercase tracking-[0.2em] opacity-70">Bilancio</span>
+                        <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-lg backdrop-blur-md">💰</div>
+                    </div>
+                    <div>
+                        <p class="text-3xl font-black tracking-tighter leading-none truncate">${Helpers.formatCurrency(balance)}</p>
+                        <div class="flex justify-between items-end mt-2 opacity-80">
+                            <span class="text-[9px] font-bold uppercase tracking-widest">In: ${Helpers.formatCurrency(income)}</span>
+                            <span class="text-[9px] font-bold uppercase tracking-widest">Out: ${Helpers.formatCurrency(outcome)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    },
+
+    async renderWidgetRecent() {
+        // WIDGET VERTICALE (1x2)
+        const expenses = await window.CachedCRUD.getExpenses();
+        // Prendiamo più elementi (es. 6) perché il widget è più alto
+        const recent = expenses
+            .filter(e => e.type !== 'income')
+            .sort((a,b) => new Date(b.date) - new Date(a.date))
+            .slice(0, 6);
+
+        if(recent.length === 0) return `<div class="h-full bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] flex items-center justify-center text-slate-500 font-bold uppercase text-xs">Nessuna spesa</div>`;
+
+        return `
+            <div class="h-full bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-6 border border-slate-700/40 shadow-xl flex flex-col cursor-pointer" onclick="window.showSection('expenses')">
+                <div class="flex items-center gap-3 mb-4">
+                     <span class="w-8 h-8 bg-rose-500/20 text-rose-400 rounded-lg flex items-center justify-center text-sm">💸</span>
+                     <h3 class="font-bold text-white text-sm uppercase tracking-wide">Ultime Uscite</h3>
+                </div>
+                <div class="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1">
+                    ${recent.map(e => {
+                        const cat = window.Categories?.getById(e.category);
+                        return `
+                        <div class="flex items-center justify-between p-3 bg-slate-700/30 rounded-xl border border-white/5 hover:bg-slate-700/50 transition-colors">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="text-lg">${cat?.icon || '📦'}</span>
+                                <div class="min-w-0">
+                                    <p class="text-xs font-bold text-slate-200 truncate leading-tight">${e.description}</p>
+                                    <p class="text-[8px] text-slate-500 font-bold uppercase">${Helpers.formatDate(e.date, 'short')}</p>
+                                </div>
+                            </div>
+                            <span class="font-black text-rose-400 text-xs whitespace-nowrap">-${Helpers.formatCurrency(Math.abs(e.amount))}</span>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>`;
+    },
+
+   async renderWidgetTrend() {
+        const expenses = await window.CachedCRUD.getExpenses();
+        const days = [];
+        const today = new Date();
+        
+        // Calcola i dati degli ultimi 7 giorni
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            const dStr = d.toISOString().split('T')[0];
+            const dayExpenses = expenses
+                .filter(e => e.type !== 'income' && e.date.startsWith(dStr))
+                .reduce((sum, e) => sum + Math.abs(e.amount), 0);
+            
+            days.push({ day: d.toLocaleDateString('it-IT', { weekday: 'narrow' }), val: dayExpenses });
+        }
+
+        // CALCOLO TOTALE 7 GIORNI
+        const total7Days = days.reduce((acc, curr) => acc + curr.val, 0);
+
+        const max = Math.max(...days.map(d => d.val), 10);
+
+        return `
+             <div class="h-full bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-6 border border-slate-700/40 shadow-xl flex flex-col justify-between cursor-pointer group hover:scale-[1.02] transition-all" onclick="window.showSection('statistics')">
+                
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-0.5">Ultimi 7gg</p>
+                        <p class="text-2xl font-black text-white tracking-tight">${Helpers.formatCurrency(total7Days)}</p>
+                    </div>
+                    <div class="w-8 h-8 bg-slate-700/50 rounded-lg flex items-center justify-center text-lg">📉</div>
+                </div>
+
+                <div class="flex items-end justify-between h-full gap-1.5 pt-2">
+                    ${days.map(d => {
+                        // Altezza relativa (minimo 10% per estetica)
+                        const h = Math.max((d.val / max) * 100, 10);
+                        const color = d.val > 0 ? 'bg-rose-500' : 'bg-slate-700';
+                        return `
+                            <div class="flex flex-col items-center gap-1.5 w-full h-full justify-end group/bar">
+                                <div class="w-full rounded-md ${color} transition-all duration-500 group-hover/bar:bg-rose-400 relative" style="height: ${h}%">
+                                    ${d.val > 0 ? `<div class="absolute -top-5 left-1/2 -translate-x-1/2 text-[8px] font-bold text-white bg-slate-900 px-1.5 py-0.5 rounded opacity-0 group-hover/bar:opacity-100 transition-opacity z-10 whitespace-nowrap">${Math.round(d.val)}€</div>` : ''}
+                                </div>
+                                <span class="text-[8px] font-bold text-slate-500 uppercase">${d.day}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>`;
+    },
+
+    async renderWidgetBudget() {
+        const expenses = await window.CachedCRUD.getExpenses();
+        const now = new Date();
+        // Filtra spese mese corrente (solo spese, no entrate)
+        const monthExpenses = expenses.filter(e => {
+            const d = new Date(e.date);
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && e.type !== 'income';
+        });
+
+        const totalSpent = monthExpenses.reduce((sum, e) => sum + Math.abs(e.amount), 0);
+        
+        // --- RECUPERO BUDGET ALLINEATO CON STATISTICS.JS ---
+        let budgetTarget = 700; // Fallback di default come in Statistics.js
+        try {
+            if (window.SettingsManager) {
+                // Usa SettingsManager come fa statistics.js
+                budgetTarget = parseFloat(window.SettingsManager.get('monthlyBudget')) || 700;
+            } else if (window.CachedCRUD && window.CachedCRUD.getSettings) {
+                // Fallback su CachedCRUD se SettingsManager non c'è ancora
+                const settings = await window.CachedCRUD.getSettings();
+                if (settings && settings.monthly_budget) {
+                    budgetTarget = parseFloat(settings.monthly_budget);
+                }
+            }
+        } catch(e) { console.warn("Budget fetch error", e); }
+        // ----------------------------------------------------
+
+        const percent = Math.min(Math.round((totalSpent / budgetTarget) * 100), 100);
+        const isOverBudget = totalSpent > budgetTarget;
+        
+        let color = 'bg-emerald-500';
+        if (percent > 75) color = 'bg-orange-500';
+        if (percent > 90) color = 'bg-rose-600';
+
+        const remaining = budgetTarget - totalSpent;
+
+        return `
+            <div class="h-full bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-7 border border-slate-700/40 shadow-xl flex flex-col justify-between cursor-pointer group hover:scale-[1.01] transition-all" onclick="window.showSection('expenses')">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-2xl">🎯</span>
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Budget Mensile</p>
+                            <h4 class="text-xl font-bold text-white leading-tight">
+                                ${Helpers.formatCurrency(totalSpent)} <span class="text-slate-500 text-sm">/ ${Helpers.formatCurrency(budgetTarget)}</span>
+                            </h4>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                         <span class="block text-2xl font-black ${remaining >= 0 ? 'text-emerald-400' : 'text-rose-400'}">
+                            ${remaining >= 0 ? '+' : ''}${Math.round(remaining)}€
+                         </span>
+                         <span class="text-[9px] font-bold text-slate-500 uppercase">${remaining >= 0 ? 'Rimanenti' : 'Sforamento'}</span>
+                    </div>
+                </div>
+
+                <div class="space-y-2 mt-4">
+                    <div class="h-3 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5 relative">
+                        <div class="h-full ${color} transition-all duration-1000 shadow-[0_0_10px_currentColor]" style="width: ${percent}%"></div>
+                        ${isOverBudget ? `<div class="absolute inset-0 bg-rose-500/20 animate-pulse"></div>` : ''}
+                    </div>
+                    <div class="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <span>0%</span>
+                        <span>50%</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+            </div>`;
+    }
 };
 
 window.Expenses = Expenses;
@@ -130,39 +359,23 @@ window.Expenses = Expenses;
 if (window.ModuleManager) {
     ModuleManager.register({
         id: 'expenses',
-        dbKey: 'expenses_enabled', // La chiave DB reale
+        dbKey: 'expenses_enabled',
         name: 'Spese & Budget',
         icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>', 
         category: 'finance',
         order: 10,
-        
-        // SOTTO MENU: Collega "Analytics" a questo modulo
-        subItems: [
-            { label: 'Report & Analytics', section: 'statistics' }
-        ],
-
-        // Init: carica sé stesso E il componente Statistics
+        subItems: [ { label: 'Report & Analytics', section: 'statistics' } ],
         init: async () => {
             await Expenses.init();
-            // Statistics non ha bisogno di init separato se lo chiamiamo dentro Expenses.init()
-            // ma per sicurezza lo carichiamo
-            if (window.Statistics && window.Statistics.loadData) {
-                await window.Statistics.loadData();
-            }
+            if (window.Statistics && window.Statistics.loadData) await window.Statistics.loadData();
         },
-
-        // Render: Decide cosa mostrare in base alla sezione richiesta
-        // Se mi chiedono 'expenses', mostro Expenses.render()
-        // Se mi chiedono 'statistics', mostro Statistics.render()
         render: async (container) => {
-            // Nota: container è il <div> principale passato dal navigation.js
-            
-            // Trucco: Navigation.js imposta window.currentSection
             if (window.currentSection === 'statistics') {
                 if (window.Statistics) await window.Statistics.render();
             } else {
                 await Expenses.render();
             }
-        }
+        },
+        widgets: Expenses.getWidgets()
     });
 }

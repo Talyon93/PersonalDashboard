@@ -346,3 +346,18 @@ input:focus, textarea:focus, select:focus {
     pointer-events: none; /* Impedisce click durante il tour */
     background-color: #0f172a; /* Assicura sfondo scuro */
 }
+
+@keyframes wiggle {
+    0%, 100% { transform: rotate(-0.25deg); }
+    50% { transform: rotate(0.25deg); }
+}
+
+.animate-pulse-slow {
+    animation: wiggle 0.3s ease-in-out infinite;
+}
+
+/* Cursore durante il trascinamento */
+.cursor-move {
+    cursor: move;
+    cursor: -webkit-grabbing;
+}

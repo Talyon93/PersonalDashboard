@@ -1,55 +1,34 @@
 /**
- * MODULE MANAGER - Architettura Modulare
- * Centralizza la registrazione e la gestione dei moduli.
+ * MODULE MANAGER - ARCHITETTURA JSONB (FLESSIBILE)
+ * Salva lo stato dei moduli in un campo JSON. Include supporto Widget Dashboard.
  */
 const ModuleManager = {
-    _modules: new Map(), // Registro di tutti i moduli
-    _states: {},         // Stato attivazione dal DB (es. { expenses_enabled: true })
+    _modules: new Map(),
+    _states: {}, // Esempio: { "diet": true, "goals": false }
 
-    /**
-     * 1. REGISTRAZIONE MODULO
-     * Ogni modulo chiama questa funzione per esistere nel sistema.
-     */
     register(config) {
         if (!config.id) return console.error('❌ Errore: Modulo senza ID');
 
         const defaults = {
-            id: '',             // ID univoco (es. 'crypto')
-            dbKey: '',          // Nome colonna nel DB (es. 'crypto_enabled')
-            name: '',           // Nome visibile (es. 'Criptovalute')
-            icon: '📦',         // Icona SVG o Emoji
-            category: 'main',   // 'main', 'finance', 'growth', 'tools'
-            order: 50,          // Ordine visivo
-            isCore: false,      // Se true, è sempre attivo (es. Agenda)
-            
-            // SOTTO-MENU (La parte che chiedevi)
-            // Array di oggetti: { id: 'sub-1', label: 'Wallet', action: () => ... }
-            subItems: [],       
-            
-            // Funzioni del modulo
+            id: '',             
+            name: '',           
+            icon: '📦',         
+            category: 'main',   
+            order: 50,          
+            isCore: false,      
+            subItems: [],
+            widgets: [], // Array per i widget della dashboard (Default vuoto)
             init: async () => {}, 
             render: async () => {} 
         };
 
-        const moduleConfig = { ...defaults, ...config };
-        
-        // Se non viene specificata una chiave DB, la inventa basandosi sull'ID
-        if (!moduleConfig.dbKey && !moduleConfig.isCore) {
-            moduleConfig.dbKey = `${moduleConfig.id}_enabled`;
-        }
-
-        this._modules.set(config.id, moduleConfig);
+        this._modules.set(config.id, { ...defaults, ...config });
         console.log(`🧩 Modulo registrato: ${config.id}`);
     },
 
-    /**
-     * 2. INIZIALIZZAZIONE SISTEMA
-     * Carica i permessi dal DB e inizializza i moduli attivi.
-     */
     async init() {
-        await this.fetchPermissions(); // Scarica true/false dal DB
+        await this.fetchPermissions(); 
 
-        // Inizializza solo i moduli attivi
         const activeModules = this.getActiveModules();
         for (const mod of activeModules) {
             try {
@@ -60,9 +39,6 @@ const ModuleManager = {
         }
     },
 
-    /**
-     * 3. RECUPERA PERMESSI (Supabase)
-     */
     async fetchPermissions() {
         if (!window.supabaseClient) return;
         
@@ -72,40 +48,45 @@ const ModuleManager = {
 
             let { data, error } = await window.supabaseClient
                 .from('user_modules')
-                .select('*')
+                .select('modules_state') // Leggiamo solo il JSON
                 .eq('user_id', user.id)
                 .maybeSingle();
 
-            // Auto-fix se manca la riga
+            // Se non esiste la riga, la creiamo vuota
             if (!data) {
                 const { data: newData } = await window.supabaseClient
                     .from('user_modules')
-                    .upsert({ user_id: user.id })
-                    .select().single();
+                    .upsert({ user_id: user.id, modules_state: {} })
+                    .select()
+                    .single();
                 data = newData;
             }
 
-            this._states = data || {};
+            // Carica lo stato (fallback oggetto vuoto)
+            this._states = data?.modules_state || {};
             
-            // Salva anche in localStorage per velocità
+            // Backup in locale per velocità
             localStorage.setItem('myfinance_module_states', JSON.stringify(this._states));
 
-        } catch (e) { console.error("Err fetch modules", e); }
+        } catch (e) { 
+            console.error("Err fetch modules", e); 
+            // Fallback offline
+            const cached = localStorage.getItem('myfinance_module_states');
+            if (cached) this._states = JSON.parse(cached);
+        }
     },
 
-    /**
-     * 4. HELPER: Controlla se un modulo è attivo
-     */
     isActive(moduleId) {
         const mod = this._modules.get(moduleId);
         if (!mod) return false;
-        if (mod.isCore) return true; // I moduli core (Agenda) sono sempre attivi
-        return !!this._states[mod.dbKey];
+        if (mod.isCore) return true; // I moduli Core sono sempre attivi
+        
+        // Verifica nello stato JSON (es. _states["diet"] === true)
+        return !!this._states[moduleId];
     },
 
     /**
-     * 5. LISTA MODULI ATTIVI (Ordinati)
-     * Usata dalla Sidebar per disegnarsi
+     * Ritorna SOLO i moduli attivi (per la sidebar)
      */
     getActiveModules() {
         return Array.from(this._modules.values())
@@ -114,26 +95,42 @@ const ModuleManager = {
     },
 
     /**
-     * 6. TOGGLE (Attiva/Disattiva)
-     * Chiamato dall'Hub Moduli
+     * NUOVO: Ritorna TUTTI i moduli registrati (Attivi e non).
+     * Serve alla Dashboard per elencare i widget disponibili nella modale "Personalizza".
      */
+    getModules() {
+        return Array.from(this._modules.values());
+    },
+
     async toggle(moduleId) {
         const mod = this._modules.get(moduleId);
         if (!mod || mod.isCore) return;
 
-        const newState = !this._states[mod.dbKey];
-        this._states[mod.dbKey] = newState; // Aggiornamento locale immediato
+        // 1. Inverti lo stato in memoria
+        const newState = !this.isActive(moduleId);
+        this._states[moduleId] = newState;
 
-        // Aggiorna DB
-        const { data: { user } } = await window.supabaseClient.auth.getUser();
-        await window.supabaseClient
-            .from('user_modules')
-            .update({ [mod.dbKey]: newState })
-            .eq('user_id', user.id);
+        // 2. Aggiorna Cache Locale (UI istantanea)
+        localStorage.setItem('myfinance_module_states', JSON.stringify(this._states));
 
-        // Ricarica la pagina per applicare le modifiche in modo pulito
-        // (In un sistema più avanzato potremmo fare hot-reload, ma il reload è più sicuro per ora)
-        window.location.reload();
+        // 3. Salva nel Database (Colonna JSONB)
+        try {
+            const { data: { user } } = await window.supabaseClient.auth.getUser();
+            
+            const { error } = await window.supabaseClient
+                .from('user_modules')
+                .update({ modules_state: this._states }) 
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+            
+            // Ricarica per applicare le modifiche (Navigation, Init, ecc.)
+            window.location.reload();
+
+        } catch (e) {
+            console.error("Errore salvataggio modulo:", e);
+            alert("Errore nel salvataggio. Controlla la console.");
+        }
     }
 };
 

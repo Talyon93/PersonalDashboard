@@ -1,338 +1,343 @@
 /**
- * Dashboard Component - ULTRA PREMIUM RESTORED
- * Grafica originale completa + Integrazione ModuleManager.
+ * Dashboard Component - STABLE EDITION 🛡️
+ * Include: Anti-Duplicazione, Debounce rendering e Pulizia LocalStorage.
  */
 const Dashboard = {
+    defaultWidgets: ['agenda_kpi', 'agenda_list'],
+    
+    config: {
+        activeWidgets: [] 
+    },
+    
     isInitialized: false,
-    updateInProgress: false,
+    isEditMode: false,
+    isRendering: false,     // Lock per evitare render sovrapposti
+    renderTimeout: null,    // Timer per il debounce
+    dragSrcIndex: null,
 
     async init() {
-        if (this._listenersReady) return;
-        
-        // Se i dati cambiano (es. aggiungi task), ridisegna
-        if (window.EventBus) {
+        this.loadConfig();
+
+        if (window.EventBus && !this._eventListenerAttached) {
             EventBus.on('dataChanged', () => {
-                const content = document.getElementById('dashboardContent');
-                if (content && !content.classList.contains('hidden')) {
-                    this.render(); 
-                }
+                // Usa il debounce invece di chiamare direttamente
+                this.requestUpdate(); 
             });
+            this._eventListenerAttached = true;
         }
-        
-        this._listenersReady = true;
+
+        this.isInitialized = true;
         await this.render();
     },
 
-    // Funzione Helper: Recupera lo stato dai Moduli attivi
-    getCurrentStates() {
-        // Chiediamo al ModuleManager se i moduli sono attivi
-        if (window.ModuleManager) {
-            return {
-                expenses_enabled: ModuleManager.isActive('expenses'),
-                goals_enabled: ModuleManager.isActive('goals')
-            };
+    loadConfig() {
+        const saved = localStorage.getItem('dashboard_config');
+        if (saved) {
+            try { 
+                this.config = JSON.parse(saved);
+                
+                // === FIX: PULIZIA DUPLICATI ===
+                // Rimuove widget doppi causati da bug precedenti (mantiene gli spazi vuoti multipli)
+                const seen = new Set();
+                this.config.activeWidgets = this.config.activeWidgets.filter(id => {
+                    if (id === 'dashboard_spacer') return true; // Consenti spazi multipli
+                    if (seen.has(id)) return false; // Rimuovi duplicati reali
+                    seen.add(id);
+                    return true;
+                });
+                
+                // Salva subito la versione pulita
+                this.saveConfig();
+
+            } catch (e) { 
+                console.error('Config error, resetting', e);
+                this.config.activeWidgets = [...this.defaultWidgets];
+            }
+        } else {
+            this.config.activeWidgets = [...this.defaultWidgets];
         }
-        
-        // Fallback di sicurezza
-        return { expenses_enabled: true, goals_enabled: true };
     },
+
+    saveConfig() {
+        localStorage.setItem('dashboard_config', JSON.stringify(this.config));
+    },
+
+    // Funzione intelligente per gestire aggiornamenti rapidi
+    requestUpdate() {
+        const content = document.getElementById('dashboardContent');
+        if (!content || content.classList.contains('hidden') || this.isEditMode) return;
+
+        // Cancella il render precedente se ce n'è uno in coda
+        if (this.renderTimeout) clearTimeout(this.renderTimeout);
+
+        // Aspetta 100ms prima di renderizzare. Se arrivano altri dati, resetta il timer.
+        this.renderTimeout = setTimeout(async () => {
+            await this.renderActiveWidgets();
+        }, 100);
+    },
+
+    getAllAvailableWidgets() {
+        if (!window.ModuleManager || typeof ModuleManager.getModules !== 'function') return [];
+        return ModuleManager.getModules().flatMap(m => m.widgets || []);
+    },
+
+    // ============================================================
+    //  RENDER LOGIC
+    // ============================================================
 
     async render() {
         const container = document.getElementById('dashboardContent');
         if (!container) return;
 
-        console.log('📊 Rendering Dashboard...');
+        // Reset completo
+        container.innerHTML = '';
 
-        // 1. Ridisegna la struttura in base ai moduli attivi
-        this.renderStructure(container);
-        this.isInitialized = true;
+        const editBtnClass = this.isEditMode 
+            ? "bg-indigo-600 text-white shadow-indigo-500/50 shadow-lg border-indigo-500" 
+            : "bg-slate-800/60 text-slate-300 hover:text-white border-slate-700/50";
 
-        // 2. Aggiorna i valori numerici
-        await this.updateValues();
-    },
-
-    renderStructure(container) {
-        const { expenses_enabled, goals_enabled } = this.getCurrentStates();
-
-        // Layout adattivo: Se expenses è OFF, la colonna principale si allarga
-        const mainColSpan = expenses_enabled ? 'lg:col-span-8' : 'lg:col-span-12';
-
-        container.innerHTML = `
-            <div class="mb-10 animate-fadeIn">
-                <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                    <div>
-                        <h2 class="text-5xl font-black tracking-tighter bg-gradient-to-r from-white via-indigo-200 to-slate-400 bg-clip-text text-transparent italic">Overview</h2>
-                        <p class="text-slate-400 mt-2 font-medium flex items-center gap-2">
-                            <span class="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
-                            Il tuo centro di controllo operativo.
-                        </p>
-                    </div>
-                    <div class="bg-slate-800/40 backdrop-blur-xl px-5 py-2.5 rounded-2xl border border-slate-700/50 shadow-2xl">
-                        <span id="header-date" class="text-sm font-bold text-slate-200 tracking-tight"></span>
-                    </div>
+        const headerHtml = `
+            <div class="mb-8 animate-fadeIn flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <h2 class="text-5xl font-black tracking-tighter bg-gradient-to-r from-white via-indigo-200 to-slate-400 bg-clip-text text-transparent italic">Overview</h2>
+                    <p class="text-slate-400 mt-2 font-medium flex items-center gap-2">
+                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                        ${this.isEditMode ? 'MODALITÀ MODIFICA ATTIVA' : 'Grid Operativa Personalizzata'}
+                    </p>
                 </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                
-                ${this.renderKPICard('Task Attivi', 'kpi-tasks-val', '📅', 'from-blue-600 to-indigo-700', 'Pianificati Oggi', 
-                    `window.showSection('agenda'); setTimeout(() => Agenda.showAddModal(), 100)`)}
-                
-                ${goals_enabled ? this.renderKPICard('Obiettivi', 'kpi-goals-val', '🎯', 'from-purple-600 to-pink-700', 'Focus Traguardi', 
-                    `window.showSection('goals'); setTimeout(() => Goals.showAddModal(), 100)`) : ''}
-                
-                ${expenses_enabled ? this.renderKPICard('Spese Mese', 'kpi-expenses-val', '💰', 'from-rose-600 to-pink-700', 'Uscite Totali', 
-                    `window.showSection('expenses'); setTimeout(() => ExpenseModals.showAdd(), 100)`) : ''}
-                
-                ${this.renderKPICard('Completati', 'kpi-completed-val', '✅', 'from-emerald-600 to-teal-700', 'Attività concluse')}
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                
-                <div class="${mainColSpan} space-y-8">
-                    
-                    <div class="bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-8 border border-slate-700/40 shadow-xl group">
-                        <div class="flex items-center justify-between mb-8">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg transform group-hover:rotate-3 transition-transform">
-                                    <span class="text-2xl">📅</span>
-                                </div>
-                                <h3 class="text-2xl font-bold text-white tracking-tight">Priorità in Agenda</h3>
-                            </div>
-                            <span id="active-tasks-badge" class="text-xs font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-4 py-2 rounded-full border border-indigo-500/20"></span>
-                        </div>
-                        <div id="tasks-list-container" class="space-y-4"></div>
-                    </div>
-
-                    ${goals_enabled ? `
-                        <div class="bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-8 border border-slate-700/40 shadow-xl animate-fadeIn">
-                            <div class="flex items-center justify-between mb-8">
-                                <div class="flex items-center gap-4">
-                                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg">
-                                        <span class="text-2xl">🎯</span>
-                                    </div>
-                                    <h3 class="text-2xl font-bold text-white tracking-tight">Focus Obiettivi</h3>
-                                </div>
-                            </div>
-                            <div id="dashboard-goals-container" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
-                        </div>
+                <div class="flex items-center gap-3">
+                    ${this.isEditMode ? `
+                        <button onclick="Dashboard.openCustomizer()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold uppercase tracking-widest border border-slate-600 transition-all animate-fadeIn hover:scale-105 shadow-lg">
+                            + Aggiungi Widget
+                        </button>
                     ` : ''}
+                    
+                    <button onclick="Dashboard.toggleEditMode()" class="px-5 py-2.5 rounded-xl border backdrop-blur-md text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${editBtnClass}">
+                        <span>${this.isEditMode ? '💾 Salva' : '✏️ Modifica'}</span>
+                    </button>
                 </div>
-
-                ${expenses_enabled ? `
-                    <div class="lg:col-span-4 animate-fadeIn">
-                        <div class="bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-6 border border-slate-700/40 h-full">
-                            <h3 class="font-bold text-white mb-8 flex items-center gap-3 px-2">
-                                <span class="w-10 h-10 bg-rose-500/20 text-rose-400 rounded-xl flex items-center justify-center text-sm">💰</span>
-                                Ultime Uscite
-                            </h3>
-                            <div id="recent-expenses-container" class="space-y-3"></div>
-                        </div>
-                    </div>
-                ` : ''}
             </div>
         `;
+
+        const gridHtml = `
+            <div id="dashboard-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-20 transition-all"></div>
+        `;
+
+        container.innerHTML = headerHtml + gridHtml;
+        await this.renderActiveWidgets();
     },
 
-    renderKPICard(title, id, icon, gradient, subtext, actionClick = null) {
-        const actionHtml = actionClick ? `
-            <button onclick="${actionClick}" 
-                    class="group/btn relative w-12 h-12 bg-white/20 hover:bg-white text-white hover:text-indigo-900 backdrop-blur-md rounded-2xl border border-white/20 transition-all duration-300 hover:scale-110 active:scale-90 shadow-xl flex items-center justify-center">
-                <span class="text-2xl font-bold transform group-hover/btn:rotate-90 transition-transform">＋</span>
-            </button>
-        ` : '';
+    async renderActiveWidgets() {
+        if (this.isRendering) return; // Evita sovrapposizioni
+        this.isRendering = true;
 
-        return `
-            <div class="relative overflow-hidden bg-gradient-to-br ${gradient} rounded-[2.5rem] shadow-2xl p-7 text-white group transition-all duration-500 animate-fadeIn">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-xl group-hover:bg-white/20 transition-all"></div>
-                
-                <div class="relative flex justify-between items-start mb-1">
-                    <div class="flex-1">
-                        <p class="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">${title}</p>
-                        <p id="${id}" class="text-5xl font-black tracking-tighter leading-none">-</p>
-                    </div>
-                    <div class="w-12 h-12 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center text-2xl shadow-inner border border-white/10 group-hover:rotate-6 transition-transform">
-                        ${icon}
-                    </div>
-                </div>
-
-                <div class="relative flex items-end justify-between mt-8">
-                    <p class="text-[9px] font-bold opacity-50 uppercase tracking-widest max-w-[100px] leading-tight">${subtext}</p>
-                    ${actionHtml}
-                </div>
-            </div>`;
-    },
-
-    async updateValues() {
-        if (this.updateInProgress) return;
-        this.updateInProgress = true;
-
-        try {
-            const { expenses_enabled, goals_enabled } = this.getCurrentStates();
-
-            // 1. Task (Sempre presenti)
-            const tasks = await CachedCRUD.getTasks().catch(() => []);
-            
-            // Calcolo conteggi
-            const todayStr = new Date().toDateString();
-            const tomorrowStr = new Date(new Date().setDate(new Date().getDate() + 1)).toDateString();
-            const activeTasks = tasks.filter(t => !t.completed);
-            const todayCount = activeTasks.filter(t => new Date(t.date).toDateString() === todayStr).length;
-            const tomorrowCount = activeTasks.filter(t => new Date(t.date).toDateString() === tomorrowStr).length;
-
-            this.setSafeText('kpi-tasks-val', todayCount);
-            this.setSafeText('kpi-completed-val', tasks.filter(t => t.completed).length);
-            this.setSafeText('active-tasks-badge', `${todayCount} OGGI, ${tomorrowCount} DOMANI`);
-            this.setSafeText('header-date', Helpers.formatDate(new Date(), 'full'));
-
-            this.updateTasksList(tasks); 
-
-            // 2. Spese
-            if (expenses_enabled) {
-                const expenses = await CachedCRUD.getExpenses().catch(() => []);
-                const total = expenses.filter(e => e.type !== 'income').reduce((sum, e) => sum + Math.abs(e.amount), 0);
-                this.setSafeText('kpi-expenses-val', Helpers.formatCurrency(total));
-                this.updateRecentExpenses(expenses);
-            }
-
-            // 3. Goals
-            if (goals_enabled) {
-                const goals = await CachedCRUD.getGoals().catch(() => []);
-                this.setSafeText('kpi-goals-val', goals.filter(g => !g.completed).length);
-                this.updateGoalsList(goals);
-            }
-
-        } catch (e) {
-            console.error('Dashboard Update Failed:', e);
-        } finally {
-            this.updateInProgress = false;
+        const grid = document.getElementById('dashboard-grid');
+        if (!grid) {
+            this.isRendering = false;
+            return;
         }
-    },
+        
+        // Pulizia profonda
+        while (grid.firstChild) {
+            grid.removeChild(grid.firstChild);
+        }
+        
+        const allWidgets = this.getAllAvailableWidgets();
+        const activeIds = this.config.activeWidgets;
 
-    setSafeText(id, text) {
-        const el = document.getElementById(id);
-        if (el) el.textContent = text;
-    },
+        // Mapping sicuro
+        const widgetsToRender = activeIds
+            .map(id => allWidgets.find(w => w.id === id))
+            .filter(w => w !== undefined);
 
-    updateTasksList(tasks) {
-        const container = document.getElementById('tasks-list-container');
-        if (!container) return;
-
-        const now = new Date();
-        const todayStr = now.toDateString();
-        const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toDateString();
-
-        const activeTasks = tasks.filter(t => !t.completed);
-        const todayTasks = activeTasks.filter(t => new Date(t.date).toDateString() === todayStr);
-        const tomorrowTasks = activeTasks.filter(t => new Date(t.date).toDateString() === tomorrowStr);
-        const upcomingTasks = activeTasks
-            .filter(t => new Date(t.date) > tomorrow)
-            .sort((a, b) => new Date(a.date) - new Date(b.date))
-            .slice(0, 3);
-
-        if (todayTasks.length === 0 && tomorrowTasks.length === 0 && upcomingTasks.length === 0) {
-            container.innerHTML = `<div class="p-12 text-center border-2 border-dashed border-slate-700 rounded-3xl text-slate-500 font-medium">Nessun task in programma ☕</div>`;
+        if (widgetsToRender.length === 0) {
+            grid.innerHTML = `<div class="col-span-full py-20 text-center border-2 border-dashed border-slate-800 rounded-3xl text-slate-600">
+                <p class="font-bold">Nessun widget attivo.</p>
+                <button onclick="Dashboard.toggleEditMode(); Dashboard.openCustomizer()" class="text-indigo-400 underline mt-2 cursor-pointer">Aggiungi Widget</button>
+            </div>`;
+            this.isRendering = false;
             return;
         }
 
-        let html = '';
-        if (todayTasks.length > 0) {
-            html += `<div class="text-[10px] font-black uppercase text-indigo-400 tracking-widest mb-4 pl-2 opacity-60">Oggi</div>`;
-            html += todayTasks.map(t => this.renderTaskRow(t)).join('');
+        for (let index = 0; index < widgetsToRender.length; index++) {
+            const widget = widgetsToRender[index];
+            const colSpan = widget.size?.cols ? `lg:col-span-${widget.size.cols}` : 'lg:col-span-1';
+            const rowSpan = widget.size?.rows ? `row-span-${widget.size.rows}` : 'row-span-1';
+            
+            const wrapper = document.createElement('div');
+            let classes = `${colSpan} ${rowSpan} min-h-[160px] relative transition-all duration-300 rounded-[2.5rem] `;
+            
+            if (this.isEditMode) {
+                classes += `cursor-move border-2 border-dashed border-indigo-500/50 hover:bg-indigo-500/10 hover:border-indigo-400 z-10 animate-pulse-slow `;
+                wrapper.setAttribute('draggable', 'true');
+                wrapper.ondragstart = (e) => this.handleDragStart(e, index);
+                wrapper.ondragover = (e) => this.handleDragOver(e);
+                wrapper.ondragenter = (e) => this.handleDragEnter(e);
+                wrapper.ondragleave = (e) => this.handleDragLeave(e);
+                wrapper.ondrop = (e) => this.handleDrop(e, index);
+            } else {
+                classes += `animate-fadeIn`;
+            }
+
+            wrapper.className = classes;
+            
+            // Render Widget
+            try {
+                const contentHtml = await widget.render();
+                
+                const overlayHtml = this.isEditMode ? `
+                    <div class="absolute inset-0 z-20 rounded-[2.5rem]"></div>
+                    <button onclick="Dashboard.removeWidget(${index})" class="absolute -top-3 -right-3 z-30 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg font-bold transition-transform hover:scale-110">✕</button>
+                ` : '';
+
+                wrapper.innerHTML = overlayHtml + contentHtml;
+                grid.appendChild(wrapper);
+            } catch (err) {
+                console.error(`Errore render widget ${widget.id}:`, err);
+            }
         }
-        if (tomorrowTasks.length > 0) {
-            html += `<div class="text-[10px] font-black uppercase text-purple-400 tracking-widest mt-8 mb-4 pl-2 opacity-60">Domani</div>`;
-            html += tomorrowTasks.map(t => this.renderTaskRow(t)).join('');
-        }
-        if (upcomingTasks.length > 0) {
-            html += `<div class="text-[10px] font-black uppercase text-amber-400 tracking-widest mt-8 mb-4 pl-2 opacity-60">In Arrivo</div>`;
-            html += upcomingTasks.map(t => this.renderTaskRow(t)).join('');
-        }
-        container.innerHTML = html;
+        
+        this.isRendering = false;
     },
 
-    renderTaskRow(t) {
-        const timeLabel = Helpers.formatDate(t.date, 'time');
-        return `
-            <div class="flex items-start gap-5 p-5 bg-slate-800/40 border border-slate-700/50 rounded-2xl hover:bg-slate-800/80 hover:border-indigo-500/30 transition-all cursor-default mb-3 group">
-                <button onclick="Dashboard.handleToggleTask('${t.id}')" class="mt-1 w-6 h-6 rounded-full border-2 border-slate-500 group-hover:border-indigo-400 flex items-center justify-center transition-colors shrink-0">
-                    <div class="w-2.5 h-2.5 bg-indigo-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                </button>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between gap-4">
-                        <p class="font-bold text-slate-200 group-hover:text-white transition-colors truncate text-lg tracking-tight">${Helpers.escapeHtml(t.title)}</p>
-                        <span class="text-[10px] font-black text-slate-500 uppercase bg-slate-900/50 px-2 py-1 rounded-md border border-slate-700/50 whitespace-nowrap">${timeLabel}</span>
+    // ============================================================
+    //  DRAG & DROP LOGIC
+    // ============================================================
+    
+    handleDragStart(e, index) { 
+        this.dragSrcIndex = index; 
+        e.dataTransfer.effectAllowed = 'move'; 
+        e.target.style.opacity = '0.4'; 
+    },
+    handleDragOver(e) { 
+        if (e.preventDefault) e.preventDefault(); 
+        e.dataTransfer.dropEffect = 'move'; 
+        return false; 
+    },
+    handleDragEnter(e) { e.target.closest('[draggable]').classList.add('bg-indigo-500/20'); },
+    handleDragLeave(e) { e.target.closest('[draggable]').classList.remove('bg-indigo-500/20'); },
+    
+    async handleDrop(e, targetIndex) {
+        e.stopPropagation(); e.preventDefault();
+        document.querySelectorAll('[draggable]').forEach(i => { i.style.opacity = '1'; i.classList.remove('bg-indigo-500/20'); });
+        
+        const sourceIndex = this.dragSrcIndex;
+        if (sourceIndex !== targetIndex) {
+            const list = [...this.config.activeWidgets];
+            const [moved] = list.splice(sourceIndex, 1);
+            list.splice(targetIndex, 0, moved);
+            
+            this.config.activeWidgets = list;
+            this.saveConfig();
+            await this.renderActiveWidgets();
+        }
+    },
+
+    toggleEditMode() {
+        this.isEditMode = !this.isEditMode;
+        this.render(); 
+    },
+
+    removeWidget(index) {
+        this.config.activeWidgets.splice(index, 1);
+        this.saveConfig();
+        this.renderActiveWidgets();
+    },
+
+    // ============================================================
+    //  CUSTOMIZER
+    // ============================================================
+    
+    openCustomizer() {
+        const activeModules = ModuleManager.getActiveModules().filter(m => m.widgets && m.widgets.length > 0);
+        if (activeModules.length === 0) { alert("Nessun widget disponibile."); return; }
+
+        const modalHtml = `
+            <div id="dashboardCustomizer" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[150] p-4 animate-fadeIn">
+                <div class="bg-slate-900 border border-slate-700 rounded-[2rem] shadow-2xl max-w-4xl w-full flex flex-col h-[70vh] overflow-hidden animate-slideUp">
+                    <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                        <div><h3 class="text-2xl font-black text-white">Aggiungi Widget</h3><p class="text-xs text-slate-400 uppercase tracking-widest font-bold mt-1">Clicca per aggiungere</p></div>
+                        <button onclick="document.getElementById('dashboardCustomizer').remove()" class="text-slate-500 hover:text-white transition-colors text-2xl">✕</button>
+                    </div>
+                    <div class="flex flex-1 overflow-hidden">
+                        <div class="w-1/3 border-r border-slate-800 bg-slate-900/50 overflow-y-auto p-4 space-y-2">
+                            ${activeModules.map((mod, index) => `
+                                <button onclick="Dashboard.switchTab('${mod.id}')" id="tab-btn-${mod.id}" class="w-full text-left px-5 py-4 rounded-xl flex items-center gap-3 transition-all group tab-button ${index === 0 ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}">
+                                    <span class="text-xl opacity-80">${mod.icon || '📦'}</span>
+                                    <div><span class="font-bold block text-sm">${mod.name}</span><span class="text-[10px] opacity-60 uppercase font-black tracking-widest">${mod.widgets.length} Widget</span></div>
+                                </button>
+                            `).join('')}
+                        </div>
+                        <div class="w-2/3 p-8 overflow-y-auto bg-slate-900 relative">
+                            ${activeModules.map((mod, index) => `
+                                <div id="tab-content-${mod.id}" class="tab-content ${index === 0 ? '' : 'hidden'} animate-fadeIn">
+                                    <h4 class="text-xl font-bold text-white mb-6 flex items-center gap-2"><span class="opacity-50">${mod.icon}</span> ${mod.name}</h4>
+                                    <div class="grid grid-cols-1 gap-4">
+                                        ${mod.widgets.map(w => `
+                                            <div onclick="Dashboard.addWidget('${w.id}')" class="group relative flex items-start gap-4 p-5 rounded-2xl border-2 transition-all cursor-pointer bg-slate-800/40 border-slate-700 hover:border-indigo-500 hover:bg-slate-800 hover:scale-[1.01] hover:shadow-xl">
+                                                <div class="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center border border-slate-700 text-xl shadow-inner shrink-0 group-hover:border-indigo-500/30 transition-colors">＋</div>
+                                                <div><div class="font-bold text-white text-lg">${w.name}</div><div class="text-xs text-slate-400 mt-1 leading-relaxed">${w.description || ''}</div><div class="mt-3 flex items-center gap-2"><span class="text-[9px] font-black uppercase text-slate-300 bg-slate-700 px-2 py-1 rounded border border-slate-600">Size: ${w.size?.cols || 1}x${w.size?.rows || 1}</span></div></div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
                 </div>
-                <button onclick="window.showSection('agenda')" class="p-2 text-slate-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all">
-                    ✏️
-                </button>
             </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
     },
 
-    updateRecentExpenses(expenses) {
-        const container = document.getElementById('recent-expenses-container');
-        if (!container) return;
-        const recent = expenses.filter(e => e.type !== 'income').sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
-        container.innerHTML = recent.map(e => `
-            <div class="flex items-center justify-between p-3.5 hover:bg-white/5 rounded-2xl transition-colors border-b border-white/5 last:border-0">
-                <div class="flex items-center gap-3 overflow-hidden">
-                    <div class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-lg shadow-inner">${window.Categories?.getById(e.category)?.icon || '📦'}</div>
-                    <div class="min-w-0"><p class="font-bold text-slate-200 text-sm truncate">${Helpers.escapeHtml(e.description)}</p><p class="text-[10px] text-slate-500 font-bold uppercase">${Helpers.formatDate(e.date, 'short')}</p></div>
-                </div>
-                <span class="font-black text-red-400 text-sm">-${Helpers.formatCurrency(Math.abs(e.amount))}</span>
-            </div>`).join('') || '<p class="text-slate-600 text-center py-4">Nessuna spesa recente</p>';
+    switchTab(moduleId) {
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-lg');
+            btn.classList.add('text-slate-400', 'hover:bg-slate-800', 'hover:text-white');
+        });
+        const activeBtn = document.getElementById(`tab-btn-${moduleId}`);
+        if (activeBtn) {
+            activeBtn.classList.remove('text-slate-400', 'hover:bg-slate-800');
+            activeBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-lg');
+        }
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+        const activeContent = document.getElementById(`tab-content-${moduleId}`);
+        if (activeContent) activeContent.classList.remove('hidden');
     },
 
-    updateGoalsList(goals) {
-        const container = document.getElementById('dashboard-goals-container');
-        if (!container) return;
-        const active = goals.filter(g => !g.completed).slice(0, 2);
+    addWidget(id) {
+        this.config.activeWidgets.push(id);
+        this.saveConfig();
+        this.renderActiveWidgets();
         
-        container.innerHTML = active.map(g => {
-            const total = g.subtasks?.length || 0;
-            const completed = g.subtasks?.filter(s => s.completed).length || 0;
-            const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-            
-            return `
-            <div class="p-6 bg-slate-800/40 border border-slate-700/50 rounded-[2rem] hover:border-purple-500/30 transition-all group animate-fadeIn">
-                <div class="flex justify-between items-start mb-4">
-                    <h4 class="font-bold text-white text-xl tracking-tight">${Helpers.escapeHtml(g.title)}</h4>
-                    <span class="text-2xl font-black text-purple-400">${percent}%</span>
-                </div>
-                <div class="h-2 w-full bg-slate-900 rounded-full overflow-hidden mb-4">
-                    <div class="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-1000" style="width: ${percent}%"></div>
-                </div>
-                <button onclick="window.showSection('goals')" class="text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-white transition-colors">Vedi Dettagli →</button>
-            </div>`;
-        }).join('') || `<div class="col-span-full p-12 text-center border-2 border-dashed border-slate-700 rounded-3xl text-slate-500 font-medium italic">Pianifica nuovi traguardi 🎯</div>`;
+        const modal = document.getElementById('dashboardCustomizer');
+        if (modal) modal.remove();
+        
+        if (!this.isEditMode) this.toggleEditMode();
+        Helpers.showToast('Widget Aggiunto 🚀');
     },
 
-    async handleToggleTask(taskId) {
-        await CachedCRUD.toggleTaskCompleted(taskId);
-        // EventBus attiverà il refresh automatico
+    getInternalWidgets() {
+        return [{
+            id: 'dashboard_spacer',
+            name: 'Spazio Vuoto',
+            description: 'Separatore invisibile 1x1 per layout.',
+            size: { cols: 1, rows: 1 },
+            render: () => `<div class="w-full h-full border-2 border-dashed border-slate-800/50 rounded-[2.5rem] opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center group"><span class="text-[10px] text-slate-600 font-bold uppercase tracking-widest group-hover:text-slate-400">Spazio</span></div>`
+        }];
     }
 };
 
-// ==========================================
-// REGISTRAZIONE MODULARE DASHBOARD
-// ==========================================
 if (window.ModuleManager) {
     ModuleManager.register({
         id: 'dashboard',
         name: 'Dashboard',
-        // Icona Premium SVG (Grid Layout)
         icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>',
         category: 'main', 
         order: 0, 
         isCore: true, 
-        init: async () => {
-            await Dashboard.init();
-        },
-        render: async () => {
-            await Dashboard.render();
-        }
+        init: async () => { await Dashboard.init(); },
+        render: async () => { await Dashboard.render(); },
+        widgets: Dashboard.getInternalWidgets() 
     });
 }
 window.Dashboard = Dashboard;
