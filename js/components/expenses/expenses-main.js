@@ -13,6 +13,32 @@ const Expenses = {
         if (window.MerchantMappings) await MerchantMappings.init();
         if (window.Statistics) await Statistics.init();
         
+        // === FIX: CALCOLO MESE CONTABILE AUTOMATICO ===
+        try {
+            let startDay = 1;
+            // Recupera il giorno di inizio ciclo dai settings salvati
+            if (window.CachedCRUD && window.CachedCRUD.getSettings) {
+                const s = await window.CachedCRUD.getSettings();
+                if (s && s.first_day_of_month) startDay = parseInt(s.first_day_of_month);
+            }
+
+            const now = new Date();
+            // Logica: Se oggi è il 27 Gennaio e il ciclo inizia il 27, 
+            // fiscalmente siamo già a Febbraio.
+            if (startDay > 1 && now.getDate() >= startDay) {
+                this.currentMonth = now.getMonth() + 1;
+                
+                // Gestione cambio anno (es. Dicembre -> Gennaio)
+                if (this.currentMonth > 11) {
+                    this.currentMonth = 0;
+                    this.currentYear++;
+                }
+            }
+        } catch (e) {
+            console.warn('Errore calcolo mese fiscale automatico:', e);
+        }
+        // ==============================================
+
         await this.render();
     },
 
