@@ -1,45 +1,40 @@
 /**
- * NAVIGATION.JS - CLEAN & DYNAMIC
- * Usa direttamente le icone definite nei moduli registrati. Niente duplicati.
+ * NAVIGATION.JS - FIXED & FTUE READY
+ * Aggiunti attributi data-id per permettere al Tour di trovare i bottoni.
  */
 
-// 1. Render Sidebar
 window.renderSidebar = function() {
     const navContainer = document.querySelector('#sidebar nav');
     if (!navContainer || !window.ModuleManager) return;
 
     navContainer.innerHTML = '';
 
-    // Recupera moduli attivi dal sistema
     const modules = ModuleManager.getActiveModules();
-    
-    // Filtra per sezioni
     const mainModules = modules.filter(m => m.category !== 'settings' && m.id !== 'modules');
     const settingsModules = modules.filter(m => m.category === 'settings');
 
     let html = `<div class="flex flex-col h-full">`;
 
-    // --- 1. MODULI PRINCIPALI (Scrollable) ---
+    // --- 1. MODULI PRINCIPALI ---
     html += `<div class="flex-1 space-y-2 py-4 overflow-y-auto no-scrollbar">`;
     mainModules.forEach(mod => {
         html += renderLink(mod);
     });
     html += `</div>`;
 
-    // --- 2. ZONA INFERIORE (Aggiungi Moduli + Settings + Logout) ---
+    // --- 2. ZONA INFERIORE ---
     html += `<div class="mt-auto pt-4 border-t border-slate-800/50 space-y-2">`;
 
     // A. Bottone "Aggiungi Moduli"
-    // Cerchiamo il modulo registrato
     const modulesMod = modules.find(m => m.id === 'modules');
     if (modulesMod) {
         html += renderLink(modulesMod);
     } else {
-        // Fallback di sicurezza (se modules.js non fosse caricato)
+        // Fallback con data-id esplicito
         const isActive = window.currentSection === 'modules';
         html += `
             <div class="mb-3 px-2">
-                <a href="#" onclick="handleNavClick(event, 'modules')"
+                <a href="#" onclick="handleNavClick(event, 'modules')" data-id="modules"
                    class="flex items-center px-4 py-3 rounded-xl border border-dashed border-slate-700 hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all group ${isActive ? 'bg-indigo-500/10 border-indigo-500/50 text-indigo-300' : 'text-slate-400'}">
                     <span class="mr-3 text-lg group-hover:text-indigo-400 transition-colors">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z"></path></svg>
@@ -50,7 +45,6 @@ window.renderSidebar = function() {
         `;
     }
 
-    // B. Impostazioni
     settingsModules.forEach(mod => {
         html += renderLink(mod);
     });
@@ -70,7 +64,7 @@ window.renderSidebar = function() {
     navContainer.innerHTML = html;
 };
 
-// Helper: Genera Link
+// Helper: Genera Link con data-id
 function renderLink(mod) {
     const isActive = window.currentSection === mod.id;
     const hasSubmenu = mod.subItems && mod.subItems.length > 0;
@@ -80,12 +74,13 @@ function renderLink(mod) {
     const activeClass = 'bg-indigo-600/10 border-indigo-500/20 text-indigo-100 shadow-[0_0_15px_rgba(79,70,229,0.1)]';
     const inactiveClass = 'text-slate-400 border-transparent hover:text-white hover:bg-slate-800/50';
     
-    // USA L'ICONA REGISTRATA (con fallback generico se manca)
     let icon = mod.icon || '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>';
 
+    // NOTA: Aggiunto data-id="${mod.id}" qui sotto
     let html = `
         <div class="mb-1">
             <a href="#" 
+               data-id="${mod.id}"
                onclick="handleNavClick(event, '${mod.id}')"
                class="nav-link flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 ${isActive ? activeClass : inactiveClass}">
                 
@@ -149,13 +144,11 @@ window.showSection = async function(sectionId) {
     
     target.classList.remove('hidden');
 
-    // Cerca il modulo nel Manager (metodo robusto)
     let mod = null;
     if (window.ModuleManager && window.ModuleManager._modules) {
         if (window.ModuleManager._modules.has(sectionId)) {
             mod = window.ModuleManager._modules.get(sectionId);
         } else {
-            // Cerca nei sottomenu
             for (const [key, m] of window.ModuleManager._modules) {
                 if (m.subItems && m.subItems.some(s => s.section === sectionId)) {
                     mod = m;
