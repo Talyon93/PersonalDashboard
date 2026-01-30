@@ -1,307 +1,284 @@
 /**
- * Expense Import Module - UNIVERSAL SMART SCANNER V2.3 🧠
- * Fixes: Ignora righe di "Saldo Iniziale/Finale" che non sono transazioni reali.
+ * Expense Import Module - V3.8 Native Date Objects 📅
+ * Fix Definitivo: Converte i seriali Excel in Oggetti Data nativi JS.
  */
-
 const ExpenseImport = {
-    // Keywords for column detection (Multilanguage IT/EN)
-    keywords: {
-        // REMOVED 'valuta' to prevent detecting "Valuta" (Currency) column as Date
-        date: ['data', 'date', 'giorno', 'time', 'dt'], 
-        amount: ['importo', 'amount', 'euro', 'eur', 'uscite', 'debit', 'costo', 'price', 'prezzo'],
-        description: ['descrizione', 'description', 'causale', 'merchant', 'dettagli', 'payee', 'controparte', 'testo', 'prodotto', 'negozio', 'counterparty'],
-        category: ['categoria', 'category', 'cat'],
-        outflow: ['uscite', 'debit', 'withdraw', 'spesa', 'out'],
-        inflow: ['entrate', 'credit', 'deposit', 'in']
+    // --- CATEGORIE (Invariato) ---
+    categoryKeywords: {
+        shopping: ['coop', 'conad', 'lidl', 'esselunga', 'carrefour', 'spesa', 'market', 'eurospin', 'iper', 'decathlon', 'zara', 'h&m', 'amazon', 'aliexpress', 'temu', 'tigota', 'acqua e sapone'],
+        food: ['mcdonald', 'glovo', 'deliveroo', 'just eat', 'ristorante', 'pizzeria', 'burger', 'sushi', 'cafe', 'bar ', 'starbucks', 'autogrill', 'poke', 'kfc', 'old wild west'],
+        transport: ['benzina', 'q8', 'eni', 'ip ', 'tamoil', 'autostrade', 'telepass', 'trenitalia', 'italo', 'uber', 'taxi', 'parcheggio', 'bird', 'lime', 'atm', 'atac'],
+        entertainment: ['netflix', 'spotify', 'cinema', 'the space', 'uci', 'prime video', 'disney', 'ticketone', 'steam', 'playstation', 'nintendo', 'audible'],
+        utilities: ['enel', 'a2a', 'iren', 'luce', 'gas', 'acqua', 'internet', 'vodafone', 'tim', 'wind', 'iliad', 'fastweb', 'sorgenia', 'eon', 'telecom'],
+        health: ['farmacia', 'dentista', 'medico', 'ospedale', 'visita', 'ticket sanitario', 'asl', 'cup', 'analisi'],
+        salary: ['stipendio', 'emolumenti', 'bonifico a vostro favore', 'accredito', 'salary'],
+        house: ['affitto', 'mutuo', 'condominio', 'ikea', 'leroy merlin', 'bricoman', 'tecnocasa']
     },
+    
+    headerKeywords: [
+        'data', 'date', 'giorno', 'dt', 
+        'importo', 'amount', 'euro', 'eur', 'valore',
+        'descrizione', 'description', 'causale', 'dettagli', 'operazione', 'merchant', 
+        'valuta', 'category', 'categoria', 'entrate', 'uscite', 'conto'
+    ],
 
-    async processFile(file) {
-        console.log(`🧠 Smart Analyzing V2.3: ${file.name}`);
+    // --- LOGICA ---
+
+    async parseRawFile(file) {
+        let rows = [];
         try {
-            let expenses = [];
-            
             if (file.name.toLowerCase().endsWith('.csv')) {
                 const text = await file.text();
-                expenses = this.parseUniversalCSV(text);
+                rows = this.parseCSV(text);
             } else {
-                if (typeof XLSX === 'undefined') throw new Error('Excel library missing (XLSX)');
-                expenses = await this.parseExcel(file);
+                if (typeof XLSX === 'undefined') throw new Error('Libreria XLSX mancante');
+                rows = await this.parseExcel(file);
             }
+        } catch (e) { console.error(e); throw new Error("File illeggibile."); }
 
-            console.log(`✅ Importazione completata: ${expenses.length} transazioni.`);
-            
-            if (expenses.length === 0) {
-                alert("⚠️ Nessuna transazione trovata. Verifica l'intestazione del file (Data, Importo, Descrizione).");
-            }
-            
-            return expenses;
-        } catch (error) {
-            console.error('❌ Import Error:', error);
-            alert(`Errore importazione: ${error.message}`);
-            return [];
-        }
+        if (!rows || rows.length < 2) throw new Error("File vuoto.");
+
+        // Pulizia Righe
+        const potentialRows = rows.filter(r => r.filter(c => c && String(c).trim().length > 0).length >= 2);
+        
+        if (potentialRows.length === 0) throw new Error("Nessuna riga valida.");
+
+        const headerIndex = this.detectRealHeaderRow(potentialRows);
+        const headerRow = potentialRows[headerIndex];
+        const dataRows = potentialRows.slice(headerIndex + 1);
+        const signature = headerRow.map(c => String(c).trim().toLowerCase()).join('|');
+
+        console.log(`🧠 Header: ${headerRow.join(' | ')}`);
+
+        return { headers: headerRow, rows: dataRows, signature: signature };
     },
 
-    parseUniversalCSV(text) {
-        const lines = text.trim().split('\n').filter(l => l.trim().length > 0);
-        if (lines.length < 2) return [];
+    detectRealHeaderRow(rows) {
+        let bestScore = -1, bestIndex = 0;
+        const limit = Math.min(rows.length, 30);
 
-        // 1. Detect Delimiter
-        const delimiter = this.detectDelimiter(lines.slice(0, 5));
-        
-        // 2. Map Columns
-        const mapping = this.detectColumns(lines, delimiter);
-        if (!mapping.found) throw new Error("Intestazione non riconosciuta. Cerca colonne: Data, Importo/Uscite, Descrizione.");
+        for (let i = 0; i < limit; i++) {
+            const rowStr = rows[i].map(c => String(c).toLowerCase()).join(' ');
+            let score = 0;
+            this.headerKeywords.forEach(k => {
+                if (rowStr.includes(k)) score += 2;
+                rows[i].forEach(cell => {
+                    if (String(cell).toLowerCase().trim() === k) score += 3;
+                });
+            });
+            if (score > bestScore) { bestScore = score; bestIndex = i; }
+        }
+        return bestScore > 0 ? bestIndex : 0;
+    },
 
-        // 3. Pre-scan for heuristics
-        const isAllPositive = this.checkIfAllPositive(lines, mapping, delimiter);
+    async findConfig(sig) {
+        const c = window.supabaseClient; 
+        if (!c?.from) return null;
+        try { const {data} = await c.from('import_configs').select('*').eq('header_signature', sig).single(); return data; } catch(e){return null;}
+    },
+    async saveConfig(name, sig, map) {
+        const c = window.supabaseClient; 
+        if (!c?.from) return null;
+        try {
+            const {data:{user}} = await c.auth.getUser();
+            if(!user) return null;
+            return await c.from('import_configs').insert([{user_id:user.id, bank_name:name, header_signature:sig, mapping_json:map}]);
+        } catch(e){return null;}
+    },
 
+    applyMapping(rawRows, mapping, configName) {
         const expenses = [];
-        
-        for (let i = mapping.headerIndex + 1; i < lines.length; i++) {
-            const row = this.splitCSVLine(lines[i], delimiter);
-            if (row.length <= Math.max(mapping.cols.date, mapping.cols.amount)) continue;
+        const { dateIndex, amountIndex, descIndex, categoryIndex, amountMode, outflowIndex, inflowIndex } = mapping;
 
-            const rawDate = row[mapping.cols.date];
-            const rawDesc = mapping.cols.desc > -1 ? row[mapping.cols.desc] : 'Importazione';
+        let sourceTag = '#import';
+        if (configName && configName.trim().length > 0) {
+            const cleanName = configName.replace(/[^a-zA-Z0-9]/g, ''); 
+            sourceTag = '#' + cleanName;
+        }
+        // ------------------------------
+
+        rawRows.forEach((row, i) => {
+            // Controllo esistenza dati: serve o l'Amount unico, o almeno uno tra Inflow/Outflow
+            const hasAmount = (amountIndex > -1 && row[amountIndex]) || 
+                              (outflowIndex > -1 && row[outflowIndex]) || 
+                              (inflowIndex > -1 && row[inflowIndex]);
             
-            // --- FIX V2.3: SALTA RIGHE DI SALDO ---
-            if (this.isBalanceRow(rawDesc)) {
-                console.log(`⏩ Ignorata riga di saldo: "${rawDesc}"`);
-                continue;
-            }
+            if (!hasAmount && !row[dateIndex]) return;
 
-            // Handle Separate Columns (Inflow vs Outflow)
-            let rawAmount = row[mapping.cols.amount];
-            let isInflow = false;
+            // 1. DATA
+            const dateObj = this.parseDate(row[dateIndex]);
+            if (!dateObj) return;
 
-            if ((!rawAmount || rawAmount.trim() === '') && mapping.cols.inflow > -1) {
-                rawAmount = row[mapping.cols.inflow];
-                isInflow = true;
-            }
-
-            // Parse Number
-            let amount = this.parseSmartNumber(rawAmount);
-            if (isNaN(amount) || amount === 0) continue;
-
+            // 2. IMPORTO & TIPO (Logica Complessa)
+            let amountVal = 0;
             let type = 'expense';
 
-            // --- TYPE DETECTION LOGIC ---
-            if (isInflow) {
-                type = 'income';
-                amount = Math.abs(amount);
-            } 
-            else if (mapping.isOutflowCol) {
-                type = 'expense';
-                amount = Math.abs(amount);
-            }
-            else {
-                if (amount > 0) {
-                    if (isAllPositive && mapping.cols.category > -1) {
-                        type = 'expense'; // Heuristic: App export with categories
+            // CASO A: Colonna Unica "Importo"
+            if (amountIndex > -1) {
+                let rawVal = this.parseNumber(row[amountIndex]);
+                
+                if (amountMode === 'inverted') {
+                    // MODALITÀ CARTA DI CREDITO: I numeri positivi sono SPESE
+                    if (rawVal > 0) {
+                        type = 'expense';
+                        amountVal = rawVal;
                     } else {
-                        type = 'income'; // Standard banking
+                        // Se è negativo, è un rimborso/pagamento carta -> Entrata
+                        type = 'income';
+                        amountVal = Math.abs(rawVal);
                     }
                 } else {
+                    // MODALITÀ STANDARD: I numeri negativi sono SPESE
+                    if (rawVal < 0) {
+                        type = 'expense';
+                        amountVal = Math.abs(rawVal);
+                    } else {
+                        type = 'income';
+                        amountVal = rawVal;
+                    }
+                }
+            }
+            // CASO B: Colonne Separate (Entrate / Uscite)
+            else {
+                const outVal = outflowIndex > -1 ? this.parseNumber(row[outflowIndex]) : 0;
+                const inVal = inflowIndex > -1 ? this.parseNumber(row[inflowIndex]) : 0;
+
+                if (outVal !== 0) {
                     type = 'expense';
-                    amount = Math.abs(amount);
+                    amountVal = Math.abs(outVal); // Assicuriamoci sia positivo
+                } else if (inVal !== 0) {
+                    type = 'income';
+                    amountVal = Math.abs(inVal);
                 }
             }
 
-            // Category Extraction
-            let category = 'other';
-            if (mapping.cols.category > -1) {
-                category = this.normalizeCategory(row[mapping.cols.category]);
-            } else {
-                category = this.categorizeExpense(rawDesc);
-            }
+            // Se l'importo è 0 o nullo, saltiamo
+            if (amountVal === 0) return;
 
-            // Date Parsing
-            const date = this.parseDateSmart(rawDate);
-            if (!date) continue; 
+            // 3. DESCRIZIONE & CATEGORIA
+            let description = row[descIndex] || 'Movimento';
+            description = String(description).replace(/\s+/g, ' ').trim();
+
+            let category = 'other';
+            if (categoryIndex > -1 && row[categoryIndex]) category = this.normalizeCategory(row[categoryIndex]);
+            if (category === 'other') category = this.guessCategory(description);
+            
+            // Correzione Stipendio solo se è entrata
+            if (type === 'income' && category === 'other') {
+                 if (this.checkKeyword(description, this.categoryKeywords.salary)) category = 'salary';
+                 else category = 'income_other';
+            }
 
             expenses.push({
                 id: Date.now() + Math.random() + i,
-                date: date,
-                description: this.sanitizeInput(rawDesc),
-                amount: amount,
+                date: dateObj,
+                description: description,
+                amount: parseFloat(amountVal.toFixed(2)), // Arrotondamento sicurezza
                 type: type,
                 category: category,
-                tags: ['#import']
+                tags: [sourceTag] // <--- QUI ORA USIAMO IL TAG DINAMICO
             });
-        }
+        });
 
         return expenses;
     },
 
-    // --- NUOVA FUNZIONE: Controlla se è una riga di saldo ---
-    isBalanceRow(desc) {
-        if (!desc) return false;
-        const d = desc.toLowerCase().trim();
-        // Filtra stringhe comuni di riepilogo
-        return d.startsWith('saldo iniziale') || 
-               d.startsWith('saldo finale') || 
-               d.includes('saldo al') ||
-               d.includes('totale operaz') ||
-               d === 'saldo contabile';
-    },
-
-    detectDelimiter(sampleLines) {
-        const joined = sampleLines.join('\n');
-        const semis = (joined.match(/;/g) || []).length;
-        const commas = (joined.match(/,/g) || []).length;
-        return semis > commas ? ';' : ',';
-    },
-
-    detectColumns(lines, delimiter) {
-        let bestScore = 0;
-        let bestMapping = { found: false, headerIndex: -1, cols: {} };
-
-        for (let i = 0; i < Math.min(lines.length, 20); i++) {
-            const row = this.splitCSVLine(lines[i], delimiter).map(c => c.toLowerCase().trim());
-            let map = { date: -1, amount: -1, desc: -1, inflow: -1, category: -1 };
-            let score = 0;
-            let isOutflow = false;
-
-            row.forEach((cell, idx) => {
-                if (!cell) return;
-
-                if (this.keywords.date.some(k => cell.includes(k))) {
-                    if (map.date === -1) { 
-                        map.date = idx; score += 3; 
-                    }
-                }
-                else if (this.keywords.description.some(k => cell.includes(k))) {
-                    map.desc = idx; score += 2;
-                }
-                else if (this.keywords.category.some(k => cell === k || cell.includes(k))) {
-                    map.category = idx; score += 2;
-                }
-                else if (this.keywords.outflow.some(k => cell === k || cell.includes(k))) {
-                    map.amount = idx; isOutflow = true; score += 3;
-                }
-                else if (this.keywords.inflow.some(k => cell === k || cell.includes(k))) {
-                    map.inflow = idx;
-                }
-                else if (map.amount === -1 && this.keywords.amount.some(k => cell === k || cell.includes(k))) {
-                    map.amount = idx; score += 2;
-                }
-            });
-
-            if (map.date > -1 && (map.amount > -1 || map.inflow > -1)) {
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestMapping = { found: true, headerIndex: i, cols: map, isOutflowCol: isOutflow };
-                }
-            }
-        }
-        return bestMapping;
-    },
-
-    checkIfAllPositive(lines, mapping, delimiter) {
-        let positiveCount = 0;
-        let negativeCount = 0;
-        const col = mapping.cols.amount;
-        
-        for (let i = mapping.headerIndex + 1; i < Math.min(lines.length, mapping.headerIndex + 11); i++) {
-            const row = this.splitCSVLine(lines[i], delimiter);
-            if (!row[col]) continue;
-            const val = this.parseSmartNumber(row[col]);
-            if (val > 0) positiveCount++;
-            if (val < 0) negativeCount++;
-        }
-        
-        return positiveCount > 0 && negativeCount === 0;
-    },
-
-    // --- PARSING UTILS ---
-
-    parseSmartNumber(str) {
-        if (!str) return 0;
-        let clean = str.replace(/[^\d.,-]/g, '').trim(); 
-        const lastComma = clean.lastIndexOf(',');
-        const lastDot = clean.lastIndexOf('.');
-
-        if (lastComma > lastDot) {
-            clean = clean.replace(/\./g, '').replace(',', '.');
-        } else {
-            clean = clean.replace(/,/g, '');
-        }
-        return parseFloat(clean) || 0;
-    },
-
-    parseDateSmart(dateStr) {
-        if (!dateStr) return null;
-        let clean = dateStr.trim().split(' ')[0].split('T')[0];
-        clean = clean.replace(/\./g, '/').replace(/-/g, '/');
-
-        const parts = clean.split('/');
-        if (parts.length !== 3) return null;
-
-        let d, m, y;
-        const n1 = parseInt(parts[0]);
-        const n2 = parseInt(parts[1]);
-        const n3 = parseInt(parts[2]);
-
-        if (n1 > 31) { y = n1; m = n2; d = n3; }      
-        else if (n3 > 31) { y = n3; m = n2; d = n1; } 
-        else { return null; } 
-
-        return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    },
-
-    splitCSVLine(line, delimiter) {
-        const res = [];
-        let curr = '', quote = false;
-        for (let i = 0; i < line.length; i++) {
-            const c = line[i];
-            if (c === '"') { quote = !quote; }
-            else if (c === delimiter && !quote) { 
-                res.push(curr.trim().replace(/^"|"$/g,'')); curr=''; 
-            } else { curr += c; }
-        }
-        res.push(curr.trim().replace(/^"|"$/g,''));
-        return res;
-    },
-
-    categorizeExpense(description) {
-        if (!description) return 'other';
-        const d = description.toLowerCase();
-        if (d.includes('coop') || d.includes('conad') || d.includes('lidl') || d.includes('esselunga')) return 'shopping';
-        if (d.includes('mcdonald') || d.includes('glovo') || d.includes('deliveroo') || d.includes('just eat')) return 'food';
-        if (d.includes('benzina') || d.includes('q8') || d.includes('eni')) return 'transport';
-        if (d.includes('netflix') || d.includes('spotify') || d.includes('cinema')) return 'entertainment';
+    // --- HELPERS (Invariati) ---
+    guessCategory(d) {
+        if(!d) return 'other'; const l = d.toLowerCase();
+        for(const [k,w] of Object.entries(this.categoryKeywords)) if(w.some(x=>l.includes(x))) return k;
         return 'other';
     },
+    normalizeCategory(c) {
+        if(!c) return 'other'; const s = String(c).toLowerCase();
+        if(s.includes('alim')||s.includes('rist')||s.includes('cibo')) return 'food';
+        if(s.includes('super')||s.includes('spesa')||s.includes('shop')) return 'shopping';
+        if(s.includes('trasp')||s.includes('benz')) return 'transport';
+        return 'other';
+    },
+    checkKeyword(t,k){return t&&k.some(w=>t.toLowerCase().includes(w));},
 
-    normalizeCategory(catStr) {
-        if (!catStr) return 'other';
-        const c = catStr.toLowerCase();
-        if (c.includes('cibo') || c.includes('ristora')) return 'food';
-        if (c.includes('spesa') || c.includes('supermerc')) return 'shopping';
-        if (c.includes('trasport') || c.includes('viaggi')) return 'transport';
-        if (c.includes('svago') || c.includes('intratten')) return 'entertainment';
-        return 'other'; 
+    // --- PARSERS ---
+
+    parseCSV(text) {
+        const clean = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/^\uFEFF/, ''); 
+        const lines = clean.split('\n').filter(l => l.trim().length > 0);
+        if (lines.length === 0) return [];
+
+        const s = lines.slice(0,10).join('\n');
+        const sc = (s.match(/;/g)||[]).length, cm = (s.match(/,/g)||[]).length, tb = (s.match(/\t/g)||[]).length;
+        let d = ','; if (sc > cm && sc > tb) d = ';'; else if (tb > sc && tb > cm) d = '\t';
+
+        return lines.map(l => {
+             const r = [];
+             const re = new RegExp(`(?:${d}|^)(?:(?:"([^"]*(?:""[^"]*)*)")|([^"${d}]*))`, 'g');
+             let m;
+             while (m = re.exec(l)) {
+                 if (m.index === re.lastIndex) re.lastIndex++;
+                 let v = m[1] !== undefined ? m[1].replace(/""/g, '"') : m[2];
+                 r.push(v ? v.trim() : '');
+             }
+             return r;
+        }).filter(r => r.length > 0);
     },
 
-    sanitizeInput(str) {
-        let s = String(str || '').trim().replace(/^"|"$/g, '');
-        return /^[=+\-@\t\r]/.test(s) ? "'"+s : s;
-    },
-
+    // 🔥 FIX EXCEL NATIVO
     async parseExcel(file) {
-        return new Promise((resolve) => {
+        return new Promise((res, rej) => {
             const r = new FileReader();
-            r.onload = (e) => {
-                const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
-                const ws = wb.Sheets[wb.SheetNames[0]];
-                const csv = XLSX.utils.sheet_to_csv(ws, {FS: ';'});
-                resolve(this.parseUniversalCSV(csv));
+            r.onload = e => {
+                try {
+                    const d = new Uint8Array(e.target.result);
+                    // cellDates: true -> Converte i numeri (45321) in oggetti JS Date!
+                    const wb = XLSX.read(d, {type:'array', cellDates: true});
+                    const ws = wb.Sheets[wb.SheetNames[0]];
+                    // raw: true -> Mantiene l'oggetto Date, non lo converte in stringa
+                    const json = XLSX.utils.sheet_to_json(ws, {header: 1, defval: "", raw: true});
+                    res(json);
+                } catch(err) { rej(err); }
             };
             r.readAsArrayBuffer(file);
         });
+    },
+
+    parseNumber(str) {
+        if (typeof str === 'number') return str;
+        if (!str) return 0;
+        let c = String(str).replace(/[^\d.,-]/g, '').trim();
+        if (!c) return 0;
+        if (c.lastIndexOf(',') > c.lastIndexOf('.')) c = c.replace(/\./g, '').replace(',', '.');
+        else if (c.lastIndexOf('.') > c.lastIndexOf(',')) c = c.replace(/,/g, '');
+        return parseFloat(c) || 0;
+    },
+
+    // 🔥 PARSE DATE UNIVERSALE
+    parseDate(input) {
+        if (!input) return null;
+
+        // 1. SE È GIÀ UN OGGETTO DATA (Grazie a cellDates: true)
+        if (input instanceof Date) {
+            // A volte Excel aggiunge ore per fuso orario, usiamo toISOString e prendiamo la data
+            // Aggiungiamo 12 ore per evitare problemi di fuso orario (00:00 -> giorno prima)
+            const safeDate = new Date(input.getTime() - (input.getTimezoneOffset() * 60000));
+            return safeDate.toISOString().split('T')[0];
+        }
+
+        // 2. Se è ancora una stringa (es. CSV)
+        let s = String(input).trim().split(' ')[0];
+        
+        const parts = s.split(/[\/\-\.]/);
+        if (parts.length === 3) {
+            let d, m, y;
+            const p0 = parseInt(parts[0]);
+            
+            if (p0 > 1000) { y = parts[0]; m = parts[1]; d = parts[2]; } // ISO
+            else { d = parts[0]; m = parts[1]; y = parts[2]; } // IT
+
+            if (y.length === 2) y = '20' + y;
+            return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+        }
+        return null;
     }
 };
 
 window.ExpenseImport = ExpenseImport;
-console.log('✅ ExpenseImport V2.3: Ignore Balance Rows');
