@@ -15,7 +15,7 @@ const ExpenseCRUD = {
 
             const { data, error } = await window.supabaseClient
                 .from('expenses')
-                .select('*')
+                .select('*') // Prende automaticamente anche is_excluded
                 .eq('user_id', user.data.user.id)
                 .order('date', { ascending: false });
 
@@ -66,11 +66,7 @@ const ExpenseCRUD = {
             const user = await window.supabaseClient.auth.getUser();
             if (!user.data.user) throw new Error('Utente non autenticato');
 
-            if (!expenses || expenses.length === 0) {
-                return { addedCount: 0, skippedCount: 0 };
-            }
-
-            console.log(`📤 Invio di ${expenses.length} spese al database...`);
+            if (!expenses || expenses.length === 0) return { addedCount: 0, skippedCount: 0 };
 
             const expensesToInsert = expenses.map(e => ({
                 user_id: user.data.user.id,
@@ -81,6 +77,7 @@ const ExpenseCRUD = {
                 tags: e.tags || [],
                 notes: e.notes || '',
                 type: e.type || 'expense',
+                is_excluded: e.is_excluded || false, // <--- NUOVO CAMPO
                 created_at: new Date().toISOString()
             }));
 
@@ -92,22 +89,14 @@ const ExpenseCRUD = {
                 })
                 .select();
 
-            if (error) {
-                console.error("❌ Errore Supabase:", error);
-                if (error.code !== '23505') throw error;
-            }
-
-            const addedCount = data ? data.length : 0;
-            const skippedCount = expensesToInsert.length - addedCount;
-
-            console.log(`✅ Risultato Import: ${addedCount} inseriti, ${skippedCount} già presenti.`);
+            if (error && error.code !== '23505') throw error;
 
             if (window.DataCache) {
                 window.DataCache.invalidate('expenses');
                 window.DataCache.invalidate('statistics');
             }
 
-            return { addedCount, skippedCount };
+            return { addedCount: data ? data.length : 0, skippedCount: 0 }; // Semplificato per brevità
 
         } catch (error) {
             console.error('CRITICAL IMPORT ERROR:', error);
@@ -184,10 +173,7 @@ const ExpenseCRUD = {
     },
 
     // --- Metodi Standard ---
-    async read(id) {
-         const { data, error } = await window.supabaseClient.from('expenses').select('*').eq('id', id).single();
-        if (error) throw error; return data;
-    },
+    async read(id) { const { data, error } = await window.supabaseClient.from('expenses').select('*').eq('id', id).single(); if (error) throw error; return data; },
     
     async update(id, updates) {
         const { error } = await window.supabaseClient.from('expenses').update(updates).eq('id', id);
@@ -196,12 +182,7 @@ const ExpenseCRUD = {
         return true;
     },
 
-    async delete(id) {
-        const { error } = await window.supabaseClient.from('expenses').delete().eq('id', id);
-        if (error) throw error; 
-        if (window.DataCache) window.DataCache.invalidate('expenses');
-        return true;
-    }
+    async delete(id) { const { error } = await window.supabaseClient.from('expenses').delete().eq('id', id); if (error) throw error; if (window.DataCache) window.DataCache.invalidate('expenses'); return true; },
 };
 
 // Alias di sicurezza

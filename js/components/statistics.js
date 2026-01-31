@@ -1,5 +1,6 @@
 /**
- * Statistics Component - Fixed Layout & Responsive
+ * Statistics Component - UPDATED FOR BOOLEAN LOGIC
+ * Fixes: KPI Investimenti, Grafici puliti (senza extra), Heatmap corretta
  */
 
 const Statistics = {
@@ -8,6 +9,7 @@ const Statistics = {
     viewMode: 'month', // 'month', 'year', 'all'
     expenses: [],
     tooltipTimeout: null,
+    
     safeGetSetting(key, fallback) {
         try {
             if (window.SettingsManager) return window.SettingsManager.get(key) ?? fallback;
@@ -36,7 +38,6 @@ const Statistics = {
     async render() {
         if (this.expenses.length === 0) await this.loadData();
         
-        // IL PUNTO CRUCIALE: Deve cercare 'statisticsContent'
         const container = document.getElementById('statisticsContent');
         if (!container) return;
 
@@ -177,10 +178,71 @@ const Statistics = {
             </div>`;
     },
 
-    // Grafico a LINEA (Mese) - Correctly Sized Wrapper
+    // ==========================================================
+    //  FILTRAGGIO CRUCIALE: BOOLEAN LOGIC
+    // ==========================================================
+
+    // Spese "Normali": NO is_excluded
+    getNormalExpenses(expenses) {
+        return expenses.filter(e => !e.is_excluded && (!e.type || e.type === 'expense'));
+    },
+    
+    // Spese "Investimenti/Extra": SI is_excluded
+    getExcludedExpenses(expenses) {
+        return expenses.filter(e => !!e.is_excluded && (!e.type || e.type === 'expense'));
+    },
+
+    calculateAdvancedStats(expenses) {
+        const incomeTx = expenses.filter(e => e.type === 'income');
+        const income = incomeTx.reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
+        
+        // Separiamo usando la logica booleana
+        const expOnly = expenses.filter(e => !e.type || e.type === 'expense');
+        const normal = this.getNormalExpenses(expOnly);
+        const excluded = this.getExcludedExpenses(expOnly);
+        
+        const total = normal.reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
+        const excludedTotal = excluded.reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
+        
+        // Statistiche Categorie (solo per spese normali)
+        const categoryTotals = {};
+        const categoryCounts = {};
+        Categories.getAll().forEach(c => { categoryTotals[c.id] = 0; categoryCounts[c.id] = 0; });
+
+        normal.forEach(e => {
+            const c = e.category || 'other';
+            categoryTotals[c] = (categoryTotals[c] || 0) + Math.abs(parseFloat(e.amount));
+            categoryCounts[c] = (categoryCounts[c] || 0) + 1;
+        });
+
+        const categories = Categories.getAll().map(c => ({
+            ...c,
+            total: categoryTotals[c.id] || 0,
+            count: categoryCounts[c.id] || 0,
+            percentage: total > 0 ? ((categoryTotals[c.id] || 0) / total * 100).toFixed(1) : 0
+        })).filter(c => c.total > 0).sort((a,b) => b.total - a.total);
+
+        const activeDays = new Set(normal.map(e => e.date.split('T')[0])).size;
+
+        return { 
+            total, 
+            count: normal.length, 
+            activeDays, 
+            categories, 
+            income, 
+            incomeCount: incomeTx.length, 
+            balance: income - (total + excludedTotal), 
+            excludedTotal, 
+            excludedCount: excluded.length 
+        };
+    },
+
+    // ==========================================================
+    //  CHARTS & VISUALIZATIONS
+    // ==========================================================
+
     renderSpendingChart(expenses, stats) {
-        // Dati
-        const normalExpenses = this.getNormalExpenses(expenses).filter(e => !e.type || e.type === 'expense');
+        const normalExpenses = this.getNormalExpenses(expenses);
         const referenceDate = new Date(this.currentYear, this.currentMonth, 1);
         const { startDate, endDate } = Helpers.getCustomMonthRange(referenceDate);
         const msPerDay = 24 * 60 * 60 * 1000;
@@ -215,9 +277,8 @@ const Statistics = {
         const monthlyBudget = this.safeGetSetting('monthlyBudget', 700);
         const maxVal = Math.max(runningTotal, monthlyBudget) * 1.15; 
         
-        // Dimensioni SVG
         const W = 1200;
-        const H = 350; // SVG Height matches Wrapper Height
+        const H = 350;
         const PAD_L = 70;
         const PAD_R = 30;
         const PAD_T = 30;
@@ -245,7 +306,6 @@ const Statistics = {
 
         return `
             <div id="chartWrapper" class="relative w-full h-[350px] bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden select-none group">
-                
                 <div id="chartTooltip" class="absolute hidden top-0 left-0 z-50 pointer-events-none transition-opacity duration-150">
                     <div class="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl border border-slate-600 text-sm min-w-[120px] text-center">
                         <div class="font-bold text-slate-400 mb-1" id="tooltipDate"></div>
@@ -253,7 +313,6 @@ const Statistics = {
                         <div class="text-xs text-emerald-400 mt-1" id="tooltipDaily"></div>
                     </div>
                 </div>
-
                 <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" class="w-full h-full block">
                     <defs>
                         <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
@@ -261,49 +320,32 @@ const Statistics = {
                             <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
                         </linearGradient>
                     </defs>
-
                     ${[0, 0.5, 1].map(pct => {
                         const val = maxVal * pct;
                         const y = getY(val);
                         return `
                             <line x1="${PAD_L}" y1="${y}" x2="${W - PAD_R}" y2="${y}" stroke="#334155" stroke-width="1" stroke-dasharray="4" />
-                            <text x="${PAD_L - 15}" y="${y + 5}" fill="#94a3b8" font-size="12" text-anchor="end" font-family="sans-serif">
-                                ${Helpers.formatCurrency(val).split(',')[0]}€
-                            </text>
+                            <text x="${PAD_L - 15}" y="${y + 5}" fill="#94a3b8" font-size="12" text-anchor="end" font-family="sans-serif">${Helpers.formatCurrency(val).split(',')[0]}€</text>
                         `;
                     }).join('')}
-
-                    <line x1="${bStart.x}" y1="${bStart.y}" x2="${bEnd.x}" y2="${bEnd.y}" 
-                          stroke="#ef4444" stroke-width="2" stroke-dasharray="8,6" opacity="0.7" />
-                    <text x="${bEnd.x}" y="${bEnd.y - 10}" fill="#ef4444" font-size="12" text-anchor="end" font-weight="bold">
-                        Budget: ${Helpers.formatCurrency(monthlyBudget)}
-                    </text>
-
+                    <line x1="${bStart.x}" y1="${bStart.y}" x2="${bEnd.x}" y2="${bEnd.y}" stroke="#ef4444" stroke-width="2" stroke-dasharray="8,6" opacity="0.7" />
+                    <text x="${bEnd.x}" y="${bEnd.y - 10}" fill="#ef4444" font-size="12" text-anchor="end" font-weight="bold">Budget: ${Helpers.formatCurrency(monthlyBudget)}</text>
                     <path d="${areaPath}" fill="url(#areaGradient)" />
                     <path d="${linePath}" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-
                     ${points.map((p, i) => {
                         if (i === 0) return '';
                         const prev = points[i-1];
-                        if (p.y < p.budgetY && prev.y < prev.budgetY) {
-                            return `<line x1="${prev.x}" y1="${prev.y}" x2="${p.x}" y2="${p.y}" stroke="#ef4444" stroke-width="3" stroke-linecap="round" />`;
-                        }
+                        if (p.y < p.budgetY && prev.y < prev.budgetY) return `<line x1="${prev.x}" y1="${prev.y}" x2="${p.x}" y2="${p.y}" stroke="#ef4444" stroke-width="3" stroke-linecap="round" />`;
                         return '';
                     }).join('')}
-
                     ${points.map((p, i) => {
                         const isOver = p.y < p.budgetY; 
                         const color = isOver ? '#ef4444' : '#10b981';
-                        
                         const showLabel = i === 0 || i === points.length - 1 || i % 5 === 0;
-
                         return `
-                            <g class="group/point cursor-pointer"
-                               onmouseenter="Statistics.showChartTooltip(event, '${p.data.day}', ${p.data.total}, ${p.data.daily})"
-                               onmouseleave="Statistics.hideChartTooltip()">
+                            <g class="group/point cursor-pointer" onmouseenter="Statistics.showChartTooltip(event, '${p.data.day}', ${p.data.total}, ${p.data.daily})" onmouseleave="Statistics.hideChartTooltip()">
                                 <circle cx="${p.x}" cy="${p.y}" r="15" fill="transparent" />
-                                <circle cx="${p.x}" cy="${p.y}" r="5" fill="#1e293b" stroke="${color}" stroke-width="2" 
-                                        class="transition-all duration-200 group-hover/point:r-7 group-hover/point:stroke-4" />
+                                <circle cx="${p.x}" cy="${p.y}" r="5" fill="#1e293b" stroke="${color}" stroke-width="2" class="transition-all duration-200 group-hover/point:r-7 group-hover/point:stroke-4" />
                                 ${showLabel ? `<text x="${p.x}" y="${H - 10}" fill="#64748b" font-size="12" text-anchor="middle" font-weight="600">${p.data.day}</text>` : ''}
                             </g>
                         `;
@@ -313,21 +355,23 @@ const Statistics = {
         `;
     },
 
-    // Grafico a BARRE (Anno/Tutto) - Wrapper Size Match
     renderBarChart(expenses) {
         const aggregated = {};
         const labels = [];
         
+        // FILTRO QUI: Solo spese normali (non investimenti)
+        const normalExpenses = this.getNormalExpenses(expenses);
+
         if (this.viewMode === 'year') {
             for(let i=0; i<12; i++) {
                 aggregated[i] = 0;
                 labels.push(Helpers.getMonthName(i).substring(0, 3));
             }
-            expenses.filter(e => !e.exclude_from_stats && (!e.type || e.type === 'expense')).forEach(e => {
+            normalExpenses.forEach(e => {
                 aggregated[new Date(e.date).getMonth()] += Math.abs(parseFloat(e.amount));
             });
         } else {
-            expenses.filter(e => !e.exclude_from_stats && (!e.type || e.type === 'expense')).forEach(e => {
+            normalExpenses.forEach(e => {
                 const year = new Date(e.date).getFullYear();
                 aggregated[year] = (aggregated[year] || 0) + Math.abs(parseFloat(e.amount));
                 if(!labels.includes(year)) labels.push(year);
@@ -339,12 +383,11 @@ const Statistics = {
         const values = keys.map(k => aggregated[k] || 0);
         const maxVal = Math.max(...values, 100) * 1.1;
 
-        // SVG Dimensions
         const W = 1200;
         const H = 350;
         const PAD_L = 70;
         const PAD_B = 40;
-        const CHART_H = H - 60; // Top + Bottom padding
+        const CHART_H = H - 60;
 
         const bars = keys.map((key, i) => {
             const val = this.viewMode === 'year' ? aggregated[key] : (aggregated[key] || 0);
@@ -355,8 +398,7 @@ const Statistics = {
 
             return `
                 <g class="group" onmouseenter="Statistics.showChartTooltip(event, '${label}', ${val}, 0)" onmouseleave="Statistics.hideChartTooltip()">
-                    <rect x="${x + 10}" y="${H - PAD_B - height}" width="${width}" height="${height}" 
-                          fill="url(#barGradient)" rx="4" class="transition-all hover:opacity-80 cursor-pointer" />
+                    <rect x="${x + 10}" y="${H - PAD_B - height}" width="${width}" height="${height}" fill="url(#barGradient)" rx="4" class="transition-all hover:opacity-80 cursor-pointer" />
                     <text x="${x + width/2 + 10}" y="${H - 10}" text-anchor="middle" fill="#94a3b8" font-size="12" font-weight="bold">${label}</text>
                 </g>
             `;
@@ -368,7 +410,6 @@ const Statistics = {
                     <div class="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl border border-slate-600 text-sm min-w-[120px] text-center">
                         <div class="font-bold text-slate-400 mb-1" id="tooltipDate"></div>
                         <div class="text-xl font-bold text-white" id="tooltipTotal"></div>
-                        <div class="text-xs text-emerald-400 mt-1" id="tooltipDaily"></div>
                     </div>
                 </div>
                 <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" class="w-full h-full block">
@@ -390,7 +431,8 @@ const Statistics = {
 
         document.getElementById('tooltipDate').textContent = isNaN(day) ? day : `Giorno ${day}`;
         document.getElementById('tooltipTotal').textContent = Helpers.formatCurrency(total);
-        document.getElementById('tooltipDaily').textContent = daily > 0 ? `+${Helpers.formatCurrency(daily)}` : '';
+        const dailyEl = document.getElementById('tooltipDaily');
+        if(dailyEl) dailyEl.textContent = daily > 0 ? `+${Helpers.formatCurrency(daily)}` : '';
 
         const rect = wrapper.getBoundingClientRect();
         let left = event.clientX - rect.left;
@@ -411,84 +453,6 @@ const Statistics = {
             tooltip.style.opacity = '0';
             setTimeout(() => tooltip.classList.add('hidden'), 200);
         }
-    },
-
-    // --- Helpers Logici ---
-    setViewMode(mode) {
-        this.viewMode = mode;
-        this.render();
-    },
-
-    changePeriod(delta) {
-        if (this.viewMode === 'month') {
-            this.currentMonth += delta;
-            if (this.currentMonth > 11) { this.currentMonth = 0; this.currentYear++; }
-            else if (this.currentMonth < 0) { this.currentMonth = 11; this.currentYear--; }
-        } else if (this.viewMode === 'year') {
-            this.currentYear += delta;
-        }
-        this.render();
-    },
-
-    handleResetMonth() {
-        const now = new Date();
-        this.currentMonth = now.getMonth();
-        this.currentYear = now.getFullYear();
-        this.render();
-    },
-
-    getFilteredExpenses() {
-        if (this.viewMode === 'all') return this.expenses;
-        if (this.viewMode === 'year') {
-            const startYear = new Date(this.currentYear, 0, 1);
-            const endYear = new Date(this.currentYear, 11, 31, 23, 59, 59);
-            return this.expenses.filter(e => {
-                const d = new Date(e.date);
-                return d >= startYear && d <= endYear;
-            });
-        }
-        const ref = new Date(this.currentYear, this.currentMonth, 1);
-        const { startDate, endDate } = Helpers.getCustomMonthRange(ref);
-        return this.expenses.filter(e => {
-            const d = new Date(e.date.split(' ')[0] + 'T12:00:00');
-            return d >= startDate && d <= endDate;
-        });
-    },
-
-    getNormalExpenses(expenses) { return ExpenseFilters.notExcluded(expenses); },
-    getExcludedExpenses(expenses) { return ExpenseFilters.excluded(expenses); },
-
-    calculateAdvancedStats(expenses) {
-        const incomeTx = expenses.filter(e => e.type === 'income');
-        const income = incomeTx.reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
-        
-        const expOnly = expenses.filter(e => !e.type || e.type === 'expense');
-        const normal = this.getNormalExpenses(expOnly);
-        const excluded = this.getExcludedExpenses(expOnly);
-        
-        const total = normal.reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
-        const excludedTotal = excluded.reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
-        
-        const categoryTotals = {};
-        const categoryCounts = {};
-        Categories.getAll().forEach(c => { categoryTotals[c.id] = 0; categoryCounts[c.id] = 0; });
-
-        normal.forEach(e => {
-            const c = e.category || 'other';
-            categoryTotals[c] = (categoryTotals[c] || 0) + Math.abs(parseFloat(e.amount));
-            categoryCounts[c] = (categoryCounts[c] || 0) + 1;
-        });
-
-        const categories = Categories.getAll().map(c => ({
-            ...c,
-            total: categoryTotals[c.id] || 0,
-            count: categoryCounts[c.id] || 0,
-            percentage: total > 0 ? ((categoryTotals[c.id] || 0) / total * 100).toFixed(1) : 0
-        })).filter(c => c.total > 0).sort((a,b) => b.total - a.total);
-
-        const activeDays = new Set(normal.map(e => e.date.split('T')[0])).size;
-
-        return { total, count: normal.length, activeDays, categories, income, incomeCount: incomeTx.length, balance: income - total, excludedTotal, excludedCount: excluded.length };
     },
 
     renderBudgetSection(stats) {
@@ -528,14 +492,13 @@ const Statistics = {
     },
 
     renderTagStats(expenses) {
+        // Usa solo spese normali per i tag
         const tagStats = {};
         this.getNormalExpenses(expenses).forEach(e => {
             if(e.tags) e.tags.forEach(t => {
-                if(!MerchantMappings.excludedTags.some(ex => t.toLowerCase()===ex.toLowerCase())) {
-                    if(!tagStats[t]) tagStats[t] = { tag: t, total: 0, count: 0 };
-                    tagStats[t].total += parseFloat(e.amount);
-                    tagStats[t].count++;
-                }
+                if(!tagStats[t]) tagStats[t] = { tag: t, total: 0, count: 0 };
+                tagStats[t].total += parseFloat(e.amount);
+                tagStats[t].count++;
             });
         });
         const sorted = Object.values(tagStats).sort((a,b) => b.total - a.total);
@@ -543,7 +506,7 @@ const Statistics = {
         const total = sorted.reduce((s,t)=>s+t.total,0);
         return `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">${sorted.map((t,i) => {
             const colors = ['from-blue-500 to-cyan-500', 'from-purple-500 to-pink-500', 'from-green-500 to-emerald-500'];
-            return `<div class="bg-gradient-to-r ${colors[i%3]} rounded-xl p-5 text-white shadow-lg"><div class="flex justify-between mb-3"><div class="flex items-center gap-3"><div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center text-2xl">🏷️</div><div><div class="font-bold text-xl">${t.tag}</div><div class="text-sm opacity-90">${t.count} transazioni</div></div></div><div class="text-right"><div class="font-bold text-2xl">${Helpers.formatCurrency(t.total)}</div><div class="text-sm opacity-90">${((t.total/total)*100).toFixed(1)}%</div></div></div></div>`;
+            return `<div class="bg-gradient-to-r ${colors[i%3]} rounded-xl p-5 text-white shadow-lg"><div class="flex justify-between mb-3"><div class="flex items-center gap-3"><div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center text-2xl">🏷️</div><div><div class="font-bold text-xl">${t.tag}</div><div class="text-sm opacity-90">${t.count} transazioni</div></div></div><div class="text-right"><div class="font-bold text-2xl">${Helpers.formatCurrency(t.total)}</div><div class="text-sm opacity-90">${total > 0 ? ((t.total/total)*100).toFixed(1) : 0}%</div></div></div></div>`;
         }).join('')}</div>`;
     },
 
@@ -553,19 +516,16 @@ const Statistics = {
         const days = Math.ceil((endDate - startDate) / 86400000) + 1;
         const dailyTotals = {};
         
-        // 1. Dati
-        const expensesOnly = expenses.filter(e => !e.type || e.type === 'expense');
-        const normalExpenses = this.getNormalExpenses(expensesOnly);
+        // 1. Dati (Solo normali)
+        const normalExpenses = this.getNormalExpenses(expenses);
 
         normalExpenses.forEach(e => {
-            // FIX: Assicuriamoci di prendere la data YYYY-MM-DD pulita dalla stringa originale
             const dateStr = e.date.split('T')[0]; 
             dailyTotals[dateStr] = (dailyTotals[dateStr] || 0) + Math.abs(parseFloat(e.amount));
         });
 
         const max = Math.max(...Object.values(dailyTotals), 1);
         
-        // 2. HTML
         let html = `
             <div id="hmTooltip" class="fixed hidden z-[9999] pointer-events-none min-w-[200px] max-w-[280px]">
                 <div class="bg-slate-900 text-white p-4 rounded-xl shadow-2xl border border-slate-500/50 backdrop-blur-xl">
@@ -576,7 +536,6 @@ const Statistics = {
                     <div id="hmList" class="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar"></div>
                 </div>
             </div>
-
             <div class="grid grid-cols-7 gap-3 select-none">
         `;
         
@@ -586,18 +545,12 @@ const Statistics = {
 
         for(let i=0; i<startDate.getDay(); i++) html += '<div></div>';
 
-        // Celle
         for(let i=0; i<days; i++) {
             const curr = new Date(startDate.getTime() + i * 86400000);
-            
-            // --- FIX TIMEZONE CRUCIALE ---
-            // Invece di toISOString() che converte in UTC (e quindi al giorno prima se sei GMT+1),
-            // costruiamo la stringa YYYY-MM-DD usando i valori locali.
             const year = curr.getFullYear();
             const month = String(curr.getMonth() + 1).padStart(2, '0');
             const day = String(curr.getDate()).padStart(2, '0');
             const dateStr = `${year}-${month}-${day}`; 
-            // -----------------------------
 
             const val = dailyTotals[dateStr] || 0;
             const intensity = val > 0 ? Math.min((val / max) * 100, 100) : 0;
@@ -605,20 +558,15 @@ const Statistics = {
             let bg, textDay, textAmount;
             
             if (val === 0) {
-                bg = 'bg-slate-800 border-2 border-slate-700/50'; 
-                textDay = 'text-slate-600';
+                bg = 'bg-slate-800 border-2 border-slate-700/50'; textDay = 'text-slate-600';
             } else if (intensity < 25) {
-                bg = 'bg-emerald-600 shadow-lg shadow-emerald-500/10 border-2 border-emerald-500'; 
-                textDay = 'text-white'; textAmount = 'text-emerald-100';
+                bg = 'bg-emerald-600 shadow-lg shadow-emerald-500/10 border-2 border-emerald-500'; textDay = 'text-white'; textAmount = 'text-emerald-100';
             } else if (intensity < 50) {
-                bg = 'bg-yellow-500 shadow-lg shadow-yellow-500/10 border-2 border-yellow-400'; 
-                textDay = 'text-white'; textAmount = 'text-yellow-100';
+                bg = 'bg-yellow-500 shadow-lg shadow-yellow-500/10 border-2 border-yellow-400'; textDay = 'text-white'; textAmount = 'text-yellow-100';
             } else if (intensity < 75) {
-                bg = 'bg-orange-500 shadow-lg shadow-orange-500/10 border-2 border-orange-400'; 
-                textDay = 'text-white'; textAmount = 'text-orange-100';
+                bg = 'bg-orange-500 shadow-lg shadow-orange-500/10 border-2 border-orange-400'; textDay = 'text-white'; textAmount = 'text-orange-100';
             } else {
-                bg = 'bg-rose-600 shadow-lg shadow-rose-500/10 border-2 border-rose-500'; 
-                textDay = 'text-white'; textAmount = 'text-rose-100';
+                bg = 'bg-rose-600 shadow-lg shadow-rose-500/10 border-2 border-rose-500'; textDay = 'text-white'; textAmount = 'text-rose-100';
             }
 
             html += `
@@ -626,9 +574,7 @@ const Statistics = {
                      onmouseenter="Statistics.showHeatmapTooltip(event, '${dateStr}', ${val})"
                      onmousemove="Statistics.showHeatmapTooltip(event, '${dateStr}', ${val})"
                      onmouseleave="Statistics.hideHeatmapTooltip()">
-                    
                     <span class="font-black text-xl ${textDay}">${curr.getDate()}</span>
-                    
                     ${val > 0 ? `<span class="text-xs font-bold ${textAmount} mt-1 bg-black/20 px-2 py-0.5 rounded-full">${Helpers.formatCurrency(val).split(',')[0]}</span>` : ''}
                 </div>
             `;
@@ -638,16 +584,11 @@ const Statistics = {
 
     showHeatmapTooltip(event, dateStr, total) {
         if (this.tooltipTimeout) clearTimeout(this.tooltipTimeout);
-
-        if (total === 0) {
-            this.hideHeatmapTooltip();
-            return;
-        }
-
+        if (total === 0) { this.hideHeatmapTooltip(); return; }
+        
         let tooltip = document.getElementById('hmTooltip');
         const listContainer = document.getElementById('hmList');
         
-        // --- FIX CRUCIALE: Sposta nel body per uscire dal contenitore con overflow ---
         if (tooltip && tooltip.parentElement !== document.body) {
             tooltip.parentElement.removeChild(tooltip);
             document.body.appendChild(tooltip);
@@ -655,65 +596,84 @@ const Statistics = {
 
         if (!tooltip || !listContainer) return;
 
-        // Popola dati solo se cambia la data
         if (tooltip.dataset.activeDate !== dateStr) {
             const dayExpenses = this.getNormalExpenses(this.expenses).filter(e => e.date.startsWith(dateStr) && (!e.type || e.type === 'expense'));
-            
             document.getElementById('hmDate').innerHTML = `<span class="capitalize">${new Date(dateStr).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}</span>`;
             document.getElementById('hmTotal').textContent = Helpers.formatCurrency(total);
-            
             listContainer.innerHTML = dayExpenses.map(e => {
                 const cat = window.Categories?.getAll().find(c => c.id === e.category);
                 const name = (e.description || 'Spesa').trim() === 'undefined' ? 'Spesa' : e.description;
                 return `<div class="flex justify-between text-sm border-b border-slate-700/50 pb-2 mb-2 last:border-0"><div class="flex items-center gap-2"><span class="text-lg">${cat?.icon || '💸'}</span><span class="truncate text-slate-200">${name}</span></div><span class="font-bold text-white">${Helpers.formatCurrency(e.amount).split(',')[0]}</span></div>`;
             }).join('');
-            
             tooltip.dataset.activeDate = dateStr;
         }
 
         tooltip.classList.remove('hidden');
         tooltip.style.opacity = '1';
-
-        // --- CALCOLO POSIZIONE (Sopra/Sotto) ---
+        
         const x = event.clientX;
         const y = event.clientY;
         const rect = tooltip.getBoundingClientRect();
-        const winHeight = window.innerHeight;
-        const winWidth = window.innerWidth;
-
+        
         let left = x + 20;
         let top = y + 20;
-
-        // Se esce a destra -> sposta a sinistra
-        if (left + rect.width > winWidth) {
-            left = x - rect.width - 20;
-        }
-
-        // Se è troppo in basso (ultimi 300px dello schermo) -> sposta SOPRA
-        if (y > winHeight - 300) {
-            top = y - rect.height - 20;
-        }
+        
+        if (left + rect.width > window.innerWidth) left = x - rect.width - 20;
+        if (y > window.innerHeight - 300) top = y - rect.height - 20;
 
         tooltip.style.left = `${left}px`;
         tooltip.style.top = `${top}px`;
     },
 
-    // 3. Sostituisci interamente la funzione hideHeatmapTooltip con questa:
     hideHeatmapTooltip() {
         const tooltip = document.getElementById('hmTooltip');
         if (tooltip) {
             this.tooltipTimeout = setTimeout(() => {
                 tooltip.style.opacity = '0';
-                setTimeout(() => {
-                    if (tooltip.style.opacity === '0') {
-                        tooltip.classList.add('hidden');
-                        tooltip.dataset.activeDate = '';
-                    }
-                }, 150);
+                setTimeout(() => { if (tooltip.style.opacity === '0') { tooltip.classList.add('hidden'); tooltip.dataset.activeDate = ''; } }, 150);
             }, 50);
         }
     },
 
+    // Logica Visualizzazione
+    setViewMode(mode) { this.viewMode = mode; this.render(); },
+    
+    changePeriod(delta) {
+        if (this.viewMode === 'month') {
+            this.currentMonth += delta;
+            if (this.currentMonth > 11) { this.currentMonth = 0; this.currentYear++; }
+            else if (this.currentMonth < 0) { this.currentMonth = 11; this.currentYear--; }
+        } else if (this.viewMode === 'year') {
+            this.currentYear += delta;
+        }
+        this.render();
+    },
+
+    handleResetMonth() {
+        const now = new Date();
+        this.currentMonth = now.getMonth();
+        this.currentYear = now.getFullYear();
+        this.render();
+    },
+
+    // Filtra per range temporale (Anno/Mese)
+    getFilteredExpenses() {
+        if (this.viewMode === 'all') return this.expenses;
+        if (this.viewMode === 'year') {
+            const startYear = new Date(this.currentYear, 0, 1);
+            const endYear = new Date(this.currentYear, 11, 31, 23, 59, 59);
+            return this.expenses.filter(e => {
+                const d = new Date(e.date);
+                return d >= startYear && d <= endYear;
+            });
+        }
+        const ref = new Date(this.currentYear, this.currentMonth, 1);
+        const { startDate, endDate } = Helpers.getCustomMonthRange(ref);
+        return this.expenses.filter(e => {
+            const d = new Date(e.date.split(' ')[0] + 'T12:00:00');
+            return d >= startDate && d <= endDate;
+        });
+    }
 };
 
 window.Statistics = Statistics;
