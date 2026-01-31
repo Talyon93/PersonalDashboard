@@ -481,11 +481,11 @@ async exportMonth() {
                 size: { cols: 1, rows: 1 },
                 render: () => this.renderWidgetBalance()
             },
-            {
-                id: 'expenses_recent',
-                name: 'Ultime Spese',
-                description: 'Lista verticale',
-                size: { cols: 1, rows: 2 }, // ESTESO IN VERTICALE
+            { 
+                id: 'expenses_recent', 
+                name: 'Ultime Spese', 
+                description: 'Lista verticale', 
+                size: { cols: 1, rows: 2 }, 
                 render: () => this.renderWidgetRecent()
             },
             {
@@ -505,6 +505,44 @@ async exportMonth() {
         ];
     },
 
+    async renderWidgetRecent() {
+        const expenses = await window.CachedCRUD.getExpenses();
+        
+        // FILTRO: Solo normali (No Extra), ordina per data, ultimi 6
+        const recent = expenses
+            .filter(e => !e.is_excluded) // <--- QUESTO RIMUOVE GLI INVESTIMENTI
+            .sort((a,b) => new Date(b.date) - new Date(a.date))
+            .slice(0, 6);
+
+        if (recent.length === 0) return `<div class="h-full bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-7 border border-slate-700/40 flex items-center justify-center text-slate-500 font-bold">Nessuna attività</div>`;
+
+        const listHtml = recent.map(e => {
+            const cat = window.Categories?.getById(e.category) || { icon: '📦', name: 'Altro' };
+            const isIncome = e.type === 'income';
+            return `
+                <div class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl transition-colors cursor-pointer" onclick="ExpenseModals.showDetail('${e.id}')">
+                    <div class="w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center text-xl shadow-inner">${cat.icon}</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-white truncate">${e.description}</p>
+                        <p class="text-[10px] text-slate-400 font-medium">${new Date(e.date).toLocaleDateString('it-IT', {day:'2-digit', month:'short'})}</p>
+                    </div>
+                    <span class="font-bold ${isIncome ? 'text-emerald-400' : 'text-slate-200'}">${isIncome?'+':'-'}${Helpers.formatCurrency(Math.abs(e.amount))}</span>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="h-full bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-6 border border-slate-700/40 shadow-xl flex flex-col cursor-pointer hover:scale-[1.01] transition-all" onclick="window.showSection('expenses')">
+                <div class="flex justify-between items-center mb-4 px-2">
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Ultime Attività</span>
+                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div class="flex-1 overflow-y-auto custom-scrollbar space-y-1 pr-1">
+                    ${listHtml}
+                </div>
+            </div>`;
+    },
+
     async renderWidgetBalance() {
         const expenses = await window.CachedCRUD.getExpenses();
         
@@ -518,9 +556,8 @@ async exportMonth() {
 
         // 3. Filtra le spese che rientrano in questo range preciso
         const currentMonthExpenses = expenses.filter(e => {
-            if (!e.date) return false;
-            const d = new Date(e.date);
-            return d >= startObj && d <= endObj;
+        const d = new Date(e.date);
+            return d >= startObj && d <= endObj && !e.is_excluded; 
         });
         
         // 4. Calcoli (uguali a prima, ma sui dati filtrati correttamente)
@@ -565,8 +602,7 @@ async exportMonth() {
         const monthExpenses = expenses.filter(e => {
             if (!e.date) return false;
             const d = new Date(e.date);
-            // Deve essere nel range E non deve essere un'entrata
-            return d >= startObj && d <= endObj && e.type !== 'income';
+            return d >= startObj && d <= endObj && e.type !== 'income' && !e.is_excluded;
         });
 
         const totalSpent = monthExpenses.reduce((sum, e) => sum + Math.abs(e.amount), 0);
@@ -637,7 +673,7 @@ async exportMonth() {
             d.setDate(today.getDate() - i);
             const dStr = d.toISOString().split('T')[0];
             const dayExpenses = expenses
-                .filter(e => e.type !== 'income' && e.date.startsWith(dStr))
+                .filter(e => !e.is_excluded && e.type !== 'income' && e.date.startsWith(dStr))
                 .reduce((sum, e) => sum + Math.abs(e.amount), 0);
             
             days.push({ day: d.toLocaleDateString('it-IT', { weekday: 'narrow' }), val: dayExpenses });
