@@ -1,9 +1,9 @@
 /**
  * Agenda Views - VIEW LOGIC (Visual Update)
- * - FULL VERTICAL FIT (RESTORED): Ripristinato layout adattivo 100% altezza (calc 100vh-290px)
- * - PERCENTAGE ROWS: Le righe ora si adattano allo spazio disponibile
- * - IMPORT MODAL: Mantenuto il template del modale
- * - DESIGN: Professional Dark + Font Maggiorati
+ * - FULL VERTICAL FIT (RESTORED): Layout adattivo 100% altezza
+ * - FIX ORARIO: Sostituito Helpers.formatDate con parsing manuale (_formatTimeStr)
+ * per evitare shift indesiderati del fuso orario (+1h).
+ * - IMPORT MODAL: Template presente.
  */
 
 const AgendaViews = {
@@ -23,6 +23,12 @@ const AgendaViews = {
         if (!timePart) return { h: 0, m: 0 };
         const [h, m] = timePart.split(':').map(Number);
         return { h, m };
+    },
+
+    // NUOVO: Formatta l'ora per la visualizzazione direttamente dalla stringa (evita bug Timezone)
+    _formatTimeStr(isoString) {
+        const { h, m } = this._parseTime(isoString);
+        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
     },
 
     // Calcola numero slot orari totali
@@ -345,7 +351,8 @@ const AgendaViews = {
                 <div class="flex flex-col h-full justify-between">
                     <div>
                         <div class="flex items-center justify-between text-[9px] font-black uppercase opacity-70 tracking-wider mb-0.5">
-                            <span class="truncate">${Helpers.formatDate(t.date, 'time')} - ${this._calcEndTimeStr(h, m, duration)}</span>
+                            <!-- FIX: Usiamo _formatTimeStr invece di Helpers.formatDate per evitare +1h timezone -->
+                            <span class="truncate">${this._formatTimeStr(t.date)} - ${this._calcEndTimeStr(h, m, duration)}</span>
                             ${t.location ? `<span class="flex items-center gap-1 shrink-0"><span class="text-[9px]">📍</span></span>` : ''}
                         </div>
                         <div class="font-bold text-base leading-tight truncate drop-shadow-sm">${Helpers.escapeHtml(t.title)}</div>
@@ -529,7 +536,8 @@ const AgendaViews = {
                     <div class="space-y-2">
                         ${dayTasks.map(t => `
                             <div class="flex items-center gap-4 p-3 bg-slate-800/50 rounded-xl border border-slate-700 hover:border-slate-600 cursor-pointer" onclick="Agenda.editTask('${t.id}')">
-                                <span class="text-xs font-black text-slate-400 bg-slate-900 px-2 py-1 rounded">${Helpers.formatDate(t.date, 'time')}</span>
+                                <!-- FIX: Usiamo _formatTimeStr anche qui -->
+                                <span class="text-xs font-black text-slate-400 bg-slate-900 px-2 py-1 rounded">${this._formatTimeStr(t.date)}</span>
                                 <span class="font-bold text-slate-200">${Helpers.escapeHtml(t.title)}</span>
                             </div>
                         `).join('')}

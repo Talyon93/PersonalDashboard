@@ -10,30 +10,112 @@ const AgendaWidgets = {
     getDefinitions() {
         return [
             // --- CLASSICI AGGIORNATI ---
-            { id: 'agenda_kpi', name: 'Daily Pulse', description: 'Task di oggi in evidenza', size: { cols: 1, rows: 1 }, render: () => this.renderWidgetKPI() },
-            { id: 'agenda_list', name: 'Lista Focus', description: 'Prossime attività in lista', size: { cols: 3, rows: 1 }, render: () => this.renderWidgetList() },
-            { id: 'agenda_next', name: 'Next Up', description: 'Il prossimo impegno imminente', size: { cols: 2, rows: 1 }, render: () => this.renderWidgetNextTask() },
-            { id: 'agenda_week', name: 'Carico 7gg', description: 'Grafico a barre settimanale', size: { cols: 1, rows: 1 }, render: () => this.renderWidgetWeeklyLoad() },
-            { id: 'agenda_add', name: 'Quick Action', description: 'Bottone creazione rapida', size: { cols: 1, rows: 1 }, render: () => this.renderWidgetQuickAdd() },
-            { id: 'agenda_priorities', name: 'Radar Scadenze', description: 'Timeline Oggi/Domani/Futuro', size: { cols: 3, rows: 2 }, render: () => this.renderWidgetPriorities() },
+            { 
+                id: 'agenda_kpi', 
+                name: 'Daily Pulse', 
+                description: 'Task di oggi in evidenza', 
+                size: { cols: 1, rows: 1 }, 
+                type: 'kpi', // Tipo KPI per anteprima numerica
+                render: () => this.renderWidgetKPI() 
+            },
+            { 
+                id: 'agenda_list', 
+                name: 'Lista Focus', 
+                description: 'Prossime attività in lista', 
+                size: { cols: 3, rows: 1 }, 
+                type: 'list', // Tipo LIST per anteprima a righe
+                render: () => this.renderWidgetList() 
+            },
+            { 
+                id: 'agenda_next', 
+                name: 'Next Up', 
+                description: 'Il prossimo impegno imminente', 
+                size: { cols: 2, rows: 1 }, 
+                type: 'kpi', // Trattato come KPI per l'impatto visivo del singolo task
+                render: () => this.renderWidgetNextTask() 
+            },
+            { 
+                id: 'agenda_week', 
+                name: 'Carico 7gg', 
+                description: 'Grafico a barre settimanale', 
+                size: { cols: 1, rows: 1 }, 
+                type: 'chart', // Tipo CHART per anteprima a barre
+                render: () => this.renderWidgetWeeklyLoad() 
+            },
+            { 
+                id: 'agenda_add', 
+                name: 'Quick Action', 
+                description: 'Bottone creazione rapida', 
+                size: { cols: 1, rows: 1 }, 
+                type: 'generic', 
+                render: () => this.renderWidgetQuickAdd() 
+            },
+            { 
+                id: 'agenda_priorities', 
+                name: 'Radar Scadenze', 
+                description: 'Timeline Oggi/Domani/Futuro', 
+                size: { cols: 3, rows: 2 }, 
+                type: 'list', 
+                render: () => this.renderWidgetPriorities() 
+            },
             
             // --- NUOVI WIDGET ---
-            { id: 'agenda_progress', name: 'Daily Progress', description: 'Percentuale completamento oggi', size: { cols: 1, rows: 1 }, render: () => this.renderWidgetDailyProgress() },
-            { id: 'agenda_mini_cal', name: 'Mini Calendar', description: 'Vista mese compatta', size: { cols: 1, rows: 1 }, render: () => this.renderWidgetMiniCalendar() },
-            { id: 'agenda_stats', name: 'Priority Stats', description: 'Distribuzione carico lavoro', size: { cols: 2, rows: 1 }, render: () => this.renderWidgetPriorityStats() },
+            { 
+                id: 'agenda_progress', 
+                name: 'Daily Progress', 
+                description: 'Percentuale completamento oggi', 
+                size: { cols: 1, rows: 1 }, 
+                type: 'chart', // Essendo un grafico circolare, chart è la categoria corretta
+                render: () => this.renderWidgetDailyProgress() 
+            },
+            { 
+                id: 'agenda_mini_cal', 
+                name: 'Mini Calendar', 
+                description: 'Vista mese compatta', 
+                size: { cols: 1, rows: 1 }, 
+                type: 'calendar', // Tipo CALENDAR per anteprima a griglia
+                render: () => this.renderWidgetMiniCalendar() 
+            },
+            { 
+                id: 'agenda_stats', 
+                name: 'Priority Stats', 
+                description: 'Distribuzione carico lavoro', 
+                size: { cols: 2, rows: 1 }, 
+                type: 'chart', 
+                render: () => this.renderWidgetPriorityStats() 
+            },
 
             // --- TIMELINE ---
-            { id: 'agenda_timeline', name: 'Timeline Orizzontale', description: 'Vista orizzontale (3x1)', size: { cols: 3, rows: 1 }, render: () => this.renderWidgetTimeline() },
-            { id: 'agenda_timeline_vert', name: 'Giornata Verticale', description: 'Timeline verticale (1x3)', size: { cols: 1, rows: 3 }, render: () => this.renderWidgetVerticalTimeline() },
+            { 
+                id: 'agenda_timeline', 
+                name: 'Timeline Orizzontale', 
+                description: 'Vista orizzontale (3x1)', 
+                size: { cols: 3, rows: 1 }, 
+                type: 'list', 
+                render: () => this.renderWidgetTimeline() 
+            },
+            { 
+                id: 'agenda_timeline_vert', 
+                name: 'Giornata Verticale', 
+                description: 'Timeline verticale (1x3)', 
+                size: { cols: 1, rows: 3 }, 
+                type: 'list', 
+                render: () => this.renderWidgetVerticalTimeline() 
+            },
 
-            // --- NUOVO: NOTE DEL GIORNO ---
-            { id: 'agenda_daily_notes', name: 'Note del Giorno', description: 'Note rapide per oggi', size: { cols: 1, rows: 1 }, render: () => this.renderWidgetDailyNotes() }
+            // --- NOTE DEL GIORNO ---
+            { 
+                id: 'agenda_daily_notes', 
+                name: 'Note del Giorno', 
+                description: 'Note rapide per oggi', 
+                size: { cols: 1, rows: 1 }, 
+                type: 'list', 
+                render: () => this.renderWidgetDailyNotes() 
+            }
         ];
     },
 
-    // ============================================================
-    //  RENDERERS WIDGET
-    // ============================================================
+    // ... (restanti renderizzatori rimangono invariati)
 
     renderWidgetKPI() {
         const tasks = window.Agenda ? Agenda.tasks : [];
@@ -307,7 +389,7 @@ const AgendaWidgets = {
         return `
             <div class="h-full bg-slate-800/40 backdrop-blur-md rounded-[2rem] p-6 border border-slate-700/40 shadow-xl flex flex-col justify-center">
                 <h4 class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-4 flex items-center gap-2">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                     Carico per Priorità
                 </h4>
                 <div>
@@ -413,7 +495,6 @@ const AgendaWidgets = {
             </div>`;
     },
 
-    // --- NUOVO WIDGET: NOTE DEL GIORNO ---
     renderWidgetDailyNotes() {
         const notes = window.Agenda ? Agenda.notes : [];
         const todayStr = new Date().toISOString().split('T')[0];
@@ -441,11 +522,9 @@ const AgendaWidgets = {
                         `).join('')}
                 </div>
                 
-                <!-- Decorative Icon Background -->
                 <div class="absolute -bottom-6 -right-6 text-9xl opacity-[0.03] pointer-events-none text-amber-500 rotate-12">✍️</div>
             </div>`;
     }
 };
 
-// Espone l'oggetto globalmente
 window.AgendaWidgets = AgendaWidgets;

@@ -1,26 +1,32 @@
 /**
- * Dashboard Component - STABLE EDITION 🛡️
- * Include: Anti-Duplicazione, Debounce rendering e Pulizia LocalStorage.
+ * Dashboard Component - TOTAL FREEDOM & SMART COLLISION 🛡️
+ * Gestione avanzata widget multi-size con anteprima live e catalogo visuale migliorato.
  */
 const Dashboard = {
-    defaultWidgets: ['agenda_kpi', 'agenda_list'],
+    COLS: 4,
+    TOTAL_SLOTS: 80, // Griglia estesa per posizionamento libero
     
     config: {
-        activeWidgets: [] 
+        layout: {} // { slotIndex: widgetId }
     },
     
     isInitialized: false,
     isEditMode: false,
-    isRendering: false,     // Lock per evitare render sovrapposti
-    renderTimeout: null,    // Timer per il debounce
-    dragSrcIndex: null,
+    isRendering: false,
+    
+    // Stato del Drag & Drop
+    dragSrcSlot: null,       
+    initialDragSlot: null,   
+    lastPreviewSlot: null,
+    originalLayout: null,    
+    
+    targetSlotForCustomizer: null,
 
     async init() {
         this.loadConfig();
 
         if (window.EventBus && !this._eventListenerAttached) {
             EventBus.on('dataChanged', () => {
-                // Usa il debounce invece di chiamare direttamente
                 this.requestUpdate(); 
             });
             this._eventListenerAttached = true;
@@ -31,54 +37,85 @@ const Dashboard = {
     },
 
     loadConfig() {
-        const saved = localStorage.getItem('dashboard_config');
+        const saved = localStorage.getItem('dashboard_config_v2');
         if (saved) {
             try { 
                 this.config = JSON.parse(saved);
-                
-                // === FIX: PULIZIA DUPLICATI ===
-                // Rimuove widget doppi causati da bug precedenti (mantiene gli spazi vuoti multipli)
-                const seen = new Set();
-                this.config.activeWidgets = this.config.activeWidgets.filter(id => {
-                    if (id === 'dashboard_spacer') return true; // Consenti spazi multipli
-                    if (seen.has(id)) return false; // Rimuovi duplicati reali
-                    seen.add(id);
-                    return true;
-                });
-                
-                // Salva subito la versione pulita
-                this.saveConfig();
-
             } catch (e) { 
-                console.error('Config error, resetting', e);
-                this.config.activeWidgets = [...this.defaultWidgets];
+                console.error('Config error', e);
+                this.setDefaultLayout();
             }
         } else {
-            this.config.activeWidgets = [...this.defaultWidgets];
+            this.setDefaultLayout();
         }
     },
 
-    saveConfig() {
-        localStorage.setItem('dashboard_config', JSON.stringify(this.config));
+    setDefaultLayout() {
+        this.config.layout = {
+            0: 'agenda_kpi',
+            2: 'agenda_list'
+        };
+        this.saveConfig();
     },
 
-    // Funzione intelligente per gestire aggiornamenti rapidi
+    saveConfig() {
+        localStorage.setItem('dashboard_config_v2', JSON.stringify(this.config));
+    },
+
     requestUpdate() {
-        const content = document.getElementById('dashboardContent');
-        if (!content || content.classList.contains('hidden') || this.isEditMode) return;
-
-        // Cancella il render precedente se ce n'è uno in coda
-        if (this.renderTimeout) clearTimeout(this.renderTimeout);
-
-        // Aspetta 100ms prima di renderizzare. Se arrivano altri dati, resetta il timer.
-        this.renderTimeout = setTimeout(async () => {
-            await this.renderActiveWidgets();
-        }, 100);
+        if (!this.isInitialized || this.isEditMode) return;
+        this.renderActiveWidgets();
     },
 
     getAllAvailableWidgets() {
         if (!window.ModuleManager || typeof ModuleManager.getModules !== 'function') return [];
         return ModuleManager.getModules().flatMap(m => m.widgets || []);
+    },
+
+    // Calcola l'ingombro di un widget
+    getWidgetFootprint(startSlot, cols, rows) {
+        const footprint = [];
+        const startRow = Math.floor(startSlot / this.COLS);
+        const startCol = startSlot % this.COLS;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const currentRow = startRow + r;
+                const currentCol = startCol + c;
+                if (currentCol < this.COLS) {
+                    footprint.push(currentRow * this.COLS + currentCol);
+                }
+            }
+        }
+        return footprint;
+    },
+
+    // Calcola tutti gli slot fisicamente occupati nel layout attuale
+    getOccupiedSlots(layout) {
+        const occupied = new Set();
+        const allWidgets = this.getAllAvailableWidgets();
+        Object.entries(layout).forEach(([slot, id]) => {
+            const w = allWidgets.find(widget => widget.id === id);
+            if (w) {
+                const footprint = this.getWidgetFootprint(parseInt(slot), w.size?.cols || 1, w.size?.rows || 1);
+                footprint.forEach(idx => occupied.add(idx));
+            }
+        });
+        return occupied;
+    },
+
+    // Trova uno spazio libero considerando l'ingombro reale dei widget multi-cella
+    findFreeSlot(layout, cols, rows, excludeSlots = []) {
+        const occupied = this.getOccupiedSlots(layout);
+        for (let i = 0; i < 400; i++) {
+            const footprint = this.getWidgetFootprint(i, cols, rows);
+            const fitsWidth = (i % this.COLS) + cols <= this.COLS;
+            if (!fitsWidth) continue;
+
+            const isSpaceFree = footprint.every(idx => !occupied.has(idx) && !excludeSlots.includes(idx));
+            if (isSpaceFree) return i;
+        }
+        return null;
     },
 
     // ============================================================
@@ -89,38 +126,60 @@ const Dashboard = {
         const container = document.getElementById('dashboardContent');
         if (!container) return;
 
-        // Reset completo
         container.innerHTML = '';
 
         const editBtnClass = this.isEditMode 
-            ? "bg-indigo-600 text-white shadow-indigo-500/50 shadow-lg border-indigo-500" 
+            ? "bg-indigo-600 text-white shadow-indigo-500/50 shadow-lg border-indigo-500 scale-105" 
             : "bg-slate-800/60 text-slate-300 hover:text-white border-slate-700/50";
 
+        const wiggleStyle = `
+            <style>
+                @keyframes wiggle {
+                    0% { transform: rotate(0deg); }
+                    33% { transform: rotate(-0.15deg); }
+                    66% { transform: rotate(0deg); }
+                    100% { transform: rotate(0.15deg); }
+                }
+                .animate-wiggle {
+                    animation: wiggle 0.4s ease-in-out infinite;
+                    display: inline-block;
+                }
+            </style>
+        `;
+
         const headerHtml = `
+            ${wiggleStyle}
             <div class="mb-8 animate-fadeIn flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
                     <h2 class="text-5xl font-black tracking-tighter bg-gradient-to-r from-white via-indigo-200 to-slate-400 bg-clip-text text-transparent italic">Overview</h2>
                     <p class="text-slate-400 mt-2 font-medium flex items-center gap-2">
-                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                        ${this.isEditMode ? 'MODALITÀ MODIFICA ATTIVA' : 'Grid Operativa Personalizzata'}
+                        <span class="w-2 h-2 ${this.isEditMode ? 'bg-indigo-500 animate-ping' : 'bg-emerald-500 animate-pulse'} rounded-full"></span>
+                        ${this.isEditMode ? 'MODALITÀ DESIGN: TRASCINA OVUNQUE' : 'Dashboard Operativa'}
                     </p>
                 </div>
                 <div class="flex items-center gap-3">
                     ${this.isEditMode ? `
-                        <button onclick="Dashboard.openCustomizer()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold uppercase tracking-widest border border-slate-600 transition-all animate-fadeIn hover:scale-105 shadow-lg">
+                        <button onclick="Dashboard.openCustomizer()" class="px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 rounded-xl text-xs font-bold uppercase tracking-widest border border-indigo-500/30 transition-all hover:scale-105">
                             + Aggiungi Widget
                         </button>
                     ` : ''}
                     
                     <button onclick="Dashboard.toggleEditMode()" class="px-5 py-2.5 rounded-xl border backdrop-blur-md text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${editBtnClass}">
-                        <span>${this.isEditMode ? '💾 Salva' : '✏️ Modifica'}</span>
+                        <span>${this.isEditMode ? '💾 Salva Layout' : '✏️ Modifica'}</span>
                     </button>
                 </div>
             </div>
         `;
 
+        const gridClass = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-40 transition-all duration-500 min-h-[800px] ';
+        const gridStyle = this.isEditMode 
+            ? 'bg-slate-900/40 p-8 rounded-[3rem] ring-1 ring-white/5 shadow-2xl relative overflow-hidden' 
+            : 'p-0'; 
+        
         const gridHtml = `
-            <div id="dashboard-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-20 transition-all"></div>
+            <div id="dashboard-grid" class="${gridClass} ${gridStyle}">
+                ${this.isEditMode ? `<div class="absolute inset-0 pointer-events-none opacity-[0.03]" style="background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 40px 40px;"></div>` : ''}
+            </div>
         `;
 
         container.innerHTML = headerHtml + gridHtml;
@@ -128,157 +187,270 @@ const Dashboard = {
     },
 
     async renderActiveWidgets() {
-        if (this.isRendering) return; // Evita sovrapposizioni
+        if (this.isRendering) return;
         this.isRendering = true;
 
-        const grid = document.getElementById('dashboard-grid');
-        if (!grid) {
-            this.isRendering = false;
-            return;
-        }
-        
-        // Pulizia profonda
-        while (grid.firstChild) {
-            grid.removeChild(grid.firstChild);
-        }
-        
-        const allWidgets = this.getAllAvailableWidgets();
-        const activeIds = this.config.activeWidgets;
-
-        // Mapping sicuro
-        const widgetsToRender = activeIds
-            .map(id => allWidgets.find(w => w.id === id))
-            .filter(w => w !== undefined);
-
-        if (widgetsToRender.length === 0) {
-            grid.innerHTML = `<div class="col-span-full py-20 text-center border-2 border-dashed border-slate-800 rounded-3xl text-slate-600">
-                <p class="font-bold">Nessun widget attivo.</p>
-                <button onclick="Dashboard.toggleEditMode(); Dashboard.openCustomizer()" class="text-indigo-400 underline mt-2 cursor-pointer">Aggiungi Widget</button>
-            </div>`;
-            this.isRendering = false;
-            return;
-        }
-
-        for (let index = 0; index < widgetsToRender.length; index++) {
-            const widget = widgetsToRender[index];
-            const colSpan = widget.size?.cols ? `lg:col-span-${widget.size.cols}` : 'lg:col-span-1';
-            const rowSpan = widget.size?.rows ? `row-span-${widget.size.rows}` : 'row-span-1';
+        try {
+            const grid = document.getElementById('dashboard-grid');
+            if (!grid) return;
             
-            const wrapper = document.createElement('div');
-            let classes = `${colSpan} ${rowSpan} min-h-[160px] relative transition-all duration-300 rounded-[2.5rem] `;
-            
-            if (this.isEditMode) {
-                classes += `cursor-move border-2 border-dashed border-indigo-500/50 hover:bg-indigo-500/10 hover:border-indigo-400 z-10 animate-pulse-slow `;
-                wrapper.setAttribute('draggable', 'true');
-                wrapper.ondragstart = (e) => this.handleDragStart(e, index);
-                wrapper.ondragover = (e) => this.handleDragOver(e);
-                wrapper.ondragenter = (e) => this.handleDragEnter(e);
-                wrapper.ondragleave = (e) => this.handleDragLeave(e);
-                wrapper.ondrop = (e) => this.handleDrop(e, index);
-            } else {
-                classes += `animate-fadeIn`;
-            }
+            grid.innerHTML = '';
+            const allWidgets = this.getAllAvailableWidgets();
+            const layoutEntries = Object.entries(this.config.layout);
+            const maxIdxInLayout = layoutEntries.reduce((max, [slot]) => Math.max(max, parseInt(slot)), 0);
+            const displaySlots = this.isEditMode ? Math.max(this.TOTAL_SLOTS, Math.ceil((maxIdxInLayout + 4) / 4) * 4) : maxIdxInLayout + 1;
 
-            wrapper.className = classes;
-            
-            // Render Widget
-            try {
-                const contentHtml = await widget.render();
+            const occupiedSlots = new Set();
+
+            for (let i = 0; i < displaySlots; i++) {
+                if (occupiedSlots.has(i)) continue;
+
+                const widgetId = this.config.layout[i];
+                const widget = widgetId ? allWidgets.find(w => w.id === widgetId) : null;
+                const slot = document.createElement('div');
+                slot.id = `slot-${i}`;
+                slot.dataset.slotIndex = i;
                 
-                const overlayHtml = this.isEditMode ? `
-                    <div class="absolute inset-0 z-20 rounded-[2.5rem]"></div>
-                    <button onclick="Dashboard.removeWidget(${index})" class="absolute -top-3 -right-3 z-30 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg font-bold transition-transform hover:scale-110">✕</button>
-                ` : '';
+                if (widget) {
+                    const wCols = widget.size?.cols || 1;
+                    const wRows = widget.size?.rows || 1;
+                    const footprint = this.getWidgetFootprint(i, wCols, wRows);
+                    footprint.forEach(idx => { if(idx !== i) occupiedSlots.add(idx); });
 
-                wrapper.innerHTML = overlayHtml + contentHtml;
-                grid.appendChild(wrapper);
-            } catch (err) {
-                console.error(`Errore render widget ${widget.id}:`, err);
+                    slot.className = `lg:col-span-${wCols} row-span-${wRows} min-h-[180px] relative rounded-[2.5rem] transition-all duration-300 shadow-lg `;
+                    
+                    if (this.isEditMode) {
+                        const wiggleClass = this.dragSrcSlot !== i ? 'animate-wiggle' : '';
+                        slot.className += `cursor-grab active:cursor-grabbing ring-2 ring-white/5 group hover:ring-indigo-500/50 hover:shadow-2xl z-20 ${wiggleClass} `;
+                        slot.setAttribute('draggable', 'true');
+                        slot.ondragstart = (e) => this.handleDragStart(e, i);
+                        slot.ondragover = (e) => this.handleDragOver(e, i);
+                        slot.ondrop = (e) => this.handleDrop(e, i);
+                        slot.ondragend = (e) => this.handleDragEnd(e);
+
+                        if (this.dragSrcSlot === i) {
+                            slot.classList.add('opacity-20', 'scale-95', 'grayscale', 'ring-indigo-500', 'ring-4', 'z-0');
+                        }
+                    }
+
+                    try {
+                        const contentHtml = (typeof widget.render === 'function') ? await widget.render() : widget.render;
+                        const controls = this.isEditMode ? `
+                            <div class="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 rounded-[2.5rem] pointer-events-none transition-opacity"></div>
+                            <button onclick="Dashboard.removeWidget(${i}); event.stopPropagation();" class="absolute -top-2 -right-2 z-30 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">✕</button>
+                        ` : '';
+                        slot.innerHTML = controls + contentHtml;
+                    } catch (e) {
+                        slot.innerHTML = `<div class="p-4 bg-slate-800 rounded-[2.5rem] h-full flex items-center justify-center text-slate-500 text-xs text-center font-bold">Errore di Rendering</div>`;
+                    }
+                } else if (this.isEditMode) {
+                    slot.className = `lg:col-span-1 row-span-1 min-h-[180px] border-2 border-dashed border-white/5 rounded-[2.5rem] flex items-center justify-center transition-all cursor-pointer group hover:bg-white/5 hover:border-white/20`;
+                    slot.innerHTML = `<span class="text-[10px] font-black text-slate-700 uppercase tracking-widest group-hover:text-slate-500 opacity-40">Libero</span>`;
+                    slot.onclick = () => this.openCustomizer(i);
+                    slot.ondragover = (e) => this.handleDragOver(e, i);
+                    slot.ondrop = (e) => this.handleDrop(e, i);
+                } else {
+                    slot.className = "lg:col-span-1 row-span-1 min-h-[180px] pointer-events-none opacity-0";
+                }
+                grid.appendChild(slot);
             }
+        } finally {
+            this.isRendering = false;
         }
-        
-        this.isRendering = false;
     },
 
     // ============================================================
-    //  DRAG & DROP LOGIC
+    //  SMART DRAG & DROP ENGINE
     // ============================================================
     
-    handleDragStart(e, index) { 
-        this.dragSrcIndex = index; 
-        e.dataTransfer.effectAllowed = 'move'; 
-        e.target.style.opacity = '0.4'; 
+    handleDragStart(e, slotIndex) { 
+        this.initialDragSlot = slotIndex; 
+        this.dragSrcSlot = slotIndex; 
+        this.originalLayout = JSON.parse(JSON.stringify(this.config.layout));
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => this.renderActiveWidgets(), 0);
     },
-    handleDragOver(e) { 
-        if (e.preventDefault) e.preventDefault(); 
-        e.dataTransfer.dropEffect = 'move'; 
-        return false; 
+
+    handleDragOver(e, targetSlot) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (this.lastPreviewSlot === targetSlot) return;
+        this.lastPreviewSlot = targetSlot;
+
+        const initialSlot = this.initialDragSlot;
+        if (initialSlot === null || initialSlot === targetSlot) return;
+
+        const widgetId = this.originalLayout[initialSlot];
+        const allWidgets = this.getAllAvailableWidgets();
+        const widget = allWidgets.find(w => w.id === widgetId);
+        const size = widget?.size || {cols: 1, rows: 1};
+
+        if ((targetSlot % this.COLS) + size.cols > this.COLS) return;
+
+        const footprint = this.getWidgetFootprint(targetSlot, size.cols, size.rows);
+        const tempLayout = JSON.parse(JSON.stringify(this.originalLayout));
+        delete tempLayout[initialSlot]; 
+
+        const collidingWidgets = [];
+        Object.entries(tempLayout).forEach(([slot, id]) => {
+            const w = allWidgets.find(wid => wid.id === id);
+            const wSize = w.size || {cols:1, rows:1};
+            const wFootprint = this.getWidgetFootprint(parseInt(slot), wSize.cols, wSize.rows);
+            if (wFootprint.some(idx => footprint.includes(idx))) {
+                collidingWidgets.push({ slot: parseInt(slot), id: id, size: wSize });
+            }
+        });
+
+        collidingWidgets.forEach(c => delete tempLayout[c.slot]);
+        tempLayout[targetSlot] = widgetId;
+
+        collidingWidgets.forEach(c => {
+            const newSlot = this.findFreeSlot(tempLayout, c.size.cols, c.size.rows, footprint);
+            if (newSlot !== null) tempLayout[newSlot] = c.id;
+        });
+
+        this.config.layout = tempLayout;
+        this.dragSrcSlot = targetSlot; 
+        this.renderActiveWidgets();
     },
-    handleDragEnter(e) { e.target.closest('[draggable]').classList.add('bg-indigo-500/20'); },
-    handleDragLeave(e) { e.target.closest('[draggable]').classList.remove('bg-indigo-500/20'); },
-    
-    async handleDrop(e, targetIndex) {
-        e.stopPropagation(); e.preventDefault();
-        document.querySelectorAll('[draggable]').forEach(i => { i.style.opacity = '1'; i.classList.remove('bg-indigo-500/20'); });
-        
-        const sourceIndex = this.dragSrcIndex;
-        if (sourceIndex !== targetIndex) {
-            const list = [...this.config.activeWidgets];
-            const [moved] = list.splice(sourceIndex, 1);
-            list.splice(targetIndex, 0, moved);
-            
-            this.config.activeWidgets = list;
-            this.saveConfig();
-            await this.renderActiveWidgets();
-        }
+
+    handleDragEnd(e) {
+        this.dragSrcSlot = null;
+        this.initialDragSlot = null;
+        this.lastPreviewSlot = null;
+        this.renderActiveWidgets();
     },
+
+    handleDrop(e, targetSlot) {
+        e.preventDefault();
+        this.saveConfig();
+        this.originalLayout = null;
+        this.initialDragSlot = null;
+        this.dragSrcSlot = null;
+        this.renderActiveWidgets();
+        if(window.Helpers) Helpers.showToast('Layout aggiornato ✨');
+    },
+
+    // ============================================================
+    //  UI ACTIONS & CATALOGUE
+    // ============================================================
 
     toggleEditMode() {
         this.isEditMode = !this.isEditMode;
-        this.render(); 
+        this.render();
+        if (!this.isEditMode) {
+            this.saveConfig();
+            if(window.Helpers) Helpers.showToast('Dashboard salvata ✨');
+        }
     },
 
-    removeWidget(index) {
-        this.config.activeWidgets.splice(index, 1);
+    removeWidget(slotIndex) {
+        delete this.config.layout[slotIndex];
         this.saveConfig();
         this.renderActiveWidgets();
     },
 
-    // ============================================================
-    //  CUSTOMIZER
-    // ============================================================
-    
-    openCustomizer() {
-        const activeModules = ModuleManager.getActiveModules().filter(m => m.widgets && m.widgets.length > 0);
-        if (activeModules.length === 0) { alert("Nessun widget disponibile."); return; }
+    // Generatore di anteprime visuali per il catalogo
+    getWidgetVisualPreview(widget) {
+        const type = widget.type || 'generic';
+        
+        const skeletonTemplates = {
+            'list': `
+                <div class="w-full space-y-2 p-4">
+                    <div class="h-2 w-full bg-slate-700/50 rounded animate-pulse"></div>
+                    <div class="h-2 w-3/4 bg-slate-700/50 rounded animate-pulse"></div>
+                    <div class="h-2 w-5/6 bg-slate-700/50 rounded animate-pulse"></div>
+                </div>`,
+            'chart': `
+                <div class="w-full h-full flex items-end justify-between p-4 gap-1">
+                    <div class="w-1/4 bg-indigo-500/20 rounded-t h-1/2"></div>
+                    <div class="w-1/4 bg-indigo-500/40 rounded-t h-3/4"></div>
+                    <div class="w-1/4 bg-indigo-500/60 rounded-t h-2/3"></div>
+                    <div class="w-1/4 bg-indigo-500 rounded-t h-full"></div>
+                </div>`,
+            'kpi': `
+                <div class="w-full h-full flex flex-col items-center justify-center p-2">
+                    <div class="h-1.5 w-8 bg-slate-700/50 rounded mb-2"></div>
+                    <div class="h-6 w-16 bg-indigo-500/20 rounded-lg"></div>
+                </div>`,
+            'calendar': `
+                <div class="grid grid-cols-7 gap-1 p-3 w-full">
+                    ${Array(14).fill('<div class="aspect-square bg-slate-700/30 rounded-sm"></div>').join('')}
+                </div>`,
+            'generic': `
+                <div class="flex items-center justify-center h-full opacity-20">
+                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                </div>`
+        };
 
+        return skeletonTemplates[type] || skeletonTemplates['generic'];
+    },
+
+    openCustomizer(specificSlot = null) {
+        this.targetSlotForCustomizer = specificSlot;
+        const activeModules = ModuleManager.getActiveModules().filter(m => m.widgets && m.widgets.length > 0);
+        
         const modalHtml = `
-            <div id="dashboardCustomizer" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[150] p-4 animate-fadeIn">
-                <div class="bg-slate-900 border border-slate-700 rounded-[2rem] shadow-2xl max-w-4xl w-full flex flex-col h-[70vh] overflow-hidden animate-slideUp">
-                    <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                        <div><h3 class="text-2xl font-black text-white">Aggiungi Widget</h3><p class="text-xs text-slate-400 uppercase tracking-widest font-bold mt-1">Clicca per aggiungere</p></div>
-                        <button onclick="document.getElementById('dashboardCustomizer').remove()" class="text-slate-500 hover:text-white transition-colors text-2xl">✕</button>
+            <div id="dashboardCustomizer" class="fixed inset-0 bg-slate-950/90 backdrop-blur-2xl flex items-center justify-center z-[200] p-4 animate-fadeIn">
+                <div class="bg-slate-900 border border-slate-800 rounded-[3.5rem] shadow-2xl max-w-5xl w-full flex flex-col h-[85vh] overflow-hidden animate-slideUp">
+                    
+                    <!-- Header -->
+                    <div class="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900/80 sticky top-0 backdrop-blur-md z-10">
+                        <div>
+                            <h3 class="text-4xl font-black text-white italic tracking-tighter leading-none">Catalogo Widget</h3>
+                            <p class="text-[10px] text-indigo-400 font-black uppercase tracking-[0.2em] mt-2">Personalizza la tua area di lavoro</p>
+                        </div>
+                        <button onclick="document.getElementById('dashboardCustomizer').remove()" class="w-14 h-14 flex items-center justify-center rounded-full bg-slate-800 text-slate-400 hover:text-white transition-all hover:rotate-90 hover:bg-slate-700">✕</button>
                     </div>
+
                     <div class="flex flex-1 overflow-hidden">
-                        <div class="w-1/3 border-r border-slate-800 bg-slate-900/50 overflow-y-auto p-4 space-y-2">
+                        <!-- Sidebar Tab -->
+                        <div class="w-72 border-r border-slate-800 bg-slate-950/20 p-6 space-y-3 shrink-0 overflow-y-auto">
                             ${activeModules.map((mod, index) => `
-                                <button onclick="Dashboard.switchTab('${mod.id}')" id="tab-btn-${mod.id}" class="w-full text-left px-5 py-4 rounded-xl flex items-center gap-3 transition-all group tab-button ${index === 0 ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}">
-                                    <span class="text-xl opacity-80">${mod.icon || '📦'}</span>
-                                    <div><span class="font-bold block text-sm">${mod.name}</span><span class="text-[10px] opacity-60 uppercase font-black tracking-widest">${mod.widgets.length} Widget</span></div>
+                                <button onclick="Dashboard.switchTab('${mod.id}')" id="tab-btn-${mod.id}" class="w-full text-left px-5 py-5 rounded-3xl flex items-center gap-4 transition-all tab-button group ${index === 0 ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20' : 'text-slate-500 hover:bg-slate-800/50 hover:text-slate-300'}">
+                                    <span class="text-2xl group-hover:scale-110 transition-transform">${mod.icon || '📦'}</span>
+                                    <span class="font-black text-sm uppercase tracking-wider truncate">${mod.name}</span>
                                 </button>
                             `).join('')}
                         </div>
-                        <div class="w-2/3 p-8 overflow-y-auto bg-slate-900 relative">
+
+                        <!-- Grid Widget -->
+                        <div class="flex-1 p-8 overflow-y-auto bg-slate-950/10">
                             ${activeModules.map((mod, index) => `
                                 <div id="tab-content-${mod.id}" class="tab-content ${index === 0 ? '' : 'hidden'} animate-fadeIn">
-                                    <h4 class="text-xl font-bold text-white mb-6 flex items-center gap-2"><span class="opacity-50">${mod.icon}</span> ${mod.name}</h4>
-                                    <div class="grid grid-cols-1 gap-4">
-                                        ${mod.widgets.map(w => `
-                                            <div onclick="Dashboard.addWidget('${w.id}')" class="group relative flex items-start gap-4 p-5 rounded-2xl border-2 transition-all cursor-pointer bg-slate-800/40 border-slate-700 hover:border-indigo-500 hover:bg-slate-800 hover:scale-[1.01] hover:shadow-xl">
-                                                <div class="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center border border-slate-700 text-xl shadow-inner shrink-0 group-hover:border-indigo-500/30 transition-colors">＋</div>
-                                                <div><div class="font-bold text-white text-lg">${w.name}</div><div class="text-xs text-slate-400 mt-1 leading-relaxed">${w.description || ''}</div><div class="mt-3 flex items-center gap-2"><span class="text-[9px] font-black uppercase text-slate-300 bg-slate-700 px-2 py-1 rounded border border-slate-600">Size: ${w.size?.cols || 1}x${w.size?.rows || 1}</span></div></div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
+                                        ${mod.widgets.map(w => {
+                                            const cols = w.size?.cols || 1;
+                                            const rows = w.size?.rows || 1;
+                                            return `
+                                            <div onclick="Dashboard.addWidget('${w.id}')" class="group relative p-1 rounded-[2.8rem] bg-gradient-to-br from-slate-800 to-slate-900 hover:from-indigo-600 hover:to-indigo-500 transition-all duration-500 cursor-pointer shadow-xl hover:shadow-indigo-500/10">
+                                                <div class="bg-slate-900 rounded-[2.6rem] p-6 h-full border border-white/5 group-hover:border-transparent transition-colors flex flex-col">
+                                                    
+                                                    <!-- Visual Preview Area -->
+                                                    <div class="mb-6 h-32 bg-slate-950/60 rounded-[2rem] border border-white/5 flex items-center justify-center overflow-hidden relative shadow-inner shrink-0">
+                                                        ${this.getWidgetVisualPreview(w)}
+                                                    </div>
+
+                                                    <div class="flex justify-between items-center mb-3 gap-2">
+                                                        <div class="min-w-0">
+                                                            <div class="font-black text-white text-xl leading-none group-hover:text-indigo-100 transition-colors truncate">${w.name}</div>
+                                                        </div>
+                                                        
+                                                        <!-- Interaction Widget Indicator - NEW INTERACTIVE ELEMENT REPLACING THE "+" BUTTON -->
+                                                        <div class="p-2.5 bg-slate-800/80 border border-white/10 rounded-2xl flex flex-col items-center gap-1.5 group-hover:bg-white group-hover:border-transparent transition-all shadow-xl group-hover:scale-105 shrink-0 min-w-[48px] backdrop-blur-sm">
+                                                            <div class="grid gap-1" style="grid-template-columns: repeat(${cols}, minmax(0, 1fr));">
+                                                                ${Array(cols * rows).fill('<div class="w-1.5 h-1.5 bg-indigo-500 group-hover:bg-indigo-600 rounded-[1px] shadow-[0_0_4px_rgba(99,102,241,0.3)]"></div>').join('')}
+                                                            </div>
+                                                            <span class="text-[8px] font-black text-slate-500 group-hover:text-indigo-900 uppercase tracking-tighter leading-none">${cols}x${rows}</span>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <p class="text-xs text-slate-500 mt-auto line-clamp-2 font-semibold leading-relaxed group-hover:text-slate-300 transition-colors">
+                                                        ${w.description || 'Nessuna descrizione disponibile.'}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        `).join('')}
+                                        `}).join('')}
                                     </div>
                                 </div>
                             `).join('')}
@@ -290,40 +462,33 @@ const Dashboard = {
     },
 
     switchTab(moduleId) {
-        document.querySelectorAll('.tab-button').forEach(btn => {
-            btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-lg');
-            btn.classList.add('text-slate-400', 'hover:bg-slate-800', 'hover:text-white');
-        });
-        const activeBtn = document.getElementById(`tab-btn-${moduleId}`);
-        if (activeBtn) {
-            activeBtn.classList.remove('text-slate-400', 'hover:bg-slate-800');
-            activeBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-lg');
-        }
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-xl', 'shadow-indigo-500/20'));
+        document.getElementById(`tab-btn-${moduleId}`)?.classList.add('bg-indigo-600', 'text-white', 'shadow-xl', 'shadow-indigo-500/20');
         document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-        const activeContent = document.getElementById(`tab-content-${moduleId}`);
-        if (activeContent) activeContent.classList.remove('hidden');
+        document.getElementById(`tab-content-${moduleId}`)?.classList.remove('hidden');
     },
 
     addWidget(id) {
-        this.config.activeWidgets.push(id);
-        this.saveConfig();
-        this.renderActiveWidgets();
-        
-        const modal = document.getElementById('dashboardCustomizer');
-        if (modal) modal.remove();
-        
-        if (!this.isEditMode) this.toggleEditMode();
-        Helpers.showToast('Widget Aggiunto 🚀');
-    },
+        const allWidgets = this.getAllAvailableWidgets();
+        const widget = allWidgets.find(w => w.id === id);
+        const size = widget?.size || {cols: 1, rows: 1};
 
-    getInternalWidgets() {
-        return [{
-            id: 'dashboard_spacer',
-            name: 'Spazio Vuoto',
-            description: 'Separatore invisibile 1x1 per layout.',
-            size: { cols: 1, rows: 1 },
-            render: () => `<div class="w-full h-full border-2 border-dashed border-slate-800/50 rounded-[2.5rem] opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center group"><span class="text-[10px] text-slate-600 font-bold uppercase tracking-widest group-hover:text-slate-400">Spazio</span></div>`
-        }];
+        let targetSlot = this.targetSlotForCustomizer;
+        if (targetSlot === null) {
+            targetSlot = this.findFreeSlot(this.config.layout, size.cols, size.rows);
+        }
+        
+        if (targetSlot !== null) {
+            this.config.layout[targetSlot] = id;
+            this.saveConfig();
+            document.getElementById('dashboardCustomizer')?.remove();
+            this.targetSlotForCustomizer = null;
+            if (!this.isEditMode) this.isEditMode = true;
+            this.render();
+            if(window.Helpers) Helpers.showToast('Widget aggiunto! 🚀');
+        } else {
+            if(window.Helpers) Helpers.showToast('Spazio insufficiente per questo widget ⚠️');
+        }
     }
 };
 
@@ -331,13 +496,11 @@ if (window.ModuleManager) {
     ModuleManager.register({
         id: 'dashboard',
         name: 'Dashboard',
-        icon: '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>',
-        category: 'main', 
-        order: 0, 
-        isCore: true, 
+        icon: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2zM14 15a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2z"></path></svg>`,
+        category: 'main', order: 0, isCore: true, 
         init: async () => { await Dashboard.init(); },
         render: async () => { await Dashboard.render(); },
-        widgets: Dashboard.getInternalWidgets() 
+        widgets: window.GeneralWidgets ? window.GeneralWidgets.getDefinitions() : []
     });
 }
 window.Dashboard = Dashboard;
