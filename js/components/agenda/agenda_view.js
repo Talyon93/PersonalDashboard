@@ -1,10 +1,9 @@
 /**
  * Agenda Views - VIEW LOGIC (Visual Update)
- * - FULL VERTICAL FIT (AGGIORNATO v3): Ottimizzazione Vista Mese per schermi piccoli
- * - FIX MESE: Aggiunto min-h-0, overflow-hidden e ridotti gap/padding per evitare overflow
- * - FONT AGGIORNATO: Orari tabella laterale più grandi (Text-xs / 11px)
- * - Row Calculation: Altezza righe in %
- * - Design: Professional Dark + Linea priorità
+ * - FULL VERTICAL FIT (RESTORED): Ripristinato layout adattivo 100% altezza (calc 100vh-290px)
+ * - PERCENTAGE ROWS: Le righe ora si adattano allo spazio disponibile
+ * - IMPORT MODAL: Mantenuto il template del modale
+ * - DESIGN: Professional Dark + Font Maggiorati
  */
 
 const AgendaViews = {
@@ -107,7 +106,26 @@ const AgendaViews = {
     },
 
     // ============================================================
-    //  1. VISTA GIORNO (FIT VERTICALE AGGIORNATO)
+    //  TEMPLATE MODALE IMPORTAZIONE
+    // ============================================================
+    renderImportModal() {
+        return `
+            <div id="import-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[120] animate-fadeIn p-4">
+                <div class="bg-slate-900 border border-slate-700 rounded-3xl p-8 shadow-2xl max-w-sm w-full flex flex-col items-center text-center">
+                    <div class="text-5xl mb-6 animate-bounce">📥</div>
+                    <h3 class="text-xl font-black text-white mb-2 uppercase tracking-wide">Importazione...</h3>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6" id="import-status-text">Analisi file in corso</p>
+                    
+                    <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700 shadow-inner">
+                        <div id="import-progress-bar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-full w-0 transition-all duration-200 ease-out shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
+                    </div>
+                    <p class="mt-4 text-[10px] text-slate-500 font-mono" id="import-count-text">0 / 0</p>
+                </div>
+            </div>`;
+    },
+
+    // ============================================================
+    //  1. VISTA GIORNO (FIT VERTICALE RESTORED)
     // ============================================================
     renderDay(tasks, notes, currentDate, config) {
         const dateStr = this._iso(currentDate);
@@ -115,7 +133,7 @@ const AgendaViews = {
         const dayNotes = notes.filter(n => n.date === dateStr);
         const isToday = dateStr === this._iso(new Date());
         
-        // Calcolo altezza righe in %
+        // Calcolo altezza righe in % (Vertical Fit Logic)
         const slotCount = this._getSlotCount(config);
         const rowHeightPct = 100 / slotCount;
 
@@ -145,7 +163,7 @@ const AgendaViews = {
 
     _renderDayRows(tasks, currentDate, config, rowHeightPct) {
         let html = '<div class="h-full flex flex-col">';
-        // Griglia
+        // Griglia con altezze in %
         for (let h = config.startHour; h <= config.endHour; h++) {
             html += `
                 <div class="flex border-b border-slate-800/60 relative group w-full" style="height: ${rowHeightPct}%;">
@@ -166,6 +184,7 @@ const AgendaViews = {
         layoutTasks.forEach(t => {
             const { h } = this._parseTime(t.date); 
             if (h < config.startHour || h > config.endHour) return;
+            // Passiamo true per usare la logica %
             html += this._renderTimelineTask(t, config, rowHeightPct, true);
         });
         html += `</div>`;
@@ -174,7 +193,7 @@ const AgendaViews = {
     },
 
     // ============================================================
-    //  2. VISTA SETTIMANA (FIT VERTICALE AGGIORNATO)
+    //  2. VISTA SETTIMANA (FIT VERTICALE RESTORED)
     // ============================================================
     renderWeek(tasks, notes, currentDate, config) {
         const startOfWeek = this._getStartOfWeek(currentDate);
@@ -232,6 +251,7 @@ const AgendaViews = {
     },
 
     _renderWeekGrid(days, tasks, config, colWidthClass) {
+        // Vertical Fit Logic (%)
         const slotCount = this._getSlotCount(config);
         const rowHeightPct = 100 / slotCount;
         
@@ -324,9 +344,9 @@ const AgendaViews = {
                 
                 <div class="flex flex-col h-full justify-between">
                     <div>
-                        <div class="flex items-center justify-between text-[13px] font-black uppercase opacity-70 tracking-wider mb-0.5">
+                        <div class="flex items-center justify-between text-[9px] font-black uppercase opacity-70 tracking-wider mb-0.5">
                             <span class="truncate">${Helpers.formatDate(t.date, 'time')} - ${this._calcEndTimeStr(h, m, duration)}</span>
-                            ${t.location ? `<span class="flex items-center gap-1 shrink-0"><span class="text-[13px]">📍</span></span>` : ''}
+                            ${t.location ? `<span class="flex items-center gap-1 shrink-0"><span class="text-[9px]">📍</span></span>` : ''}
                         </div>
                         <div class="font-bold text-base leading-tight truncate drop-shadow-sm">${Helpers.escapeHtml(t.title)}</div>
                     </div>
@@ -382,7 +402,7 @@ const AgendaViews = {
     },
 
     // ============================================================
-    //  3. VISTA MESE (FIT VERTICALE AGGIORNATO v3)
+    //  3. VISTA MESE (FIT VERTICALE RESTORED)
     // ============================================================
     renderMonth(tasks, notes, currentDate, config) {
         const year = currentDate.getFullYear();
@@ -391,7 +411,7 @@ const AgendaViews = {
         const startOffset = (firstDay === 0 ? 6 : firstDay - 1); 
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         
-        // MOD: overflow-hidden sul container e min-h-0 sulla griglia per evitare sbordature
+        // MOD: overflow-hidden sul container e min-h-0 sulla griglia
         let html = `
             <div class="bg-[#0f172a] rounded-[2.5rem] p-4 md:p-6 border border-slate-800 shadow-2xl h-[calc(100vh-290px)] min-h-[400px] animate-fadeIn flex flex-col overflow-hidden">
                 <div class="grid grid-cols-7 gap-1 mb-1 bg-[#1e293b] p-1 rounded-2xl border border-slate-800 shrink-0">
@@ -412,7 +432,6 @@ const AgendaViews = {
             const dayNotes = notes.filter(n => n.date === dateStr);
             const displayTasks = config.showCompleted ? dayTasks : dayTasks.filter(t => !t.completed);
             
-            // MOD: Ridotti padding e gap interni (p-1, gap-0.5)
             html += `
                 <div onclick="Agenda.showDayModal('${dateStr}')" 
                      class="group relative p-1 rounded-xl border transition-all cursor-pointer flex flex-col gap-0.5 overflow-hidden hover:scale-[1.02] hover:z-10 min-h-0
@@ -472,18 +491,31 @@ const AgendaViews = {
             </div>`;
     },
 
-    renderList(tasks, notes, config) {
-        let filtered = config.showCompleted ? tasks : tasks.filter(t => !t.completed);
-        const uniqueDates = new Set([...filtered.map(t => t.date.split('T')[0]), ...notes.map(n => n.date)]);
+    renderList(tasks, notes, currentDate, config) {
+        // Filtra task e note in base al mese/anno di currentDate
+        const targetMonth = currentDate.getMonth();
+        const targetYear = currentDate.getFullYear();
+
+        const isInTargetMonth = (dateStr) => {
+            const d = new Date(dateStr);
+            return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+        };
+
+        let filteredTasks = config.showCompleted ? tasks : tasks.filter(t => !t.completed);
+        filteredTasks = filteredTasks.filter(t => isInTargetMonth(t.date));
+        
+        const filteredNotes = notes.filter(n => isInTargetMonth(n.date));
+
+        const uniqueDates = new Set([...filteredTasks.map(t => t.date.split('T')[0]), ...filteredNotes.map(n => n.date)]);
         const sortedDates = Array.from(uniqueDates).sort();
 
-        if (sortedDates.length === 0) return `<div class="bg-[#0f172a] rounded-[2.5rem] p-20 text-center border border-slate-800 text-slate-500 italic">Nessuna attività</div>`;
+        if (sortedDates.length === 0) return `<div class="bg-[#0f172a] rounded-[2.5rem] p-20 text-center border border-slate-800 text-slate-500 italic">Nessuna attività per ${currentDate.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}</div>`;
 
         let html = '<div class="space-y-8 max-w-5xl mx-auto">';
         sortedDates.forEach(dateStr => {
             const dateObj = new Date(dateStr);
-            const dayTasks = filtered.filter(t => t.date.startsWith(dateStr));
-            const dayNotes = notes.filter(n => n.date === dateStr);
+            const dayTasks = filteredTasks.filter(t => t.date.startsWith(dateStr));
+            const dayNotes = filteredNotes.filter(n => n.date === dateStr);
 
             html += `
                 <div class="animate-fadeIn bg-[#162032] rounded-3xl p-6 border border-slate-800 shadow-lg">

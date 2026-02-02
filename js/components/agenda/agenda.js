@@ -3,6 +3,7 @@
  * Gestisce: Stato, CRUD, Modali, Orchestrazione.
  * Le Viste sono delegate ad 'agenda_views.js'.
  * I Widget sono in 'agenda_widgets.js'.
+ * AGGIORNAMENTO: Supporto Importazione Google Calendar con Modale di Avanzamento
  */
 
 const Agenda = {
@@ -62,6 +63,9 @@ const Agenda = {
                 </div>
                 <div id="agenda-period-selector" class="flex justify-center mb-8"></div>
                 <div id="agenda-main-container" class="animate-slideUp min-h-[600px] relative"></div>
+                
+                <!-- Hidden Input per Import Google -->
+                <input type="file" id="gcal-import-input" accept=".ics" class="hidden" onchange="Agenda.handleGoogleImport(this)">
             `;
             this.isInitialized = true;
         }
@@ -83,7 +87,7 @@ const Agenda = {
                 case 'week': html = AgendaViews.renderWeek(this.tasks, this.notes, this.currentDate, this.config); break;
                 case 'month': html = AgendaViews.renderMonth(this.tasks, this.notes, this.currentDate, this.config); break;
                 case 'year': html = AgendaViews.renderYear(this.tasks, this.notes, this.currentDate); break;
-                case 'list': html = AgendaViews.renderList(this.tasks, this.notes, this.config); break;
+                case 'list': html = AgendaViews.renderList(this.tasks, this.notes, this.currentDate, this.config); break;
                 default: html = AgendaViews.renderMonth(this.tasks, this.notes, this.currentDate, this.config);
             }
             main.innerHTML = html;
@@ -119,7 +123,15 @@ const Agenda = {
                     </button>
                 `).join('')}
             </div>
-            <button onclick="Agenda.showAddModal()" class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-xl rounded-2xl transition-all hover:scale-105 active:scale-95 text-sm font-bold">➕ Nuovo</button>
+            
+            <div class="flex gap-2">
+                <button onclick="document.getElementById('gcal-import-input').click()" 
+                        class="px-4 py-2.5 bg-slate-700/50 hover:bg-slate-600 text-slate-200 border border-slate-600 rounded-2xl transition-all text-sm font-bold flex items-center gap-2"
+                        title="Importa file .ics da Google Calendar">
+                    <span>📥</span> <span class="hidden sm:inline">Importa</span>
+                </button>
+                <button onclick="Agenda.showAddModal()" class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-xl rounded-2xl transition-all hover:scale-105 active:scale-95 text-sm font-bold">➕ Nuovo</button>
+            </div>
         `;
     },
 
@@ -138,6 +150,77 @@ const Agenda = {
                 </button>
             </div>
         `;
+    },
+
+    // --- NUOVO: GESTIONE IMPORTAZIONE GOOGLE CON MODALE ---
+    async handleGoogleImport(input) {
+        if (!input.files || input.files.length === 0) return;
+        
+        const file = input.files[0];
+        if (!window.GoogleImporter) {
+            alert("Modulo di importazione non caricato.");
+            return;
+        }
+
+        try {
+            const tasks = await GoogleImporter.parseFile(file);
+            
+            if (tasks.length === 0) {
+                alert("Nessun evento valido trovato nel file.");
+                input.value = ''; // Reset input
+                return;
+            }
+
+            const confirmMsg = `Trovati ${tasks.length} eventi. Vuoi importarli nella tua agenda?`;
+            if (confirm(confirmMsg)) {
+                
+                // Show Modal
+                if (window.AgendaViews && AgendaViews.renderImportModal) {
+                    document.body.insertAdjacentHTML('beforeend', AgendaViews.renderImportModal());
+                }
+
+                const progressBar = document.getElementById('import-progress-bar');
+                const statusText = document.getElementById('import-status-text');
+                const countText = document.getElementById('import-count-text');
+                
+                let importedCount = 0;
+                const total = tasks.length;
+
+                // Process
+                for (let i = 0; i < total; i++) {
+                    const task = tasks[i];
+                    
+                    // Update UI
+                    if (progressBar) progressBar.style.width = `${((i + 1) / total) * 100}%`;
+                    if (statusText) statusText.textContent = `Salvataggio in corso...`;
+                    if (countText) countText.textContent = `${i + 1} / ${total}`;
+                    
+                    // Force UI update (small delay)
+                    if (i % 5 === 0) await new Promise(r => setTimeout(r, 10));
+
+                    const exists = this.tasks.some(t => t.title === task.title && t.date === task.date);
+                    if (!exists) {
+                        await window.CachedCRUD.createTask(task);
+                        importedCount++;
+                    }
+                }
+                
+                // Remove Modal
+                const modal = document.getElementById('import-modal');
+                if (modal) modal.remove();
+
+                await this.loadData();
+                this.updateView();
+                Helpers.showToast(`${importedCount} Eventi importati con successo!`);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Errore durante la lettura del file. Assicurati che sia un file .ics valido.");
+            const modal = document.getElementById('import-modal');
+            if (modal) modal.remove();
+        }
+        
+        input.value = ''; // Reset input per permettere nuovi caricamenti
     },
 
     // ============================================================
@@ -370,7 +453,7 @@ const Agenda = {
             content: document.getElementById('noteContent').value
         };
 
-        if(id) await window.CachedCRUD.updateNote(id, data.content); // Note update takes content direct usually, adapted wrapper needed
+        if(id) await window.CachedCRUD.updateNote(id, data.content); 
         else await window.CachedCRUD.createNote(data);
 
         this._afterSubmit();
