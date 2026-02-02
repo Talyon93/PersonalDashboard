@@ -7,6 +7,32 @@
 
 const CachedCRUD = {
     /**
+     * Get all notes (cached)
+     */
+    async getNotes() {
+        return await DataCache.get('notes', () => NoteCRUD.getAll());
+    },
+
+    async createNote(data) {
+        const result = await NoteCRUD.create(data);
+        DataCache.invalidateMultiple(['notes']);
+        if (window.EventBus) EventBus.emit('dataChanged');
+        return result;
+    },
+
+    async updateNote(id, content) {
+        const result = await NoteCRUD.update(id, content);
+        DataCache.invalidateMultiple(['notes']);
+        if (window.EventBus) EventBus.emit('dataChanged');
+        return result;
+    },
+
+    async deleteNote(id) {
+        await NoteCRUD.delete(id);
+        DataCache.invalidateMultiple(['notes']);
+        if (window.EventBus) EventBus.emit('dataChanged');
+    },
+    /**
      * Get all expenses (cached)
      */
     async getExpenses() {

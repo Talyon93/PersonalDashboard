@@ -44,7 +44,9 @@ const TaskCRUD = {
             const task = {
                 user_id: user.data.user.id,
                 title: taskData.title,
-                description: taskData.description || '',
+                description: taskData.description || '', // Note
+                location: taskData.location || '',       // Luogo
+                duration: parseInt(taskData.duration) || 60, // Durata in minuti
                 date: taskData.date,
                 priority: taskData.priority || 'medium',
                 recurrence: taskData.recurrence || 'none',
@@ -113,6 +115,11 @@ const TaskCRUD = {
                 ...updates,
                 updated_at: new Date().toISOString()
             };
+
+            // Assicuriamoci che duration sia un numero se presente
+            if (updateData.duration) {
+                updateData.duration = parseInt(updateData.duration);
+            }
 
             delete updateData.user_id;
             delete updateData.id;
