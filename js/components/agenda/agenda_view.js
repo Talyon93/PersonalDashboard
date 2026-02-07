@@ -1,45 +1,56 @@
 /**
- * Agenda Views - VIEW LOGIC (Visual Update)
- * - FULL VERTICAL FIT (RESTORED): Layout adattivo 100% altezza
- * - FIX ORARIO: Sostituito Helpers.formatDate con parsing manuale (_formatTimeStr)
- * per evitare shift indesiderati del fuso orario (+1h).
- * - IMPORT MODAL: Template presente.
+ * Agenda Views - VIEW LOGIC
+ * AGGIORNATO: Visualizzazione "Continuous Bar" per eventi multi-giorno nella vista Mese.
  */
 
 const AgendaViews = {
 
-    // Helper per data locale YYYY-MM-DD (evita shift UTC di toISOString)
     _iso(date) { 
         const offset = date.getTimezoneOffset();
         const local = new Date(date.getTime() - (offset * 60 * 1000));
         return local.toISOString().split('T')[0];
     },
 
-    // Helper per estrarre ora/minuti "grezzi" dalla stringa ISO, ignorando il fuso orario
     _parseTime(isoString) {
         if (!isoString) return { h: 0, m: 0 };
-        // Formato atteso: YYYY-MM-DDTHH:mm:ss
         const timePart = isoString.split('T')[1]; 
         if (!timePart) return { h: 0, m: 0 };
         const [h, m] = timePart.split(':').map(Number);
         return { h, m };
     },
 
-    // NUOVO: Formatta l'ora per la visualizzazione direttamente dalla stringa (evita bug Timezone)
     _formatTimeStr(isoString) {
         const { h, m } = this._parseTime(isoString);
         return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
     },
 
-    // Calcola numero slot orari totali
     _getSlotCount(config) {
         return config.endHour - config.startHour + 1;
     },
 
+    _isTaskActiveInDate(task, dateStr) {
+        const targetDate = new Date(dateStr);
+        const startDate = new Date(task.date.split('T')[0]);
+        const endVal = task.endDate || task.end_date || task.date; 
+        const endDateStr = endVal.split('T')[0];
+        const endDate = new Date(endDateStr);
+        return targetDate >= startDate && targetDate <= endDate;
+    },
+
+    _isAllDayOrMultiDay(task) {
+        if (task.isDeadline) return true; 
+
+        if ((task.duration || 0) >= 1440) return true;
+        const d1 = task.date.split('T')[0];
+        const endVal = task.endDate || task.end_date || d1;
+        const d2 = endVal.split('T')[0];
+        return d1 !== d2;
+    },
     // --- ALGORITMO SMART LAYOUT ---
     _layoutTasks(tasks) {
-        // 1. Ordina
-        const sorted = [...tasks].sort((a, b) => {
+        const gridTasks = tasks.filter(t => !this._isAllDayOrMultiDay(t));
+
+        const sorted = [...gridTasks].sort((a, b) => {
             const timeA = this._parseTime(a.date);
             const timeB = this._parseTime(b.date);
             const startA = timeA.h * 60 + timeA.m;
@@ -48,7 +59,6 @@ const AgendaViews = {
             return (b.duration || 60) - (a.duration || 60);
         });
 
-        // 2. Cluster
         const clusters = [];
         if (sorted.length > 0) {
             let currentCluster = { tasks: [sorted[0]], end: this._getEndTimeVal(sorted[0]) };
@@ -69,7 +79,6 @@ const AgendaViews = {
             }
         }
 
-        // 3. Colonne
         const finalTasks = [];
         clusters.forEach(cluster => {
             const columns = [];
@@ -131,45 +140,64 @@ const AgendaViews = {
     },
 
     // ============================================================
-    //  1. VISTA GIORNO (FIT VERTICALE RESTORED)
+    //  1. VISTA GIORNO
     // ============================================================
     renderDay(tasks, notes, currentDate, config) {
         const dateStr = this._iso(currentDate);
-        const dayTasks = tasks.filter(t => t.date.startsWith(dateStr));
+        const dayTasks = tasks.filter(t => this._isTaskActiveInDate(t, dateStr));
+        const allDayTasks = dayTasks.filter(t => this._isAllDayOrMultiDay(t));
+        const gridTasks = dayTasks.filter(t => !this._isAllDayOrMultiDay(t));
         const dayNotes = notes.filter(n => n.date === dateStr);
         const isToday = dateStr === this._iso(new Date());
-        
-        // Calcolo altezza righe in % (Vertical Fit Logic)
         const slotCount = this._getSlotCount(config);
         const rowHeightPct = 100 / slotCount;
 
         return `
             <div class="flex flex-col h-[calc(100vh-290px)] gap-2 min-h-[400px]">
-                <!-- Compact Header -->
-                <div class="bg-[#1e293b] rounded-2xl p-2 border border-slate-700/50 flex items-center gap-3 shadow-lg shrink-0 overflow-x-auto custom-scrollbar min-h-[50px]">
-                    <button onclick="Agenda.showAddModal({date:'${dateStr}'}, 'note')" class="shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white text-[10px] font-bold uppercase tracking-widest border border-dashed border-slate-600 transition-all flex items-center gap-2 h-8">
-                        <span>＋</span> Nota
-                    </button>
-                    ${dayNotes.map(n => `
-                        <div onclick="Agenda.editNote('${n.id}')" class="shrink-0 bg-[#fef9c3] hover:bg-yellow-200 text-yellow-900 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm cursor-pointer transition-all border-l-2 border-yellow-500 max-w-[250px] truncate flex items-center gap-2 h-8">
-                            <span>📝</span> ${Helpers.escapeHtml(n.content)}
+                <div class="bg-[#1e293b] rounded-2xl p-2 border border-slate-700/50 flex flex-col gap-2 shadow-lg shrink-0 min-h-[50px]">
+                    <div class="flex items-center gap-3 overflow-x-auto custom-scrollbar pb-1">
+                        <button onclick="Agenda.showAddModal({date:'${dateStr}'}, 'note')" class="shrink-0 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white text-[10px] font-bold uppercase tracking-widest border border-dashed border-slate-600 transition-all flex items-center gap-2 h-8">
+                            <span>＋</span> Nota
+                        </button>
+                        ${dayNotes.map(n => `
+                            <div onclick="Agenda.editNote('${n.id}')" class="shrink-0 bg-[#fef9c3] hover:bg-yellow-200 text-yellow-900 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm cursor-pointer transition-all border-l-2 border-yellow-500 max-w-[250px] truncate flex items-center gap-2 h-8">
+                                <span>📝</span> ${Helpers.escapeHtml(n.content)}
+                            </div>
+                        `).join('')}
+                    </div>
+                    ${allDayTasks.length > 0 ? `
+                        <div class="flex flex-col gap-1 pt-1 border-t border-slate-700/50">
+                            ${allDayTasks.map(t => this._renderAllDayTaskBadge(t)).join('')}
                         </div>
-                    `).join('')}
-                    ${dayNotes.length === 0 ? '<span class="text-slate-600 text-[10px] italic pl-2">Nessuna nota</span>' : ''}
+                    ` : ''}
                 </div>
 
                 <div class="flex-1 bg-[#0f172a] rounded-[2.5rem] border border-slate-800 relative overflow-hidden flex flex-col shadow-2xl">
                     <div class="flex-1 relative h-full">
                         ${this._renderTimeMarker(config, isToday, rowHeightPct, true)}
-                        ${this._renderDayRows(dayTasks, currentDate, config, rowHeightPct)}
+                        ${this._renderDayRows(gridTasks, currentDate, config, rowHeightPct)}
                     </div>
                 </div>
             </div>`;
     },
 
+    _renderAllDayTaskBadge(t) {
+        let bgClass = "bg-indigo-600/20 text-indigo-200 border-indigo-500/30";
+        if (t.isDeadline) bgClass = "bg-rose-600/20 text-rose-200 border-rose-500/50";
+        else if (t.priority === 'high') bgClass = "bg-orange-600/20 text-orange-200 border-orange-500/30";
+
+        return `
+            <div onclick="Agenda.editTask('${t.id}')" class="px-3 py-1.5 rounded-md border ${bgClass} text-xs font-bold flex justify-between items-center cursor-pointer hover:brightness-125 transition-all">
+                <span class="truncate flex items-center gap-2">
+                    ${t.isDeadline ? '🚩 ' : '📅 '} ${Helpers.escapeHtml(t.title)}
+                </span>
+                <span class="text-[9px] uppercase tracking-widest opacity-70 ml-2">Tutto il giorno</span>
+            </div>
+        `;
+    },
+
     _renderDayRows(tasks, currentDate, config, rowHeightPct) {
         let html = '<div class="h-full flex flex-col">';
-        // Griglia con altezze in %
         for (let h = config.startHour; h <= config.endHour; h++) {
             html += `
                 <div class="flex border-b border-slate-800/60 relative group w-full" style="height: ${rowHeightPct}%;">
@@ -190,7 +218,6 @@ const AgendaViews = {
         layoutTasks.forEach(t => {
             const { h } = this._parseTime(t.date); 
             if (h < config.startHour || h > config.endHour) return;
-            // Passiamo true per usare la logica %
             html += this._renderTimelineTask(t, config, rowHeightPct, true);
         });
         html += `</div>`;
@@ -199,7 +226,7 @@ const AgendaViews = {
     },
 
     // ============================================================
-    //  2. VISTA SETTIMANA (FIT VERTICALE RESTORED)
+    //  2. VISTA SETTIMANA
     // ============================================================
     renderWeek(tasks, notes, currentDate, config) {
         const startOfWeek = this._getStartOfWeek(currentDate);
@@ -229,23 +256,29 @@ const AgendaViews = {
 
                 <div class="grid ${colWidthClass} bg-[#162032] border-b border-slate-800 divide-x divide-slate-800 shrink-0 min-h-[30px]">
                     <div class="p-1 flex items-center justify-center border-r border-slate-800 bg-[#131b2c]">
-                        <span class="text-[8px] font-bold text-slate-600 uppercase -rotate-90">Note</span>
+                        <span class="text-[8px] font-bold text-slate-600 uppercase -rotate-90">Info</span>
                     </div>
                     ${weekDays.map(d => {
                         const dateStr = this._iso(d);
                         const dayNotes = notes.filter(n => n.date === dateStr);
+                        const dayAllDayTasks = tasks.filter(t => this._isTaskActiveInDate(t, dateStr) && this._isAllDayOrMultiDay(t));
+                        
                         return `
                             <div class="p-1 flex flex-col gap-1 min-h-[40px] relative group hover:bg-slate-800/30 transition-colors" onclick="Agenda.showAddModal({date:'${dateStr}'}, 'note')">
-                                ${dayNotes.length > 0 ? dayNotes.map(n => `
+                                ${dayAllDayTasks.map(t => {
+                                    let color = t.isDeadline ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40';
+                                    return `<div onclick="event.stopPropagation(); Agenda.editTask('${t.id}')" 
+                                        class="px-1 py-0.5 rounded text-[8px] border ${color} truncate cursor-pointer font-bold">
+                                        ${t.isDeadline ? '🚩' : '📅'} ${Helpers.escapeHtml(t.title)}
+                                    </div>`
+                                }).join('')}
+                                ${dayNotes.map(n => `
                                     <div onclick="event.stopPropagation(); Agenda.editNote('${n.id}')" 
-                                         class="bg-[#fef9c3] text-yellow-900 text-[9px] p-1 rounded shadow-sm border-l-2 border-yellow-500 cursor-pointer hover:scale-[1.02] transition-transform font-medium truncate" 
+                                         class="bg-[#fef9c3] text-yellow-900 text-[8px] p-1 rounded shadow-sm border-l-2 border-yellow-500 cursor-pointer font-medium truncate" 
                                          title="${Helpers.escapeHtml(n.content)}">
                                         📝 ${Helpers.escapeHtml(n.content)}
                                     </div>
-                                `).join('') : 
-                                `<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                    <span class="text-slate-600 text-md">＋</span>
-                                </div>`}
+                                `).join('')}
                             </div>`;
                     }).join('')}
                 </div>
@@ -257,28 +290,22 @@ const AgendaViews = {
     },
 
     _renderWeekGrid(days, tasks, config, colWidthClass) {
-        // Vertical Fit Logic (%)
         const slotCount = this._getSlotCount(config);
         const rowHeightPct = 100 / slotCount;
         
         let html = `<div class="grid ${colWidthClass} divide-x divide-slate-800 relative h-full">`;
-        
-        // Colonna Orari
         html += '<div class="bg-[#162032] text-slate-500 font-bold text-[11px] text-right divide-y divide-slate-800 border-r border-slate-800 h-full flex flex-col">';
         for (let h = config.startHour; h <= config.endHour; h++) {
             html += `<div style="height: ${rowHeightPct}%" class="pr-2 pt-1 relative border-b border-slate-800/50"><span class="-mt-2 block transform -translate-y-1/2">${h}:00</span></div>`;
         }
         html += '</div>';
 
-        // Giorni
         days.forEach(day => {
             const dateStr = this._iso(day);
             const isToday = dateStr === this._iso(new Date());
-            const dayTasks = tasks.filter(t => t.date.startsWith(dateStr));
+            const dayTasks = tasks.filter(t => this._isTaskActiveInDate(t, dateStr) && !this._isAllDayOrMultiDay(t));
             
             html += `<div class="relative bg-transparent group h-full flex flex-col">`; 
-            
-            // Grid Rows (Background)
             for (let h = config.startHour; h <= config.endHour; h++) {
                 html += `
                     <div style="height: ${rowHeightPct}%" 
@@ -286,20 +313,13 @@ const AgendaViews = {
                          onclick="Agenda.showAddModalWithDate('${dateStr}', '${String(h).padStart(2,'0')}:00')">
                     </div>`;
             }
-            
-            if (isToday) {
-                // Time Marker logic for %
-                html += this._renderTimeMarker(config, true, rowHeightPct, true);
-            }
+            if (isToday) html += this._renderTimeMarker(config, true, rowHeightPct, true);
 
             const layoutTasks = this._layoutTasks(dayTasks);
-
             layoutTasks.forEach(t => {
                 if (!config.showCompleted && t.completed) return;
                 const { h } = this._parseTime(t.date);
                 if (h < config.startHour || h > config.endHour) return;
-
-                // Render with Percentage logic
                 html += this._renderTimelineTask(t, config, rowHeightPct, true);
             });
             html += `</div>`; 
@@ -311,34 +331,25 @@ const AgendaViews = {
     _renderTimelineTask(t, config, rowHeight, isPercent = false) {
         const { h, m } = this._parseTime(t.date);
         const duration = t.duration || 60;
-        
         let topVal, heightVal, unit;
-        
         if (isPercent) {
-            // Calcolo in percentuale
             const slotCount = this._getSlotCount(config);
-            const totalMinutes = slotCount * 60; // Total minutes in view
+            const totalMinutes = slotCount * 60;
             const startMinutes = config.startHour * 60;
             const taskStartMinutes = h * 60 + m;
-            
-            // Top % relative to container
             topVal = ((taskStartMinutes - startMinutes) / totalMinutes) * 100;
-            // Height % relative to container
             heightVal = (duration / totalMinutes) * 100;
             unit = '%';
         } else {
-            // Fallback pixel (non usato in questa versione ottimizzata)
             topVal = (h - config.startHour) * rowHeight + (m / 60) * rowHeight;
             heightVal = (duration / 60) * rowHeight;
             unit = 'px';
         }
 
-        // --- STILE PROFESSIONALE (Dark + Linea Colorata) ---
-        let baseClass = 'bg-slate-700 hover:bg-slate-600 border-amber-500 text-slate-200'; // Default
-        
-        if (t.priority === 'high') baseClass = 'bg-slate-700 hover:bg-slate-600 border-rose-500 text-slate-200';
-        if (t.priority === 'low')  baseClass = 'bg-slate-700 hover:bg-slate-600 border-yellow-400 text-slate-200';
-        
+        let baseClass = 'bg-slate-700 hover:bg-slate-600 border-amber-500 text-slate-200';
+        if (t.isDeadline) baseClass = 'bg-rose-900/80 hover:bg-rose-800 border-rose-500 text-white shadow-[0_0_10px_rgba(225,29,72,0.3)]';
+        else if (t.priority === 'high') baseClass = 'bg-slate-700 hover:bg-slate-600 border-rose-500 text-slate-200';
+        else if (t.priority === 'low')  baseClass = 'bg-slate-700 hover:bg-slate-600 border-yellow-400 text-slate-200';
         if(t.completed) baseClass = 'bg-slate-800 border-slate-600 text-slate-500 grayscale opacity-80';
 
         const positionStyle = `top: ${topVal}${unit}; height: ${heightVal}${unit}; left: ${t._left}%; width: ${t._width}%; min-height: 20px;`;
@@ -347,21 +358,14 @@ const AgendaViews = {
             <div onclick="event.stopPropagation(); Agenda.editTask('${t.id}')" 
                  class="pointer-events-auto absolute rounded-r-lg rounded-l-sm p-1 md:p-2 border-l-[4px] shadow-lg cursor-pointer transition-all hover:scale-[1.01] hover:z-50 group/task overflow-hidden z-10 mx-0.5 ${baseClass}"
                  style="${positionStyle}">
-                
                 <div class="flex flex-col h-full justify-between">
                     <div>
                         <div class="flex items-center justify-between text-[9px] font-black uppercase opacity-70 tracking-wider mb-0.5">
-                            <!-- FIX: Usiamo _formatTimeStr invece di Helpers.formatDate per evitare +1h timezone -->
                             <span class="truncate">${this._formatTimeStr(t.date)} - ${this._calcEndTimeStr(h, m, duration)}</span>
-                            ${t.location ? `<span class="flex items-center gap-1 shrink-0"><span class="text-[9px]">📍</span></span>` : ''}
+                            ${t.isDeadline ? '<span class="text-xs">🚩</span>' : ''}
                         </div>
                         <div class="font-bold text-base leading-tight truncate drop-shadow-sm">${Helpers.escapeHtml(t.title)}</div>
                     </div>
-                    
-                    ${t.description && heightVal > 5 ? `
-                        <div class="text-[13px] font-medium opacity-80 line-clamp-1 mt-0.5 border-t border-slate-500/30 pt-0.5 truncate hidden md:block">
-                            ${Helpers.escapeHtml(t.description)}
-                        </div>` : ''}
                 </div>
             </div>`;
     },
@@ -371,7 +375,6 @@ const AgendaViews = {
         const now = new Date();
         const currentHour = now.getHours();
         if (currentHour < config.startHour || currentHour > config.endHour) return '';
-
         let topVal, unit;
         if (isPercent) {
              const slotCount = this._getSlotCount(config);
@@ -384,10 +387,8 @@ const AgendaViews = {
             topVal = ((currentHour - config.startHour) * rowHeight) + ((now.getMinutes() / 60) * rowHeight);
             unit = 'px';
         }
-
         return `
             <div id="time-now-marker" class="absolute left-0 right-0 z-30 flex items-center pointer-events-none" style="top: ${topVal}${unit};">
-                ${!isPercent ? `<div class="w-16 text-right pr-4 text-[10px] font-black text-rose-500 bg-[#0f172a] inline-block z-10">${currentHour}:${String(now.getMinutes()).padStart(2,'0')}</div>` : ''}
                 <div class="w-2 h-2 bg-rose-500 rounded-full ${isPercent ? '-ml-1' : '-ml-1.5'} shadow-[0_0_10px_rgba(244,63,94,1)] z-20 border-2 border-[#0f172a]"></div>
                 <div class="h-[2px] w-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></div>
             </div>`;
@@ -400,7 +401,6 @@ const AgendaViews = {
         return new Date(d.setDate(diff));
     },
 
-    // Fixed end time calculator using raw values
     _calcEndTimeStr(startH, startM, duration) {
         const totalM = startH * 60 + startM + duration;
         const endH = Math.floor(totalM / 60) % 24;
@@ -409,7 +409,7 @@ const AgendaViews = {
     },
 
     // ============================================================
-    //  3. VISTA MESE (FIT VERTICALE RESTORED)
+    //  3. VISTA MESE
     // ============================================================
     renderMonth(tasks, notes, currentDate, config) {
         const year = currentDate.getFullYear();
@@ -418,7 +418,6 @@ const AgendaViews = {
         const startOffset = (firstDay === 0 ? 6 : firstDay - 1); 
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         
-        // MOD: overflow-hidden sul container e min-h-0 sulla griglia
         let html = `
             <div class="bg-[#0f172a] rounded-[2.5rem] p-4 md:p-6 border border-slate-800 shadow-2xl h-[calc(100vh-290px)] min-h-[400px] animate-fadeIn flex flex-col overflow-hidden">
                 <div class="grid grid-cols-7 gap-1 mb-1 bg-[#1e293b] p-1 rounded-2xl border border-slate-800 shrink-0">
@@ -435,7 +434,7 @@ const AgendaViews = {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const isToday = dateStr === this._iso(new Date());
             
-            const dayTasks = tasks.filter(t => t.date.startsWith(dateStr));
+            const dayTasks = tasks.filter(t => this._isTaskActiveInDate(t, dateStr));
             const dayNotes = notes.filter(n => n.date === dateStr);
             const displayTasks = config.showCompleted ? dayTasks : dayTasks.filter(t => !t.completed);
             
@@ -449,14 +448,31 @@ const AgendaViews = {
                     </div>
                     
                     <div class="flex-1 flex flex-col gap-0.5 overflow-hidden">
-                        ${displayTasks.slice(0, 4).map(t => {
-                             let bg = 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-                             if (t.priority === 'high') bg = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-                             if (t.priority === 'low') bg = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+                        ${displayTasks.slice(0, 5).map(t => {
+                             const isMulti = this._isAllDayOrMultiDay(t);
+                             const isStart = t.date.startsWith(dateStr);
+                             const isEnd = t.endDate && t.endDate.startsWith(dateStr);
+
+                             let style = 'rounded-md border bg-amber-500/10 text-amber-500 border-amber-500/20';
                              
-                             return `<div class="px-1.5 py-0.5 rounded-md ${bg} border truncate text-[9px] font-bold shrink-0">${t.title}</div>`;
+                             if (isMulti) {
+                                style = 'bg-indigo-600 text-white border-transparent shadow-sm rounded-none mx-[-1px]'; // Continuous feel
+                                if (isStart) style = 'bg-indigo-600 text-white border-transparent shadow-sm rounded-l-md rounded-r-none ml-0';
+                                if (isEnd) style = 'bg-indigo-600 text-white border-transparent shadow-sm rounded-r-md rounded-l-none mr-0';
+                                if (t.isDeadline) style = style.replace('bg-indigo-600', 'bg-rose-600');
+                             } else {
+                                if (t.isDeadline) style = 'bg-rose-600/20 text-rose-300 border-rose-500/40 rounded-md';
+                                else if (t.priority === 'high') style = 'bg-rose-500/10 text-rose-400 border-rose-500/20 rounded-md';
+                                else if (t.priority === 'low') style = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20 rounded-md';
+                             }
+
+                             const label = t.isDeadline ? '🚩' : t.title;
+
+                             return `<div class="px-1.5 py-0.5 truncate text-[9px] font-bold shrink-0 ${style}" title="${t.title}">
+                                ${isStart || (!isMulti) ? (t.isDeadline ? '🚩 ' : '') + t.title : '&nbsp;'}
+                             </div>`;
                         }).join('')}
-                        ${displayTasks.length > 4 ? `<div class="text-[9px] text-center text-slate-500 font-bold mt-auto shrink-0">+${displayTasks.length - 4}</div>` : ''}
+                        ${displayTasks.length > 5 ? `<div class="text-[9px] text-center text-slate-500 font-bold mt-auto shrink-0">+${displayTasks.length - 5}</div>` : ''}
                     </div>
                 </div>`;
         }
@@ -476,7 +492,7 @@ const AgendaViews = {
                     for(let i=0; i<startDay; i++) daysHtml += `<div class="aspect-square"></div>`;
                     for(let d=1; d<=daysInMonth; d++) {
                         const dateStr = `${year}-${String(mIdx + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                        const count = tasks.filter(t => t.date.startsWith(dateStr) && !t.completed).length;
+                        const count = tasks.filter(t => this._isTaskActiveInDate(t, dateStr) && !t.completed).length;
                         const hasNote = notes.some(n => n.date === dateStr);
                         
                         let style = 'text-slate-600 hover:text-white';
@@ -499,19 +515,21 @@ const AgendaViews = {
     },
 
     renderList(tasks, notes, currentDate, config) {
-        // Filtra task e note in base al mese/anno di currentDate
         const targetMonth = currentDate.getMonth();
         const targetYear = currentDate.getFullYear();
-
-        const isInTargetMonth = (dateStr) => {
-            const d = new Date(dateStr);
-            return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+        
+        const isInTargetMonth = (task) => {
+            const start = new Date(task.date);
+            return start.getMonth() === targetMonth && start.getFullYear() === targetYear;
         };
 
         let filteredTasks = config.showCompleted ? tasks : tasks.filter(t => !t.completed);
-        filteredTasks = filteredTasks.filter(t => isInTargetMonth(t.date));
+        filteredTasks = filteredTasks.filter(t => isInTargetMonth(t));
         
-        const filteredNotes = notes.filter(n => isInTargetMonth(n.date));
+        const filteredNotes = notes.filter(n => {
+            const d = new Date(n.date);
+            return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+        });
 
         const uniqueDates = new Set([...filteredTasks.map(t => t.date.split('T')[0]), ...filteredNotes.map(n => n.date)]);
         const sortedDates = Array.from(uniqueDates).sort();
@@ -535,10 +553,14 @@ const AgendaViews = {
                     
                     <div class="space-y-2">
                         ${dayTasks.map(t => `
-                            <div class="flex items-center gap-4 p-3 bg-slate-800/50 rounded-xl border border-slate-700 hover:border-slate-600 cursor-pointer" onclick="Agenda.editTask('${t.id}')">
-                                <!-- FIX: Usiamo _formatTimeStr anche qui -->
-                                <span class="text-xs font-black text-slate-400 bg-slate-900 px-2 py-1 rounded">${this._formatTimeStr(t.date)}</span>
-                                <span class="font-bold text-slate-200">${Helpers.escapeHtml(t.title)}</span>
+                            <div class="flex items-center gap-4 p-3 bg-slate-800/50 rounded-xl border border-slate-700 hover:border-slate-600 cursor-pointer ${t.isDeadline ? 'border-rose-500/50 bg-rose-900/10' : ''}" onclick="Agenda.editTask('${t.id}')">
+                                <span class="text-xs font-black text-slate-400 bg-slate-900 px-2 py-1 rounded">
+                                    ${this._formatTimeStr(t.date)}
+                                </span>
+                                <span class="font-bold text-slate-200 flex-1 flex items-center gap-2">
+                                    ${t.isDeadline ? '🚩' : ''} ${Helpers.escapeHtml(t.title)}
+                                </span>
+                                ${this._isAllDayOrMultiDay(t) ? '<span class="text-[9px] uppercase border border-slate-600 px-1 rounded text-slate-500">Long Term</span>' : ''}
                             </div>
                         `).join('')}
                     </div>

@@ -85,6 +85,7 @@ const GoogleImporter = {
                 // Formattazione per Agenda Pro: YYYY-MM-DDTHH:mm:00
                 const localIsoStart = this._toLocalIsoString(startDateObj);
 
+                const localIsoEnd = this._toLocalIsoString(endDateObj);
                 // Determina priorità basata su parole chiave
                 let priority = 'medium';
                 const lowerSum = summary.toLowerCase();
@@ -98,6 +99,7 @@ const GoogleImporter = {
                 tasks.push({
                     title: summary,
                     date: localIsoStart,
+                    endDate: localIsoEnd,
                     duration: duration,
                     location: location ? location.replace(/\\,/g, ',') : '',
                     description: finalDesc,

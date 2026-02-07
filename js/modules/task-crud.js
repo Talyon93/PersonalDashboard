@@ -1,5 +1,6 @@
 /**
  * Task CRUD Module - Gestione Tasks/Eventi con Supabase
+ * FIXED: Aggiunto supporto per eventi multi-giorno (end_date)
  */
 
 const TaskCRUD = {
@@ -44,13 +45,15 @@ const TaskCRUD = {
             const task = {
                 user_id: user.data.user.id,
                 title: taskData.title,
-                description: taskData.description || '', // Note
-                location: taskData.location || '',       // Luogo
-                duration: parseInt(taskData.duration) || 60, // Durata in minuti
-                date: taskData.date,
+                description: taskData.description || '',
+                location: taskData.location || '',
+                duration: parseInt(taskData.duration) || 60,
+                date: taskData.date, // Data Inizio
+                end_date: taskData.endDate || taskData.end_date || taskData.date, // Data Fine [FIX]
                 priority: taskData.priority || 'medium',
                 recurrence: taskData.recurrence || 'none',
                 completed: taskData.completed || false,
+                is_deadline: taskData.isDeadline || false,
                 created_at: new Date().toISOString()
             };
 
@@ -111,12 +114,22 @@ const TaskCRUD = {
                 throw new Error('Utente non autenticato');
             }
 
+            // Prepariamo l'oggetto di aggiornamento mappando camelCase a snake_case se necessario
             const updateData = {
                 ...updates,
                 updated_at: new Date().toISOString()
             };
 
-            // Assicuriamoci che duration sia un numero se presente
+            if (updates.endDate) {
+                updateData.end_date = updates.endDate;
+                delete updateData.endDate;
+            }
+            
+            if (updates.isDeadline !== undefined) {
+                updateData.is_deadline = updates.isDeadline;
+                delete updateData.isDeadline;
+            }
+
             if (updateData.duration) {
                 updateData.duration = parseInt(updateData.duration);
             }
@@ -192,4 +205,4 @@ const TaskCRUD = {
 
 // Export globale
 window.TaskCRUD = TaskCRUD;
-console.log('✅ TaskCRUD module loaded');
+console.log('✅ TaskCRUD module loaded (Fixed for multi-day events)');

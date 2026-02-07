@@ -1,6 +1,8 @@
 /**
- * Expense Import UI - V5.0 ELEGANT DARK EDITION 🌑
+ * Expense Import UI - V5.3 COMPACT LAYOUT EDITION 🌑
  * Redesign completo con icone SVG, contrasto elevato e tema scuro nativo.
+ * Aggiunta selezione categorie dal profilo utente.
+ * Layout Ottimizzato: Indicatore Entrata/Uscita spostato a destra dell'importo.
  */
 const ExpenseImportUI = {
     // UI State
@@ -61,7 +63,7 @@ const ExpenseImportUI = {
         }
 
         modal.innerHTML = `
-            <div class="bg-slate-800 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden transform transition-all scale-100">
+            <div class="bg-slate-800 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col overflow-hidden transform transition-all scale-100">
                 <div class="flex justify-between items-center px-8 py-5 border-b border-slate-700/50 bg-slate-800/50">
                     <h3 class="text-xl font-bold text-white flex items-center gap-3">
                         ${this.getTitleIcon()}
@@ -85,7 +87,7 @@ const ExpenseImportUI = {
     getTitleText() {
         switch(this.state.step) {
             case 'MAPPING': return 'Configura Colonne';
-            case 'PREVIEW': return 'Seleziona Transazioni';
+            case 'PREVIEW': return 'Revisiona e Modifica';
             case 'LOADING': return 'Elaborazione in corso...';
             default: return 'Importa Transazioni';
         }
@@ -95,7 +97,7 @@ const ExpenseImportUI = {
         // Icone SVG per l'header
         if (this.state.step === 'UPLOAD') return `<svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>`;
         if (this.state.step === 'MAPPING') return `<svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"></path></svg>`;
-        if (this.state.step === 'PREVIEW') return `<svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>`;
+        if (this.state.step === 'PREVIEW') return `<svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>`;
         return '';
     },
 
@@ -107,7 +109,53 @@ const ExpenseImportUI = {
         </div>`;
     },
 
-    // --- STEP 1: UPLOAD (Redesign) ---
+    // --- HELPER: RENDER CATEGORY SELECT ---
+    renderCategorySelect(id, type, currentValue) {
+        // Fallback robusto se Categories non è caricato
+        const hasCategories = window.Categories && typeof window.Categories.getAll === 'function';
+        
+        // Se non abbiamo il modulo categorie, mostriamo un input normale (fallback)
+        if (!hasCategories) {
+            return `<input type="text" value="${currentValue || ''}" 
+                        class="w-full bg-transparent border border-transparent hover:border-slate-600 focus:border-purple-500 focus:bg-slate-800 rounded px-2 py-1 text-slate-300 text-xs uppercase font-bold tracking-wide outline-none transition-all"
+                        placeholder="CATEGORIA"
+                        onchange="ExpenseImportUI.updateEntry(${id}, 'category', this.value)">`;
+        }
+        
+        // Ottieni la lista corretta in base al tipo (Entrata vs Uscita)
+        const cats = type === 'income' ? window.Categories.incomeCategories : window.Categories.getAll();
+        
+        // Normalizzazione per confronto stringhe
+        const normalize = s => String(s || '').toLowerCase().trim();
+        const currentNorm = normalize(currentValue);
+        
+        // Cerca corrispondenza per ID o Nome
+        const match = cats.find(c => c.id === currentValue || normalize(c.name) === currentNorm);
+        
+        let html = `<select onchange="ExpenseImportUI.updateEntry(${id}, 'category', this.value)" onclick="event.stopPropagation()"
+                            class="w-full bg-transparent border border-transparent hover:border-slate-600 focus:border-indigo-500 focus:bg-slate-800 rounded px-1 py-1 text-slate-300 text-xs font-bold tracking-wide outline-none transition-all cursor-pointer">`;
+        
+        // Se c'è un valore originale ma non corrisponde a nessuna categoria, mostralo come opzione invalida
+        if (!match && currentValue) {
+             html += `<option value="${currentValue}" selected class="bg-slate-900 text-amber-400 font-mono">⚠️ ${currentValue}</option>`;
+             html += `<option disabled class="bg-slate-800 text-slate-600">──────────</option>`;
+        } else if (!currentValue) {
+             html += `<option value="" selected disabled class="bg-slate-800 text-slate-500">Seleziona...</option>`;
+        }
+
+        // Genera le opzioni
+        cats.forEach(c => {
+            const isSelected = match && match.id === c.id;
+            html += `<option value="${c.id}" ${isSelected ? 'selected' : ''} class="bg-slate-800 text-white py-2">
+                ${c.icon} ${c.name}
+            </option>`;
+        });
+
+        html += `</select>`;
+        return html;
+    },
+
+    // --- STEP 1: UPLOAD ---
     renderUploadStep() {
         return `
             <div class="flex flex-col h-full justify-center max-w-3xl mx-auto py-10">
@@ -143,13 +191,13 @@ const ExpenseImportUI = {
         `;
     },
 
-    // --- STEP 2: MAPPING (Redesign) ---
+    // --- STEP 2: MAPPING ---
     renderMappingStep() {
         if (!this.state.parsedData) return this.renderError("Nessun dato caricato.");
         
         const headers = this.state.parsedData.headers;
         const nonEmptyRows = this.state.parsedData.rows.filter(row => row.some(cell => cell && String(cell).trim().length > 0));
-        const sampleRows = nonEmptyRows.slice(0, 5); // Mostra meno righe ma più pulite
+        const sampleRows = nonEmptyRows.slice(0, 5);
 
         let tableHtml = `<div class="overflow-x-auto border border-slate-700 rounded-xl mb-8 shadow-2xl"><table class="w-full text-sm text-left border-collapse">`;
         
@@ -239,12 +287,11 @@ const ExpenseImportUI = {
         `;
     },
 
-    // --- STEP 3: PREVIEW (Redesign) ---
+    // --- STEP 3: PREVIEW (Column Type Removed, Icon Moved to Amount) ---
     renderPreviewStep() {
-        // Logica di calcolo (invariata)
         if (this.state.allExpenses.length === 0) {
             try {
-                    this.state.allExpenses = ExpenseImport.applyMapping(
+                this.state.allExpenses = ExpenseImport.applyMapping(
                     this.state.parsedData.rows, 
                     this.state.currentMapping, 
                     this.state.configName 
@@ -262,17 +309,17 @@ const ExpenseImportUI = {
             <div class="h-full flex flex-col">
                 <div class="flex flex-wrap items-center justify-between mb-6 bg-slate-800 border border-slate-700 p-4 rounded-2xl shadow-lg gap-4">
                     <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg border border-indigo-500/20">
+                        <div id="previewSelectedCount" class="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg border border-indigo-500/20">
                             ${selectedCount}
                         </div>
                         <div>
                             <h4 class="font-bold text-white">Transazioni Pronte</h4>
-                            <p class="text-xs text-slate-400">Su un totale di ${total} righe trovate.</p>
+                            <p class="text-xs text-slate-400">Clicca sui campi per modificare i dati.</p>
                         </div>
                     </div>
                     
                     <label class="flex items-center gap-3 cursor-pointer bg-slate-700/50 hover:bg-slate-700 px-5 py-2.5 rounded-xl transition select-none border border-slate-600/50">
-                        <input type="checkbox" onchange="ExpenseImportUI.toggleAll(this.checked)" 
+                        <input id="selectAllCheckbox" type="checkbox" onchange="ExpenseImportUI.toggleAll(this.checked)" 
                             class="w-5 h-5 text-indigo-600 rounded bg-slate-900 border-slate-600 focus:ring-indigo-500 cursor-pointer"
                             ${isAllSelected ? 'checked' : ''}>
                         <span class="text-sm font-bold text-slate-200">Seleziona Tutte</span>
@@ -284,34 +331,60 @@ const ExpenseImportUI = {
                         <thead class="bg-slate-900 text-slate-500 text-[10px] uppercase font-black tracking-widest border-b border-slate-700 sticky top-0 z-10 backdrop-blur-md bg-opacity-90">
                             <tr>
                                 <th class="p-4 w-12 text-center">#</th>
-                                <th class="p-4 text-left w-32">Data</th>
+                                <th class="p-4 text-left w-36">Data</th>
                                 <th class="p-4 text-left">Descrizione</th>
                                 <th class="p-4 text-left w-48">Categoria</th>
-                                <th class="p-4 text-right w-36">Importo</th>
+                                <th class="p-4 text-right w-48">Importo (€)</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-700/50">
                             ${previewRows.map(e => {
                                 const isChecked = this.state.selectedIds.has(e.id);
+                                const safeDesc = e.description ? e.description.replace(/"/g, '&quot;') : '';
+                                
+                                // Icons
+                                const iconIncome = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 11l3-3m0 0l3 3m-3-3v8m0-13a9 9 0 110 18 9 9 0 010-18z"></path></svg>`;
+                                const iconExpense = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13l-3 3m0 0l-3-3m3 3V8m0 13a9 9 0 110 18 9 9 0 010-18z"></path></svg>`;
+
                                 return `
-                                <tr class="hover:bg-slate-700/40 transition-colors cursor-pointer group ${isChecked ? '' : 'opacity-40 grayscale'}" 
-                                    onclick="ExpenseImportUI.toggleRow(${e.id})">
+                                <tr class="hover:bg-slate-700/40 transition-colors group ${isChecked ? '' : 'opacity-40 grayscale'}" 
+                                    onclick="ExpenseImportUI.toggleRow(${e.id}, true)">
                                     <td class="p-4 text-center" onclick="event.stopPropagation()">
-                                        <input type="checkbox" onchange="ExpenseImportUI.toggleRow(${e.id})" 
+                                        <input type="checkbox" id="chk-${e.id}" onchange="ExpenseImportUI.toggleRow(${e.id}, false)" 
                                             class="w-4 h-4 text-indigo-500 rounded bg-slate-800 border-slate-600 focus:ring-indigo-500 cursor-pointer"
                                             ${isChecked ? 'checked' : ''}>
                                     </td>
-                                    <td class="p-4 text-slate-400 font-mono text-xs whitespace-nowrap">${e.date}</td>
-                                    <td class="p-4 font-medium text-slate-200 truncate max-w-xs group-hover:whitespace-normal" title="${e.description}">
-                                        ${e.description}
+                                    
+                                    <!-- Date Input -->
+                                    <td class="p-2" onclick="event.stopPropagation()">
+                                        <input type="text" value="${e.date}" 
+                                            class="w-full bg-transparent border border-transparent hover:border-slate-600 focus:border-blue-500 focus:bg-slate-800 rounded px-2 py-1 text-blue-300 font-mono text-xs outline-none transition-all"
+                                            onchange="ExpenseImportUI.updateEntry(${e.id}, 'date', this.value)">
                                     </td>
-                                    <td class="p-4">
-                                        <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-slate-700 text-slate-300 border border-slate-600 whitespace-nowrap">
-                                            ${e.category}
-                                        </span>
+
+                                    <!-- Description Input -->
+                                    <td class="p-2" onclick="event.stopPropagation()">
+                                        <input type="text" value="${safeDesc}" 
+                                            class="w-full bg-transparent border border-transparent hover:border-slate-600 focus:border-indigo-500 focus:bg-slate-800 rounded px-2 py-1 text-slate-200 font-medium outline-none transition-all"
+                                            onchange="ExpenseImportUI.updateEntry(${e.id}, 'description', this.value)">
                                     </td>
-                                    <td class="p-4 text-right font-mono font-bold whitespace-nowrap ${e.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}">
-                                        ${e.type === 'income' ? '+' : ''} ${e.amount.toFixed(2)} €
+
+                                    <!-- Category Select -->
+                                    <td class="p-2" onclick="event.stopPropagation()" id="cat-cell-${e.id}">
+                                        ${this.renderCategorySelect(e.id, e.type, e.category)}
+                                    </td>
+
+                                    <!-- Amount Input + Icon -->
+                                    <td class="p-2" onclick="event.stopPropagation()">
+                                        <div class="flex items-center justify-end gap-3">
+                                            <input type="number" step="0.01" value="${e.amount}" id="amount-${e.id}"
+                                                class="flex-1 min-w-0 bg-transparent border border-transparent hover:border-slate-600 focus:border-emerald-500 focus:bg-slate-800 rounded px-2 py-1 text-right font-mono font-bold outline-none transition-all ${e.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}"
+                                                onchange="ExpenseImportUI.updateEntry(${e.id}, 'amount', this.value)">
+                                            
+                                            <div id="type-icon-${e.id}" class="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-lg bg-slate-800/50 border border-slate-700/50 ${e.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}">
+                                                ${e.type === 'income' ? iconIncome : iconExpense}
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                             `}).join('')}
@@ -325,11 +398,11 @@ const ExpenseImportUI = {
                         Annulla
                     </button>
                     
-                    <button onclick="ExpenseImportUI.finalizeImport()" 
+                    <button id="previewImportBtn" onclick="ExpenseImportUI.finalizeImport()" 
                         class="px-8 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/20 font-bold text-sm shadow-md flex items-center gap-2 transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                         ${selectedCount === 0 ? 'disabled' : ''}>
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg> 
-                        <span>Importa ${selectedCount} Transazioni</span>
+                        <span id="previewImportBtnText">Importa ${selectedCount} Transazioni</span>
                     </button>
                 </div>
             </div>
@@ -349,7 +422,7 @@ const ExpenseImportUI = {
         `;
     },
 
-    // --- LOGIC: DRAG & DROP (Invariata) ---
+    // --- LOGIC: DRAG & DROP ---
     initDragAndDrop() {
         const dropzone = document.getElementById('dropzoneArea');
         const input = document.getElementById('importFile');
@@ -398,7 +471,7 @@ const ExpenseImportUI = {
         }
     },
 
-    // --- LOGIC: MAPPING UPDATE (Invariata) ---
+    // --- LOGIC: MAPPING UPDATE ---
     updateMapping(colIndex, value) {
         colIndex = parseInt(colIndex);
         Object.keys(this.state.currentMapping).forEach(key => {
@@ -437,20 +510,133 @@ const ExpenseImportUI = {
         this.render();
     },
 
-    // --- LOGIC: SELECTION (Invariata) ---
+    // --- LOGIC: EDITING ---
+    updateEntry(id, field, value) {
+        const expenseIndex = this.state.allExpenses.findIndex(e => e.id === id);
+        if (expenseIndex === -1) return;
+
+        // Memorizza il vecchio tipo per verificare se cambia
+        const oldType = this.state.allExpenses[expenseIndex].type;
+
+        // Aggiorna il valore
+        if (field === 'amount') {
+            const numValue = parseFloat(value);
+            this.state.allExpenses[expenseIndex][field] = numValue;
+            
+            // Ricalcola il tipo
+            const newType = numValue >= 0 ? 'income' : 'expense';
+            this.state.allExpenses[expenseIndex].type = newType;
+            
+            // DOM UPDATE (No full re-render)
+            const input = document.getElementById(`amount-${id}`);
+            const iconContainer = document.getElementById(`type-icon-${id}`);
+            const catCell = document.getElementById(`cat-cell-${id}`);
+            
+            // Aggiorna colore input e icona
+            if (input && iconContainer) {
+                input.className = input.className.replace(/text-(emerald|rose)-400/g, '');
+                input.classList.add(newType === 'income' ? 'text-emerald-400' : 'text-rose-400');
+                
+                // Aggiorna anche le classi del contenitore icona
+                iconContainer.className = iconContainer.className.replace(/text-(emerald|rose)-400/g, '');
+                iconContainer.classList.add(newType === 'income' ? 'text-emerald-400' : 'text-rose-400');
+
+                const iconIncome = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 11l3-3m0 0l3 3m-3-3v8m0-13a9 9 0 110 18 9 9 0 010-18z"></path></svg>`;
+                const iconExpense = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13l-3 3m0 0l-3-3m3 3V8m0 13a9 9 0 110 18 9 9 0 010-18z"></path></svg>`;
+                
+                iconContainer.innerHTML = newType === 'income' ? iconIncome : iconExpense;
+            }
+
+            // SE il tipo è cambiato (da + a - o viceversa), dobbiamo rigenerare il menu a tendina delle categorie
+            // perché le categorie disponibili sono diverse (Entrate vs Uscite)
+            if (newType !== oldType && catCell) {
+                const currentCat = this.state.allExpenses[expenseIndex].category;
+                catCell.innerHTML = this.renderCategorySelect(id, newType, currentCat);
+            }
+
+        } else {
+            this.state.allExpenses[expenseIndex][field] = value;
+        }
+    },
+
+    // --- LOGIC: SELECTION (No Re-render) ---
     toggleAll(isChecked) {
         if (isChecked) this.state.allExpenses.forEach(e => this.state.selectedIds.add(e.id));
         else this.state.selectedIds.clear();
-        this.render();
+
+        // Update DOM checkboxes directly
+        const checkboxes = document.querySelectorAll('[id^="chk-"]');
+        checkboxes.forEach(cb => {
+            cb.checked = isChecked;
+            const tr = cb.closest('tr');
+            if (isChecked) tr.classList.remove('opacity-40', 'grayscale');
+            else tr.classList.add('opacity-40', 'grayscale');
+        });
+        
+        this.updateSelectionStats();
     },
 
-    toggleRow(id) {
-        if (this.state.selectedIds.has(id)) this.state.selectedIds.delete(id);
-        else this.state.selectedIds.add(id);
-        this.render();
+    toggleRow(id, fromRowClick = false) {
+        // Se il click arriva dalla riga, invertiamo lo stato della checkbox
+        if (fromRowClick) {
+            const checkbox = document.getElementById(`chk-${id}`);
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                // Aggiorniamo il set in base al nuovo stato della checkbox
+                if (checkbox.checked) this.state.selectedIds.add(id);
+                else this.state.selectedIds.delete(id);
+                
+                // Update Row Style
+                const tr = checkbox.closest('tr');
+                if (checkbox.checked) tr.classList.remove('opacity-40', 'grayscale');
+                else tr.classList.add('opacity-40', 'grayscale');
+            }
+        } else {
+            // Se il click arriva dalla checkbox (onchange), aggiorniamo solo il Set
+            if (this.state.selectedIds.has(id)) this.state.selectedIds.delete(id);
+            else this.state.selectedIds.add(id);
+
+            // Update Row Style
+            const checkbox = document.getElementById(`chk-${id}`);
+            const tr = checkbox.closest('tr');
+            if (this.state.selectedIds.has(id)) tr.classList.remove('opacity-40', 'grayscale');
+            else tr.classList.add('opacity-40', 'grayscale');
+        }
+
+        this.updateSelectionStats();
     },
 
-    // --- LOGIC: FINALIZE (Invariata) ---
+    updateSelectionStats() {
+        const count = this.state.selectedIds.size;
+        
+        // Aggiorna contatore
+        const countEl = document.getElementById('previewSelectedCount');
+        if (countEl) countEl.innerText = count;
+
+        // Aggiorna bottone
+        const btn = document.getElementById('previewImportBtn');
+        const btnText = document.getElementById('previewImportBtnText');
+        if (btn && btnText) {
+            btn.disabled = count === 0;
+            btnText.innerText = `Importa ${count} Transazioni`;
+            if (count === 0) {
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                btn.classList.remove('transform', 'hover:-translate-y-0.5');
+            } else {
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                btn.classList.add('transform', 'hover:-translate-y-0.5');
+            }
+        }
+        
+        // Aggiorna Select All checkbox se necessario
+        const allChk = document.getElementById('selectAllCheckbox');
+        if(allChk) {
+             const total = this.state.allExpenses.length;
+             allChk.checked = total > 0 && count === total;
+        }
+    },
+
+    // --- LOGIC: FINALIZE ---
     async finalizeImport() {
         this.state.step = 'LOADING';
         this.render();
