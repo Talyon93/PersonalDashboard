@@ -1,0 +1,25 @@
+{
+  "name": "personaldashboard",
+  "version": "1.0.0",
+  "description": "Dashboard completa per gestire agenda, obiettivi e spese personali.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Talyon93/PersonalDashboard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Talyon93/PersonalDashboard/issues"
+  },
+  "homepage": "https://github.com/Talyon93/PersonalDashboard#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.1.0",
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^8.1.0"
+  }
+}

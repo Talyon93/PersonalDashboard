@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MyDashboard</string>
+    <string name="title_activity_main">MyDashboard</string>
+    <string name="package_name">com.baxini.mydashboard</string>
+    <string name="custom_url_scheme">com.baxini.mydashboard</string>
+</resources>

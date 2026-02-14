@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>My Dashboard</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -74,9 +74,9 @@
     </div>
     <div id="modalsContainer"></div>
     
-    <div class="flex h-screen overflow-hidden">
+    <div class="flex h-screen overflow-hidden relative">
         
-        <aside id="sidebar" class="w-72 bg-[#0B1120] border-r border-slate-800/60 flex flex-col relative z-50 shadow-2xl transition-all duration-300">
+        <aside id="sidebar" class="w-72 bg-[#0B1120] border-r border-slate-800/60 flex flex-col absolute inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 z-[100] shadow-2xl">
             
             <div class="h-24 flex items-center px-6 border-b border-slate-800/40">
                 <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 mr-3">
@@ -86,16 +86,32 @@
                     <h1 class="text-lg font-bold text-white tracking-tight">MyFinance</h1>
                     <p class="text-[10px] text-slate-500 font-medium tracking-widest uppercase">Personal Suite</p>
                 </div>
+                
+                <button onclick="document.getElementById('sidebar').classList.add('-translate-x-full')" class="md:hidden ml-auto text-slate-400 hover:text-white p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
             </div>
 
             <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-hide">
-                
-            </nav>
+                </nav>
 
         </aside>
 
-        <main class="flex-1 overflow-y-auto">
-            <div class="p-8">
+        <main class="flex-1 overflow-y-auto w-full relative">
+            
+            <div class="md:hidden flex items-center justify-between bg-[#0B1120] p-4 border-b border-slate-800/40 sticky top-0 z-40">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <h1 class="text-lg font-bold text-white tracking-tight">MyFinance</h1>
+                </div>
+                <button onclick="document.getElementById('sidebar').classList.remove('-translate-x-full')" class="text-slate-300 hover:text-white p-2 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+            </div>
+
+            <div class="p-4 md:p-8">
                 <div id="dashboardContent" class="content-section">
                     <div class="flex items-center justify-center py-20">
                         <div class="text-center">
@@ -113,36 +129,68 @@
                 <div id="modulesContent" class="content-section hidden"></div>
             </div>
         </main>
+        
+        <div id="sidebar-overlay" class="fixed inset-0 bg-black/60 z-[90] hidden md:hidden transition-opacity" onclick="document.getElementById('sidebar').classList.add('-translate-x-full')"></div>
+
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-        if (!window.supabaseClient) return;
+            if (!window.supabaseClient) return;
 
-        const { data: { user }, error } = await window.supabaseClient.auth.getUser();
-        
-        if (error || !user) {
-            window.location.href = 'login.html';
-            return;
-        }
-        
-        // Gestione UI Utente
-        const displayName = user.user_metadata?.name || user.email.split('@')[0];
-        const userEl = document.getElementById('userName');
-        const avatarEl = document.getElementById('userAvatar');
-        if(userEl) userEl.textContent = displayName;
-        if(avatarEl) avatarEl.textContent = displayName.charAt(0).toUpperCase();
+            const { data: { user }, error } = await window.supabaseClient.auth.getUser();
+            
+            if (error || !user) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Gestione UI Utente
+            const displayName = user.user_metadata?.name || user.email.split('@')[0];
+            const userEl = document.getElementById('userName');
+            const avatarEl = document.getElementById('userAvatar');
+            if(userEl) userEl.textContent = displayName;
+            if(avatarEl) avatarEl.textContent = displayName.charAt(0).toUpperCase();
 
-        const logoutBtn = document.getElementById('logoutBtn');
-        if(logoutBtn) {
-            logoutBtn.addEventListener('click', async () => {
-                if (confirm('Vuoi davvero uscire?')) {
-                    await window.supabaseClient.auth.signOut();
-                    window.location.href = 'login.html';
+            const logoutBtn = document.getElementById('logoutBtn');
+            if(logoutBtn) {
+                logoutBtn.addEventListener('click', async () => {
+                    if (confirm('Vuoi davvero uscire?')) {
+                        await window.supabaseClient.auth.signOut();
+                        window.location.href = 'login.html';
+                    }
+                });
+            }
+        });
+
+        // ==========================================
+        // GESTIONE SIDEBAR SU SMARTPHONE
+        // ==========================================
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+
+        // Mostra o nasconde l'overlay scuro quando la sidebar si apre/chiude
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'class') {
+                    if (sidebar.classList.contains('-translate-x-full')) {
+                        overlay.classList.add('hidden');
+                    } else {
+                        overlay.classList.remove('hidden');
+                    }
                 }
             });
-        }
-    });
+        });
+        observer.observe(sidebar, { attributes: true });
+
+        // Chiude la sidebar automaticamente quando clicchi su una voce del menu (solo su telefono)
+        sidebar.addEventListener('click', (e) => {
+            if ((e.target.closest('a') || e.target.closest('[onclick]')) && window.innerWidth < 768) {
+                setTimeout(() => {
+                    sidebar.classList.add('-translate-x-full');
+                }, 150); // Piccolo ritardo per mostrare l'effetto del click prima di chiudere
+            }
+        });
     </script>
 </body>
 </html>

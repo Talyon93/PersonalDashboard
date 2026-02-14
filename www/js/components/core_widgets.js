@@ -1,5 +1,5 @@
 /**
- * General Widgets - UTILITY SUITE
+ * General Widgets - UTILITY SUITE (MOBILE RESPONSIVE 📱)
  * Include: Orologi, Calendario, Timer Pomodoro, Meteo Live, Forecast e Super Dashboard.
  */
 
@@ -157,13 +157,14 @@ const GeneralWidgets = {
             }
         });
 
+        // Ottimizzato per mobile: paddings e margini ridotti
         document.querySelectorAll('.gw-forecast-list-el').forEach(container => {
             if (this.weatherState.forecast.length > 0) {
                 container.innerHTML = this.weatherState.forecast.map(item => `
-                    <div class="flex-1 flex flex-col items-center justify-center p-2 rounded-2xl bg-white/5 border border-white/5">
-                        <span class="text-[9px] font-black text-slate-500 mb-1">${item.day}</span>
-                        <div class="w-7 h-7 mb-1">${this.getWeatherVisual(item.code)}</div>
-                        <span class="text-[11px] font-bold text-white">${item.max}°</span>
+                    <div class="flex-1 flex flex-col items-center justify-center p-1.5 md:p-2 rounded-xl md:rounded-2xl bg-white/5 border border-white/5 min-w-[35px] md:min-w-[50px]">
+                        <span class="text-[8px] md:text-[9px] font-black text-slate-500 mb-0.5 md:mb-1">${item.day}</span>
+                        <div class="w-5 h-5 md:w-7 md:h-7 mb-0.5 md:mb-1">${this.getWeatherVisual(item.code)}</div>
+                        <span class="text-[10px] md:text-[11px] font-bold text-white">${item.max}°</span>
                     </div>
                 `).join('');
             }
@@ -290,17 +291,17 @@ const GeneralWidgets = {
                 size: { cols: 1, rows: 1 },
                 type: 'kpi',
                 render: () => `
-                    <div class="h-full relative overflow-hidden bg-slate-900/60 backdrop-blur-2xl rounded-[2.5rem] p-5 border border-white/5 shadow-2xl flex flex-col items-center justify-center text-center group">
+                    <div class="h-full relative overflow-hidden bg-slate-900/60 backdrop-blur-2xl rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-5 border border-white/5 shadow-2xl flex flex-col items-center justify-center text-center group">
                         <div class="absolute -top-12 -left-12 w-32 h-32 bg-indigo-500/20 rounded-full blur-[50px]"></div>
-                        <div class="relative z-10 mb-1"><div class="text-sm font-black uppercase tracking-[0.25em] text-indigo-400 gw-day-name">--</div></div>
-                        <div class="relative z-10 mb-2"><span class="text-6xl font-black text-white tracking-tighter leading-none gw-clock-time drop-shadow-2xl">--:--</span></div>
-                        <div class="relative z-10 bg-white/5 px-4 py-1.5 rounded-xl border border-white/5">
-                            <div class="text-lg font-black text-white gw-date-only tracking-tight">--</div>
+                        <div class="relative z-10 mb-1"><div class="text-xs md:text-sm font-black uppercase tracking-[0.25em] text-indigo-400 gw-day-name">--</div></div>
+                        <div class="relative z-10 mb-2"><span class="text-5xl md:text-6xl font-black text-white tracking-tighter leading-none gw-clock-time drop-shadow-2xl">--:--</span></div>
+                        <div class="relative z-10 bg-white/5 px-3 md:px-4 py-1.5 rounded-xl border border-white/5">
+                            <div class="text-sm md:text-lg font-black text-white gw-date-only tracking-tight">--</div>
                         </div>
                     </div>`
             },
 
-            // 2. ORARIO, DATA E METEO (2x1)
+            // 2. ORARIO, DATA E METEO WIDE (2x1)
             {
                 id: 'gen_clock_wide',
                 name: 'Orario Data e Meteo Wide',
@@ -308,26 +309,26 @@ const GeneralWidgets = {
                 size: { cols: 2, rows: 1 },
                 type: 'kpi',
                 render: () => `
-                    <div class="h-full bg-slate-900/60 backdrop-blur-2xl rounded-[2.5rem] p-0 border border-white/5 shadow-2xl flex relative overflow-hidden group">
-                        <div class="w-1/4 bg-white/5 border-r border-white/5 flex flex-col items-center justify-center p-4 relative">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-1 gw-month">--</span>
-                            <span class="text-6xl font-black text-white leading-none gw-day-num">--</span>
-                            <span class="text-lg font-black text-slate-400 mt-2 capitalize gw-day-name">--</span>
+                    <div class="h-full bg-slate-900/60 backdrop-blur-2xl rounded-[2rem] md:rounded-[2.5rem] p-0 border border-white/5 shadow-2xl flex relative overflow-hidden group">
+                        <div class="w-1/4 md:w-1/4 bg-white/5 border-r border-white/5 flex flex-col items-center justify-center p-2 md:p-4 relative">
+                            <span class="text-[8px] md:text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-1 gw-month">--</span>
+                            <span class="text-4xl md:text-6xl font-black text-white leading-none gw-day-num">--</span>
+                            <span class="text-sm md:text-lg font-black text-slate-400 mt-1 md:mt-2 capitalize gw-day-name truncate w-full text-center">--</span>
                         </div>
-                        <div class="flex-1 flex flex-col justify-center px-8 relative">
-                            <span class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 gw-greeting">--</span>
+                        <div class="flex-1 flex flex-col justify-center px-3 md:px-8 relative min-w-0">
+                            <span class="text-[9px] md:text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 gw-greeting truncate">--</span>
                             <div class="flex items-baseline gap-2">
-                                <span class="text-7xl font-black text-white tracking-tighter leading-none gw-clock-time">--:--</span>
+                                <span class="text-5xl md:text-7xl font-black text-white tracking-tighter leading-none gw-clock-time">--:--</span>
                             </div>
                         </div>
-                        <div class="w-1/3 border-l border-white/5 flex flex-row items-center justify-between px-6 bg-slate-950/30 backdrop-blur-md cursor-pointer group/weather" onclick="GeneralWidgets.searchLocation()">
-                            <div class="absolute top-4 right-4 text-slate-500 opacity-40 group-hover/weather:opacity-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg></div>
-                            <div class="flex flex-col justify-center">
-                                <div class="text-5xl font-black text-white gw-weather-temp">--°</div>
-                                <div class="text-[14px] font-black uppercase tracking-[0.2em] text-indigo-400 gw-weather-city">--</div>
-                                <div class="text-[12px] font-bold text-slate-400 uppercase gw-weather-cond leading-none">--</div>
+                        <div class="w-[35%] md:w-1/3 border-l border-white/5 flex flex-row items-center justify-between px-3 md:px-6 bg-slate-950/30 backdrop-blur-md cursor-pointer group/weather" onclick="GeneralWidgets.searchLocation()">
+                            <div class="hidden md:block absolute top-4 right-4 text-slate-500 opacity-40 group-hover/weather:opacity-100"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg></div>
+                            <div class="flex flex-col justify-center min-w-0">
+                                <div class="text-3xl md:text-5xl font-black text-white gw-weather-temp">--°</div>
+                                <div class="text-[10px] md:text-[14px] font-black uppercase tracking-[0.2em] text-indigo-400 gw-weather-city truncate max-w-[60px] md:max-w-none">--</div>
+                                <div class="text-[9px] md:text-[12px] font-bold text-slate-400 uppercase gw-weather-cond leading-none truncate max-w-[60px] md:max-w-none">--</div>
                             </div>
-                            <div class="w-20 h-20 gw-weather-icon-container ml-2"></div>
+                            <div class="w-10 h-10 md:w-20 md:h-20 gw-weather-icon-container ml-1 md:ml-2 shrink-0"></div>
                         </div>
                     </div>`
             },
@@ -340,23 +341,23 @@ const GeneralWidgets = {
                 size: { cols: 1, rows: 1 },
                 type: 'kpi',
                 render: () => `
-                    <div class="h-full relative overflow-hidden bg-slate-900/60 backdrop-blur-3xl rounded-[2.5rem] p-7 border border-white/10 shadow-2xl flex flex-col justify-between group cursor-pointer" onclick="GeneralWidgets.searchLocation()">
+                    <div class="h-full relative overflow-hidden bg-slate-900/60 backdrop-blur-3xl rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-7 border border-white/10 shadow-2xl flex flex-col justify-between group cursor-pointer" onclick="GeneralWidgets.searchLocation()">
                         <div class="flex justify-between items-start relative z-10 w-full h-full">
-                            <div class="flex flex-col justify-between h-full py-1">
+                            <div class="flex flex-col justify-between h-full py-1 min-w-0 flex-1">
                                 <div class="flex flex-col">
-                                    <div class="text-[14px] font-black uppercase tracking-[0.3em] text-indigo-400 gw-weather-city">--</div>
-                                    <div class="flex items-center gap-2 mt-2 text-slate-400 hover:text-amber-400 transition-colors">
+                                    <div class="text-[11px] md:text-[14px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-indigo-400 gw-weather-city truncate pr-2">--</div>
+                                    <div class="hidden md:flex items-center gap-2 mt-2 text-slate-400 hover:text-amber-400 transition-colors">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                         <span class="text-[9px] font-black tracking-widest uppercase">Cerca</span>
                                     </div>
                                 </div>
                                 <div class="mt-auto">
-                                    <div class="text-[13px] font-black text-slate-400 uppercase tracking-[0.25em] gw-weather-cond mb-1">--</div>
-                                    <div class="text-7xl font-black text-white gw-weather-temp leading-none tracking-tighter drop-shadow-2xl">--°</div>
+                                    <div class="text-[10px] md:text-[13px] font-black text-slate-400 uppercase tracking-[0.1em] md:tracking-[0.25em] gw-weather-cond mb-1 truncate">--</div>
+                                    <div class="text-5xl md:text-7xl font-black text-white gw-weather-temp leading-none tracking-tighter drop-shadow-2xl">--°</div>
                                 </div>
                             </div>
-                            <div class="w-1/2 h-full flex items-center justify-center p-2">
-                                <div class="w-full h-full max-w-[120px] max-h-[120px] gw-weather-icon-container"></div>
+                            <div class="w-[45%] md:w-1/2 h-full flex items-center justify-center p-1 md:p-2 shrink-0">
+                                <div class="w-full h-full max-w-[80px] md:max-w-[120px] max-h-[80px] md:max-h-[120px] gw-weather-icon-container"></div>
                             </div>
                         </div>
                     </div>`
@@ -370,15 +371,15 @@ const GeneralWidgets = {
                 size: { cols: 2, rows: 1 },
                 type: 'generic',
                 render: () => `
-                    <div class="h-full bg-slate-900/60 backdrop-blur-3xl rounded-[2.5rem] p-6 border border-white/10 shadow-2xl flex flex-col justify-between relative overflow-hidden group/forecast cursor-pointer" onclick="GeneralWidgets.searchLocation()">
-                        <div class="flex items-center justify-between mb-4 px-2">
-                            <div class="text-[11px] font-black uppercase tracking-[0.3em] text-indigo-400">Weekly Forecast</div>
-                            <div class="flex items-center gap-2 text-slate-500 hover:text-amber-400 transition-colors">
-                                <div class="text-[12px] font-black uppercase tracking-widest gw-weather-city">--</div>
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    <div class="h-full bg-slate-900/60 backdrop-blur-3xl rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-6 border border-white/10 shadow-2xl flex flex-col justify-between relative overflow-hidden group/forecast cursor-pointer" onclick="GeneralWidgets.searchLocation()">
+                        <div class="flex items-center justify-between mb-3 md:mb-4 px-1 md:px-2">
+                            <div class="text-[9px] md:text-[11px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-indigo-400">Weekly Forecast</div>
+                            <div class="flex items-center gap-1 md:gap-2 text-slate-500 hover:text-amber-400 transition-colors">
+                                <div class="text-[10px] md:text-[12px] font-black uppercase tracking-widest gw-weather-city max-w-[80px] truncate">--</div>
+                                <svg class="w-3 h-3 md:w-4 md:h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                             </div>
                         </div>
-                        <div class="flex gap-3 h-full gw-forecast-list-el">
+                        <div class="flex gap-2 md:gap-3 h-full gw-forecast-list-el overflow-hidden">
                             <div class="flex-1 flex items-center justify-center text-slate-500 text-[10px] font-bold uppercase animate-pulse">Caricamento...</div>
                         </div>
                     </div>`
@@ -392,36 +393,36 @@ const GeneralWidgets = {
                 size: { cols: 2, rows: 2 },
                 type: 'kpi',
                 render: () => `
-                    <div class="h-full bg-slate-900/60 backdrop-blur-3xl rounded-[3rem] p-0 border border-white/10 shadow-2xl flex flex-col overflow-hidden">
+                    <div class="h-full bg-slate-900/60 backdrop-blur-3xl rounded-[2.5rem] md:rounded-[3rem] p-0 border border-white/10 shadow-2xl flex flex-col overflow-hidden">
                         <div class="flex flex-1 border-b border-white/5">
-                            <div class="w-1/2 bg-white/5 border-r border-white/5 flex flex-col justify-center p-8 relative">
-                                <span class="text-xs font-black uppercase tracking-[0.25em] text-indigo-300 mb-2 gw-month">--</span>
-                                <span class="text-8xl font-black text-white leading-none gw-day-num tracking-tighter">--</span>
-                                <span class="text-2xl font-black text-slate-400 mt-2 capitalize gw-day-name">--</span>
+                            <div class="w-1/2 bg-white/5 border-r border-white/5 flex flex-col justify-center p-5 md:p-8 relative">
+                                <span class="text-[10px] md:text-xs font-black uppercase tracking-[0.25em] text-indigo-300 mb-1 md:mb-2 gw-month">--</span>
+                                <span class="text-6xl md:text-8xl font-black text-white leading-none gw-day-num tracking-tighter">--</span>
+                                <span class="text-lg md:text-2xl font-black text-slate-400 mt-1 md:mt-2 capitalize gw-day-name truncate">--</span>
                             </div>
-                            <div class="w-1/2 flex flex-col justify-center p-8 bg-slate-950/20 backdrop-blur-md relative cursor-pointer group/weather" onclick="GeneralWidgets.searchLocation()">
-                                <div class="absolute top-6 right-6 text-slate-500 opacity-60 group-hover/weather:opacity-100 hover:text-amber-400 transition-colors">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            <div class="w-1/2 flex flex-col justify-center p-5 md:p-8 bg-slate-950/20 backdrop-blur-md relative cursor-pointer group/weather" onclick="GeneralWidgets.searchLocation()">
+                                <div class="absolute top-4 right-4 md:top-6 md:right-6 text-slate-500 opacity-60 group-hover/weather:opacity-100 hover:text-amber-400 transition-colors">
+                                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                 </div>
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="w-20 h-20 gw-weather-icon-container"></div>
-                                    <div class="text-6xl font-black text-white gw-weather-temp tracking-tighter">--°</div>
+                                <div class="flex items-center justify-between mb-1 md:mb-2 gap-2">
+                                    <div class="w-12 h-12 md:w-20 md:h-20 gw-weather-icon-container shrink-0"></div>
+                                    <div class="text-4xl md:text-6xl font-black text-white gw-weather-temp tracking-tighter truncate">--°</div>
                                 </div>
-                                <div class="text-[15px] font-black uppercase tracking-[0.2em] text-indigo-400 gw-weather-city">--</div>
-                                <div class="text-xs font-bold text-slate-400 uppercase gw-weather-cond">--</div>
+                                <div class="text-[11px] md:text-[15px] font-black uppercase tracking-[0.1em] md:tracking-[0.2em] text-indigo-400 gw-weather-city truncate mt-1">--</div>
+                                <div class="text-[10px] md:text-xs font-bold text-slate-400 uppercase gw-weather-cond truncate">--</div>
                             </div>
                         </div>
                         <div class="flex flex-1">
-                            <div class="w-1/2 border-r border-white/5 flex flex-col justify-center p-8">
-                                <div class="text-xs font-black uppercase tracking-[0.2em] text-slate-500 mb-2 gw-greeting">--</div>
-                                <div class="flex items-baseline gap-2">
-                                    <span class="text-8xl font-black text-white tracking-tighter leading-none gw-clock-time drop-shadow-2xl">--:--</span>
-                                    <span class="text-2xl font-medium text-slate-500 gw-clock-sec mb-2">00</span>
+                            <div class="w-1/2 border-r border-white/5 flex flex-col justify-center p-5 md:p-8">
+                                <div class="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-slate-500 mb-1 md:mb-2 gw-greeting truncate">--</div>
+                                <div class="flex items-baseline gap-1 md:gap-2">
+                                    <span class="text-4xl md:text-6xl lg:text-8xl font-black text-white tracking-tighter leading-none gw-clock-time drop-shadow-2xl truncate">--:--</span>
+                                    <span class="hidden md:inline-block text-xl md:text-2xl font-medium text-slate-500 gw-clock-sec mb-2">00</span>
                                 </div>
                             </div>
-                            <div class="w-1/2 p-8 flex flex-col justify-center bg-slate-950/10">
-                                <div class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6 px-1">Weekly Outlook</div>
-                                <div class="flex justify-between items-center gap-3 gw-forecast-list-el"></div>
+                            <div class="w-1/2 p-4 md:p-8 flex flex-col justify-center bg-slate-950/10 min-w-0">
+                                <div class="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-slate-500 mb-3 md:mb-6 px-1 truncate">Weekly Outlook</div>
+                                <div class="flex justify-between items-center gap-1.5 md:gap-3 gw-forecast-list-el overflow-hidden [&>*:nth-child(n+4)]:hidden sm:[&>*:nth-child(n+4)]:flex"></div>
                             </div>
                         </div>
                     </div>`
@@ -435,13 +436,13 @@ const GeneralWidgets = {
                 size: { cols: 1, rows: 1 },
                 type: 'generic',
                 render: () => `
-                    <div class="h-full bg-slate-900/60 backdrop-blur-2xl rounded-[2.5rem] p-6 border border-white/5 shadow-2xl flex flex-col items-center justify-between relative overflow-hidden">
+                    <div class="h-full bg-slate-900/60 backdrop-blur-2xl rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-6 border border-white/5 shadow-2xl flex flex-col items-center justify-between relative overflow-hidden">
                         <div class="absolute bottom-0 left-0 h-1 bg-indigo-500 transition-all duration-1000" style="width: 0%" id="gw-timer-bar"></div>
-                        <div class="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Focus Session</div>
-                        <div class="text-5xl font-black text-white tracking-tighter tabular-nums" id="gw-timer-display">25:00</div>
-                        <div class="flex gap-3">
-                            <button id="gw-timer-btn" onclick="GeneralWidgets.toggleTimer()" class="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all active:scale-95 border border-white/5"><svg id="gw-timer-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></button>
-                            <button onclick="GeneralWidgets.resetTimer()" class="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-all active:scale-95 border border-white/5"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button>
+                        <div class="text-[9px] md:text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 mt-2">Focus Session</div>
+                        <div class="text-4xl md:text-5xl font-black text-white tracking-tighter tabular-nums" id="gw-timer-display">25:00</div>
+                        <div class="flex gap-2 md:gap-3 mb-2">
+                            <button id="gw-timer-btn" onclick="GeneralWidgets.toggleTimer()" class="w-10 h-10 md:w-12 md:h-12 rounded-[1rem] md:rounded-2xl bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-all active:scale-95 border border-white/5"><svg id="gw-timer-icon" class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></button>
+                            <button onclick="GeneralWidgets.resetTimer()" class="w-10 h-10 md:w-12 md:h-12 rounded-[1rem] md:rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-all active:scale-95 border border-white/5"><svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button>
                         </div>
                     </div>`
             },
