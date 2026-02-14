@@ -153,24 +153,40 @@ const Agenda = {
 
     toggleMultiDayUI() {
         const isMulti = document.getElementById('evtIsMultiDay').checked;
-        const containerTime = document.getElementById('container-time-config');
-        const containerEndDate = document.getElementById('container-end-date');
-        const containerRecur = document.getElementById('container-recurrence'); // <--- NUOVO
+        
+        // Riferimenti corretti in base agli ID del tuo template HTML
+        const divTime = document.getElementById('divTime');
+        const divDuration = document.getElementById('divDuration');
+        const divEndDate = document.getElementById('divEndDate');
+        const evtRecurrence = document.getElementById('evtRecurrence');
+        // Troviamo il div genitore della select ripetizione (visto che non ha un ID)
+        const containerRecur = evtRecurrence ? evtRecurrence.closest('div') : null; 
         
         if (isMulti) {
-            containerTime.style.display = 'none';        // Nascondi Orario
-            containerEndDate.classList.remove('hidden'); // Mostra Data Fine
-            containerRecur.classList.add('hidden');      // Nascondi Ripetizione
+            // Nascondi Orario e Durata
+            if (divTime) divTime.classList.add('hidden');
+            if (divDuration) divDuration.classList.add('hidden');
             
-            document.getElementById('evtRecurrence').value = 'none';
+            // Mostra Data Fine
+            if (divEndDate) divEndDate.classList.remove('hidden');
+            
+            // Nascondi Ripetizione e resettala
+            if (containerRecur) containerRecur.classList.add('hidden');
+            if (evtRecurrence) evtRecurrence.value = 'none';
         } else {
-            containerTime.style.display = 'grid';        // Mostra Orario
-            containerEndDate.classList.add('hidden');    // Nascondi Data Fine
-            containerRecur.classList.remove('hidden');   // Mostra Ripetizione
+            // Mostra Orario e Durata
+            if (divTime) divTime.classList.remove('hidden');
+            if (divDuration) divDuration.classList.remove('hidden');
+            
+            // Nascondi Data Fine
+            if (divEndDate) divEndDate.classList.add('hidden');
+            
+            // Mostra Ripetizione
+            if (containerRecur) containerRecur.classList.remove('hidden');
             
             // Resetta la data fine uguale a inizio per evitare incongruenze
             const startDate = document.getElementById('evtDate').value;
-            if(startDate) document.getElementById('evtEndDate').value = startDate;
+            if (startDate) document.getElementById('evtEndDate').value = startDate;
         }
     },
 
@@ -339,7 +355,7 @@ const Agenda = {
                                     <span class="text-lg">📅</span> Evento Multigiorno
                                 </span>
                                 <div class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="evtIsMultiDay" class="sr-only peer" ${isMultiDay ? 'checked' : ''} onchange="Agenda.toggleMultiDay()">
+                                    <input type="checkbox" id="evtIsMultiDay" class="sr-only peer" ${isMultiDay ? 'checked' : ''} onchange="Agenda.toggleMultiDayUI()">
                                     <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                                 </div>
                             </div>
