@@ -2,87 +2,626 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Login - MyFinance Premium</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Login - MyDashboard</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
 
   <script src="https://cdn.tailwindcss.com"></script>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link rel="stylesheet" href="css/dashboard-animations.css"/>
 
   <script src="js/config.js"></script>
   <script src="js/supabase-config.js"></script>
 
   <style>
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-fadeIn { animation: fadeIn 0.6s ease-out forwards; }
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body.login-page {
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      align-items: stretch;
+      font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      margin: 0;
+    }
+
+    /* ══════════════════════════════════════
+       LEFT PANEL (Desktop only)
+       ══════════════════════════════════════ */
+    .login-hero {
+      flex: 1;
+      background: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 72px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse at 30% 50%, black 30%, transparent 70%);
+      -webkit-mask-image: radial-gradient(ellipse at 30% 50%, black 30%, transparent 70%);
+    }
+
+    .login-hero::after {
+      content: '';
+      position: absolute; top: 10%; left: -10%;
+      width: 55%; height: 65%;
+      background: radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-content { position: relative; z-index: 1; max-width: 620px; }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 8px 18px;
+      background: rgba(16,185,129,0.08);
+      border: 1px solid rgba(16,185,129,0.18);
+      border-radius: 100px;
+      font-size: 0.85rem; font-weight: 600;
+      color: #34d399; letter-spacing: 0.02em;
+      margin-bottom: 36px;
+    }
+    .hero-badge-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #10b981;
+      animation: badgePulse 2s ease-in-out infinite;
+    }
+    @keyframes badgePulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; box-shadow: 0 0 8px rgba(16,185,129,0.4); }
+    }
+
+    .hero-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 3.6rem; font-weight: 500; font-style: italic;
+      line-height: 1.12; color: var(--text-primary);
+      letter-spacing: -0.02em; margin: 0 0 20px;
+    }
+    .hero-title .highlight {
+      background: linear-gradient(135deg, var(--accent-blue), #818cf8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: 1.15rem; line-height: 1.8;
+      color: var(--text-secondary); font-weight: 400;
+      margin: 0 0 44px; max-width: 520px;
+    }
+    .hero-subtitle strong { color: var(--text-primary); font-weight: 600; }
+
+    .value-props { display: flex; flex-direction: column; gap: 14px; margin-bottom: 40px; }
+    .value-prop { display: flex; align-items: center; gap: 14px; font-size: 1rem; color: var(--text-secondary); font-weight: 500; }
+    .value-prop .check {
+      width: 28px; height: 28px; min-width: 28px; border-radius: 8px;
+      background: rgba(16,185,129,0.1); display: flex; align-items: center;
+      justify-content: center; color: #34d399; font-size: 0.8rem; font-weight: 700;
+    }
+    .value-prop strong { color: var(--text-primary); font-weight: 600; }
+
+    .hero-divider { height: 1px; background: var(--border-color); margin: 0 0 36px; }
+
+    .modules-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .modules-label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-secondary); margin: 0; }
+    .modules-count { font-size: 0.78rem; font-weight: 600; color: var(--accent-blue); }
+
+    .modules-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px; }
+    .module-card {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 10px; padding: 24px 16px 20px;
+      background: var(--bg-secondary); border: 1px solid var(--border-color);
+      border-radius: 16px; text-align: center;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+    .module-card:hover { border-color: rgba(255,255,255,0.12); transform: translateY(-3px); }
+    .module-emoji { font-size: 2rem; line-height: 1; }
+    .module-name { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0; }
+    .module-desc { font-size: 0.8rem; color: var(--text-secondary); margin: 0; line-height: 1.4; }
+    .module-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 100px;
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      background: rgba(16,185,129,0.1); color: #34d399;
+    }
+    .module-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #10b981; }
+
+    .coming-soon {
+      display: flex; align-items: center; gap: 14px;
+      padding: 16px 20px;
+      background: rgba(99,102,241,0.04);
+      border: 1px dashed rgba(99,102,241,0.15);
+      border-radius: 14px;
+    }
+    .coming-soon-icon { font-size: 1.4rem; min-width: 28px; text-align: center; }
+    .coming-soon p { font-size: 0.9rem; color: var(--text-secondary); margin: 0; line-height: 1.55; }
+    .coming-soon strong { color: #a5b4fc; font-weight: 600; }
+
+    /* ══════════════════════════════════════
+       RIGHT PANEL (Form)
+       ══════════════════════════════════════ */
+    .login-form-panel {
+      width: 520px; min-width: 520px;
+      background: var(--bg-secondary);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 56px 64px;
+      border-left: 1px solid var(--border-color);
+    }
+
+    .form-container { width: 100%; max-width: 380px; }
+
+    .login-brand { text-align: center; margin-bottom: 44px; }
+    .login-brand-icon {
+      width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 16px;
+      background: linear-gradient(135deg, var(--accent-blue), #6366f1);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 8px 28px rgba(59,130,246,0.2);
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .login-brand-icon:hover { transform: scale(1.06) rotate(-2deg); }
+    .login-brand-icon svg { width: 26px; height: 26px; color: white; }
+    .login-brand h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 2rem; font-weight: 500; font-style: italic;
+      color: var(--text-primary); letter-spacing: -0.02em; margin: 0 0 6px;
+    }
+    .login-brand-sub { font-size: 0.88rem; color: var(--text-secondary); font-weight: 500; margin: 0; }
+
+    .login-alert {
+      display: none; border-radius: 12px; padding: 14px 18px;
+      font-size: 0.9rem; font-weight: 600; text-align: center;
+      margin-bottom: 24px; line-height: 1.4;
+    }
+    .login-alert.error { display: block; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15); color: #f87171; }
+    .login-alert.success { display: block; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.15); color: #34d399; }
+
+    .login-tabs {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+      background: var(--bg-primary); border: 1px solid var(--border-color);
+      border-radius: 12px; padding: 4px; margin-bottom: 32px;
+    }
+    .login-tab {
+      padding: 13px 0; border: none; border-radius: 9px;
+      font-family: inherit; font-size: 0.82rem; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      cursor: pointer; transition: all 0.2s ease;
+      background: transparent; color: var(--text-secondary);
+    }
+    .login-tab:hover { color: var(--text-primary); }
+    .login-tab.active { background: var(--accent-blue); color: white; box-shadow: 0 2px 12px rgba(59,130,246,0.25); }
+
+    .login-field { margin-bottom: 20px; }
+    .login-field.is-hidden { display: none; }
+    .login-label {
+      display: block; font-size: 0.75rem; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-secondary); margin-bottom: 8px; padding-left: 2px;
+    }
+    .login-input {
+      width: 100%;
+      background: var(--bg-primary) !important;
+      border: 1.5px solid var(--border-color) !important;
+      border-radius: 12px !important;
+      padding: 16px 18px !important;
+      font-family: inherit; font-size: 1rem; font-weight: 500;
+      color: var(--text-primary) !important;
+      outline: none; transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .login-input::placeholder { color: #3e4a5e; }
+    .login-input:focus { border-color: var(--accent-blue) !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.1) !important; }
+
+    .login-submit {
+      width: 100%; padding: 17px; margin-top: 8px; border: none;
+      border-radius: 12px; font-family: inherit; font-size: 0.88rem;
+      font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: white; background: var(--accent-blue);
+      cursor: pointer; transition: all 0.2s ease;
+      box-shadow: 0 4px 16px rgba(59,130,246,0.2);
+    }
+    .login-submit:hover { background: #2563eb; box-shadow: 0 6px 24px rgba(59,130,246,0.3); transform: translateY(-1px); }
+    .login-submit:active { transform: translateY(0); }
+    .login-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .login-cta-hint {
+      text-align: center; margin-top: 24px;
+      font-size: 0.85rem; color: var(--text-secondary);
+      line-height: 1.5; cursor: pointer; transition: color 0.2s;
+    }
+    .login-cta-hint:hover { color: var(--text-primary); }
+    .login-cta-hint strong { color: var(--accent-blue); font-weight: 600; }
+
+    .login-secure {
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      margin-top: 22px; font-size: 0.7rem; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase; color: #3e4a5e;
+    }
+    .login-secure-dot { width: 5px; height: 5px; border-radius: 50%; background: #10b981; }
+
+    /* ══════════════════════════════════════
+       MOBILE EXPLANATION (below form)
+       ══════════════════════════════════════ */
+    .mobile-explain {
+      display: none;
+    }
+
+    .mobile-explain-divider {
+      height: 1px;
+      background: var(--border-color);
+      margin: 36px 0;
+    }
+
+    .mobile-explain-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.6rem; font-weight: 500; font-style: italic;
+      color: var(--text-primary); letter-spacing: -0.02em;
+      margin: 0 0 10px;
+      line-height: 1.2;
+    }
+    .mobile-explain-title .highlight {
+      background: linear-gradient(135deg, var(--accent-blue), #818cf8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .mobile-explain-sub {
+      font-size: 0.88rem; color: var(--text-secondary);
+      line-height: 1.65; margin: 0 0 28px;
+    }
+    .mobile-explain-sub strong { color: var(--text-primary); font-weight: 600; }
+
+    /* Value props mobile */
+    .mobile-value-props {
+      display: flex; flex-direction: column; gap: 12px;
+      margin-bottom: 28px;
+    }
+    .mobile-vp {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;
+    }
+    .mobile-vp .vp-check {
+      width: 24px; height: 24px; min-width: 24px; border-radius: 7px;
+      background: rgba(16,185,129,0.1); display: flex; align-items: center;
+      justify-content: center; color: #34d399; font-size: 0.7rem; font-weight: 700;
+    }
+    .mobile-vp strong { color: var(--text-primary); font-weight: 600; }
+
+    /* Module cards mobile */
+    .mobile-modules-label {
+      font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-secondary); margin-bottom: 12px;
+    }
+
+    .mobile-modules-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px; margin-bottom: 14px;
+    }
+
+    .mobile-mod {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 6px; padding: 16px 10px 14px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 14px; text-align: center;
+    }
+    .mobile-mod-emoji { font-size: 1.5rem; }
+    .mobile-mod-name { font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin: 0; }
+    .mobile-mod-desc { font-size: 0.68rem; color: var(--text-secondary); margin: 0; line-height: 1.35; }
+    .mobile-mod-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 100px;
+      font-size: 0.58rem; font-weight: 700; text-transform: uppercase;
+      background: rgba(16,185,129,0.1); color: #34d399;
+    }
+    .mobile-mod-badge::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: #10b981; }
+
+    .mobile-coming-soon {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px;
+      background: rgba(99,102,241,0.04);
+      border: 1px dashed rgba(99,102,241,0.12);
+      border-radius: 12px;
+    }
+    .mobile-coming-soon-icon { font-size: 1.1rem; min-width: 22px; }
+    .mobile-coming-soon p {
+      font-size: 0.78rem; color: var(--text-secondary);
+      margin: 0; line-height: 1.5;
+    }
+    .mobile-coming-soon strong { color: #a5b4fc; font-weight: 600; }
+
+    /* ══════════════════════════════════════
+       ANIMATIONS
+       ══════════════════════════════════════ */
+    .hero-content > * {
+      opacity: 0; transform: translateY(16px);
+      animation: loginUp 0.6s ease forwards;
+    }
+    .hero-content > *:nth-child(1) { animation-delay: 0.05s; }
+    .hero-content > *:nth-child(2) { animation-delay: 0.12s; }
+    .hero-content > *:nth-child(3) { animation-delay: 0.19s; }
+    .hero-content > *:nth-child(4) { animation-delay: 0.26s; }
+    .hero-content > *:nth-child(5) { animation-delay: 0.33s; }
+    .hero-content > *:nth-child(6) { animation-delay: 0.4s; }
+    .hero-content > *:nth-child(7) { animation-delay: 0.47s; }
+    .hero-content > *:nth-child(8) { animation-delay: 0.54s; }
+    .hero-content > *:nth-child(9) { animation-delay: 0.61s; }
+
+    .form-container {
+      opacity: 0; transform: translateY(16px);
+      animation: loginUp 0.6s ease 0.15s forwards;
+    }
+
+    @keyframes loginUp { to { opacity: 1; transform: translateY(0); } }
+
+    /* ══════════════════════════════════════
+       RESPONSIVE
+       ══════════════════════════════════════ */
+    @media (min-width: 1440px) {
+      .login-hero { padding: 80px 100px; }
+      .hero-title { font-size: 4.2rem; }
+      .hero-subtitle { font-size: 1.25rem; }
+      .value-prop { font-size: 1.1rem; }
+      .module-card { padding: 28px 20px 24px; }
+      .module-emoji { font-size: 2.2rem; }
+      .module-name { font-size: 1.05rem; }
+      .module-desc { font-size: 0.85rem; }
+      .login-form-panel { width: 560px; min-width: 560px; padding: 60px 72px; }
+      .login-brand h1 { font-size: 2.2rem; }
+      .login-input { padding: 18px 20px !important; font-size: 1.05rem; }
+      .login-submit { padding: 18px; font-size: 0.92rem; }
+    }
+
+    @media (max-width: 1024px) {
+      .login-form-panel { width: 440px; min-width: 440px; padding: 44px 40px; }
+      .login-hero { padding: 52px 48px; }
+      .hero-title { font-size: 2.8rem; }
+    }
+
+    /* ── MOBILE ── */
+    @media (max-width: 768px) {
+      .login-hero { display: none; }
+
+      body.login-page {
+        background: var(--bg-primary);
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 0;
+        overflow-y: auto;
+      }
+
+      .login-form-panel {
+        width: 100%; min-width: 0;
+        background: transparent;
+        border-left: none;
+        padding: 36px 28px 0;
+        flex: none;
+      }
+
+      .form-container { max-width: 420px; width: 100%; }
+
+      .login-brand { margin-bottom: 32px; }
+      .login-brand-icon { width: 52px; height: 52px; margin-bottom: 14px; border-radius: 15px; }
+      .login-brand-icon svg { width: 24px; height: 24px; }
+      .login-brand h1 { font-size: 1.7rem; margin-bottom: 4px; }
+      .login-brand-sub { font-size: 0.82rem; }
+
+      .login-tabs { margin-bottom: 28px; border-radius: 11px; }
+      .login-tab { padding: 12px 0; font-size: 0.78rem; border-radius: 8px; }
+
+      .login-field { margin-bottom: 18px; }
+      .login-label { font-size: 0.72rem; }
+      .login-input { padding: 15px 16px !important; font-size: 1rem !important; border-radius: 11px !important; }
+      .login-submit { padding: 16px; font-size: 0.84rem; border-radius: 11px; }
+      .login-cta-hint { font-size: 0.82rem; margin-top: 20px; }
+      .login-secure { margin-top: 16px; }
+
+      .mobile-explain { display: block; }
+    }
+
+    @media (max-width: 480px) {
+      .login-form-panel { padding: 32px 22px 0; }
+      .login-brand h1 { font-size: 1.55rem; }
+      .mobile-explain-title { font-size: 1.45rem; }
+      .mobile-modules-grid { gap: 8px; }
+      .mobile-mod { padding: 14px 8px 12px; }
+    }
+
+    @media (max-width: 360px) {
+      .login-form-panel { padding: 28px 18px 0; }
+      .mobile-explain-title { font-size: 1.3rem; }
+      .mobile-modules-grid { grid-template-columns: 1fr; }
+    }
+
+    @supports (-webkit-touch-callout: none) {
+      .login-input { font-size: max(1rem, 16px) !important; }
+    }
+    @supports (padding: env(safe-area-inset-bottom)) {
+      .mobile-explain { padding-bottom: max(32px, env(safe-area-inset-bottom)); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-content > *, .form-container { animation: none; opacity: 1; transform: none; }
+      .hero-badge-dot { animation: none; }
+    }
+    ::selection { background: rgba(59,130,246,0.3); }
   </style>
 </head>
 
-<body class="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 font-sans selection:bg-indigo-500/30">
-  
-  <div class="fixed inset-0 overflow-hidden pointer-events-none">
-    <div class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px]"></div>
-    <div class="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[120px]"></div>
+<body class="login-page">
+
+  <!-- ═══ LEFT: Sales (Desktop) ═══ -->
+  <div class="login-hero">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        Gratuito · Nessuna carta richiesta
+      </div>
+
+      <h2 class="hero-title">Smetti di usare<br>10 app diverse.<br><span class="highlight">Una basta.</span></h2>
+
+      <p class="hero-subtitle">
+        MyDashboard è <strong>la tua agenda potenziata</strong>. Parti con task, eventi e note —
+        poi aggiungi solo i moduli che ti servono. Zero confusione, tutto in un posto.
+      </p>
+
+      <div class="value-props">
+        <div class="value-prop"><span class="check">✓</span><span><strong>Modulare</strong> — attivi solo quello che usi davvero</span></div>
+        <div class="value-prop"><span class="check">✓</span><span><strong>Sempre sincronizzato</strong> — accedi da qualsiasi dispositivo</span></div>
+        <div class="value-prop"><span class="check">✓</span><span><strong>Cresce con te</strong> — nuovi moduli ogni mese</span></div>
+      </div>
+
+      <div class="hero-divider"></div>
+
+      <div class="modules-header">
+        <p class="modules-label">Moduli disponibili</p>
+        <span class="modules-count">3 attivi · altri in arrivo</span>
+      </div>
+
+      <div class="modules-grid">
+        <div class="module-card">
+          <span class="module-emoji">💰</span>
+          <p class="module-name">Spese</p>
+          <p class="module-desc">Traccia entrate, uscite e budget mensili</p>
+          <span class="module-badge">Disponibile</span>
+        </div>
+        <div class="module-card">
+          <span class="module-emoji">🎯</span>
+          <p class="module-name">Obiettivi</p>
+          <p class="module-desc">Definisci goal e monitora i tuoi progressi</p>
+          <span class="module-badge">Disponibile</span>
+        </div>
+        <div class="module-card">
+          <span class="module-emoji">🍎</span>
+          <p class="module-name">Dieta</p>
+          <p class="module-desc">Pasti, calorie e macro giornalieri</p>
+          <span class="module-badge">Disponibile</span>
+        </div>
+      </div>
+
+      <div class="coming-soon">
+        <span class="coming-soon-icon">🚀</span>
+        <p><strong>Prossimamente:</strong> fitness, investimenti, abitudini, liste della spesa e molto altro. Registrati per non perderteli.</p>
+      </div>
+    </div>
   </div>
 
-  <div class="w-full max-w-md relative z-10 animate-fadeIn">
-    <div class="bg-slate-800/30 backdrop-blur-2xl rounded-[2.5rem] border border-slate-700/50 shadow-2xl p-10">
-      
-      <div class="flex flex-col items-center text-center mb-10">
-        <div class="h-20 w-20 rounded-3xl bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center shadow-2xl shadow-indigo-500/20 mb-6 transform hover:rotate-3 transition-transform">
-          <span class="text-4xl">💰</span>
+  <!-- ═══ RIGHT: Login Form ═══ -->
+  <div class="login-form-panel">
+    <div class="form-container">
+
+      <div class="login-brand">
+        <div class="login-brand-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z"/>
+          </svg>
         </div>
-        <h1 class="text-4xl font-black tracking-tighter bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent italic">
-          MyFinance
-        </h1>
-        <p class="mt-2 text-slate-400 font-medium text-sm tracking-tight">Gestione centralizzata attività e finanze.</p>
+        <h1>MyDashboard</h1>
+        <p class="login-brand-sub">Inizia in 30 secondi</p>
       </div>
 
-      <div id="alertBox" class="hidden mb-6 rounded-2xl border px-5 py-3 text-sm font-bold text-center transition-all"></div>
+      <div id="alertBox" class="login-alert"></div>
 
-      <div class="bg-slate-900/50 p-1.5 rounded-2xl border border-slate-700/50 grid grid-cols-2 gap-2 mb-8 shadow-inner">
-        <button id="tabLogin" class="py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
-          Accedi
-        </button>
-        <button id="tabRegister" class="py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
-          Crea Account
-        </button>
+      <div class="login-tabs">
+        <button id="tabLogin" class="login-tab active" type="button">Accedi</button>
+        <button id="tabRegister" class="login-tab" type="button">Registrati</button>
       </div>
 
-      <form id="authForm" class="space-y-5">
-        <div class="space-y-1.5">
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4" for="email">Email</label>
-          <input id="email" type="email" autocomplete="email" required
-                 class="w-full bg-slate-900/50 border-2 border-slate-700/50 rounded-2xl px-5 py-4 text-white placeholder-slate-600 focus:border-indigo-500/50 focus:outline-none transition-all font-medium"
-                 placeholder="nome@esempio.com"/>
+      <form id="authForm" autocomplete="on">
+        <div class="login-field">
+          <label class="login-label" for="email">Email</label>
+          <input id="email" class="login-input" type="email" autocomplete="email" required
+                 placeholder="nome@esempio.com" inputmode="email"/>
         </div>
-
-        <div class="space-y-1.5">
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4" for="password">Password</label>
-          <input id="password" type="password" autocomplete="current-password" required
-                 class="w-full bg-slate-900/50 border-2 border-slate-700/50 rounded-2xl px-5 py-4 text-white placeholder-slate-600 focus:border-indigo-500/50 focus:outline-none transition-all font-medium"
+        <div class="login-field">
+          <label class="login-label" for="password">Password</label>
+          <input id="password" class="login-input" type="password" autocomplete="current-password" required
+                 placeholder="••••••••"/>
+        </div>
+        <div id="confirmWrap" class="login-field is-hidden">
+          <label class="login-label" for="passwordConfirm">Conferma Password</label>
+          <input id="passwordConfirm" class="login-input" type="password" autocomplete="new-password"
                  placeholder="••••••••"/>
         </div>
 
-        <div id="confirmWrap" class="hidden space-y-1.5">
-          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4" for="passwordConfirm">Conferma Password</label>
-          <input id="passwordConfirm" type="password" autocomplete="new-password"
-                 class="w-full bg-slate-900/50 border-2 border-slate-700/50 rounded-2xl px-5 py-4 text-white placeholder-slate-600 focus:border-indigo-500/50 focus:outline-none transition-all font-medium"
-                 placeholder="••••••••"/>
-        </div>
+        <button id="submitBtn" class="login-submit" type="submit">Accedi</button>
 
-        <button id="submitBtn" type="submit"
-                class="w-full py-4 mt-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-indigo-500/20">
-          Accedi
-        </button>
+        <p class="login-cta-hint" id="ctaHint">
+          Non hai un account? <strong>Crealo gratis in un click.</strong>
+        </p>
 
-        <div class="pt-6 text-center">
-            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2">
-                <span class="w-1 h-1 bg-emerald-500 rounded-full animate-pulse"></span>
-                Connessione Sicura Criptata
-            </p>
+        <div class="login-secure">
+          <span class="login-secure-dot animate-pulse"></span>
+          Connessione Sicura
         </div>
       </form>
+
+      <!-- ═══ Mobile: full explanation below form ═══ -->
+      <div class="mobile-explain">
+        <div class="mobile-explain-divider"></div>
+
+        <h3 class="mobile-explain-title">
+          Smetti di usare 10 app.<br><span class="highlight">Una basta.</span>
+        </h3>
+
+        <p class="mobile-explain-sub">
+          MyDashboard è <strong>la tua agenda potenziata</strong>. Parti con task, eventi e note — poi attiva solo i moduli che ti servono.
+        </p>
+
+        <div class="mobile-value-props">
+          <div class="mobile-vp"><span class="vp-check">✓</span><span><strong>Modulare</strong> — attivi solo quello che usi</span></div>
+          <div class="mobile-vp"><span class="vp-check">✓</span><span><strong>Sincronizzato</strong> — da qualsiasi dispositivo</span></div>
+          <div class="mobile-vp"><span class="vp-check">✓</span><span><strong>Cresce con te</strong> — nuovi moduli ogni mese</span></div>
+        </div>
+
+        <p class="mobile-modules-label">Moduli disponibili</p>
+
+        <div class="mobile-modules-grid">
+          <div class="mobile-mod">
+            <span class="mobile-mod-emoji">💰</span>
+            <p class="mobile-mod-name">Spese</p>
+            <p class="mobile-mod-desc">Entrate, uscite e budget</p>
+            <span class="mobile-mod-badge">Disponibile</span>
+          </div>
+          <div class="mobile-mod">
+            <span class="mobile-mod-emoji">🎯</span>
+            <p class="mobile-mod-name">Obiettivi</p>
+            <p class="mobile-mod-desc">Goal e progressi</p>
+            <span class="mobile-mod-badge">Disponibile</span>
+          </div>
+          <div class="mobile-mod">
+            <span class="mobile-mod-emoji">🍎</span>
+            <p class="mobile-mod-name">Dieta</p>
+            <p class="mobile-mod-desc">Pasti, calorie e macro</p>
+            <span class="mobile-mod-badge">Disponibile</span>
+          </div>
+          <div class="mobile-mod">
+            <span class="mobile-mod-emoji">🚀</span>
+            <p class="mobile-mod-name">In arrivo</p>
+            <p class="mobile-mod-desc">Fitness, investimenti e altro</p>
+          </div>
+        </div>
+
+        <div class="mobile-coming-soon">
+          <span class="mobile-coming-soon-icon">✨</span>
+          <p>Registrati ora per <strong>accedere subito ai moduli</strong> e ricevere quelli nuovi appena escono.</p>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -91,73 +630,64 @@
       console.error("❌ window.supabaseClient non trovato.");
     }
 
-    const alertBox = document.getElementById("alertBox");
-    const tabLogin = document.getElementById("tabLogin");
-    const tabRegister = document.getElementById("tabRegister");
-    const confirmWrap = document.getElementById("confirmWrap");
-    const submitBtn = document.getElementById("submitBtn");
-    const authForm = document.getElementById("authForm");
+    const $ = (sel) => document.querySelector(sel);
+    const alertBox = $("#alertBox");
+    const tabLogin = $("#tabLogin");
+    const tabRegister = $("#tabRegister");
+    const confirmWrap = $("#confirmWrap");
+    const submitBtn = $("#submitBtn");
+    const authForm = $("#authForm");
+    const ctaHint = $("#ctaHint");
 
     let mode = "login";
 
-    function setAlert(type, message) {
-      alertBox.classList.remove("hidden");
-      if (type === "error") {
-        alertBox.className = "mb-6 rounded-2xl border-2 border-rose-500/20 bg-rose-500/10 text-rose-400 px-5 py-3 text-sm font-bold text-center";
-      } else {
-        alertBox.className = "mb-6 rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/10 text-emerald-400 px-5 py-3 text-sm font-bold text-center";
-      }
-      alertBox.textContent = message;
+    function setAlert(type, msg) {
+      alertBox.className = `login-alert ${type === "error" ? "error" : "success"}`;
+      alertBox.textContent = msg;
     }
 
-    function clearAlert() {
-      alertBox.classList.add("hidden");
-    }
+    function clearAlert() { alertBox.className = "login-alert"; }
 
-    function setMode(nextMode) {
-      mode = nextMode;
+    function setMode(next) {
+      mode = next;
       clearAlert();
-
-      const activeClass = "bg-indigo-600 text-white shadow-lg";
-      const inactiveClass = "text-slate-400 hover:text-white";
-
+      tabLogin.classList.toggle("active", mode === "login");
+      tabRegister.classList.toggle("active", mode === "register");
       if (mode === "login") {
-        tabLogin.className = `py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeClass}`;
-        tabRegister.className = `py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${inactiveClass}`;
-        confirmWrap.classList.add("hidden");
+        confirmWrap.classList.add("is-hidden");
         submitBtn.textContent = "Accedi";
+        ctaHint.innerHTML = 'Non hai un account? <strong>Crealo.</strong>';
+        $("#password").autocomplete = "current-password";
       } else {
-        tabRegister.className = `py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeClass}`;
-        tabLogin.className = `py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${inactiveClass}`;
-        confirmWrap.classList.remove("hidden");
+        confirmWrap.classList.remove("is-hidden");
         submitBtn.textContent = "Crea Account";
+        ctaHint.innerHTML = 'Hai già un account? <strong>Accedi qui.</strong>';
+        $("#password").autocomplete = "new-password";
       }
     }
 
     tabLogin.addEventListener("click", () => setMode("login"));
     tabRegister.addEventListener("click", () => setMode("register"));
+    ctaHint.addEventListener("click", () => setMode(mode === "login" ? "register" : "login"));
 
     authForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       clearAlert();
-
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
-      const passwordConfirm = document.getElementById("passwordConfirm").value;
+      const email = $("#email").value.trim();
+      const password = $("#password").value;
+      const passwordConfirm = $("#passwordConfirm").value;
 
       submitBtn.disabled = true;
       const oldText = submitBtn.textContent;
-      submitBtn.textContent = "Sincronizzazione...";
+      submitBtn.textContent = "Caricamento...";
 
       try {
         if (mode === "register") {
-          if (passwordConfirm !== password) {
-            setAlert("error", "Le password non corrispondono.");
-            return;
-          }
+          if (password.length < 6) { setAlert("error", "La password deve avere almeno 6 caratteri."); return; }
+          if (passwordConfirm !== password) { setAlert("error", "Le password non corrispondono."); return; }
           const { error } = await window.supabaseClient.auth.signUp({ email, password });
           if (error) throw error;
-          setAlert("ok", "Account creato! Controlla l'email.");
+          setAlert("ok", "Account creato! Controlla la tua email per confermare.");
           setMode("login");
         } else {
           const { error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
