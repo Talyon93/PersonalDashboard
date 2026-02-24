@@ -195,17 +195,18 @@ const Expenses = {
 
     renderStructure(container) {
         container.innerHTML = `
-            <div class="mb-10 animate-fadeIn">
-                <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
+            <div class="mb-6 md:mb-10 animate-fadeIn">
+                <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4 md:gap-6">
                     
                     <div>
-                        <h2 class="text-5xl font-black tracking-tighter bg-gradient-to-r from-emerald-300 via-teal-200 to-slate-400 bg-clip-text text-transparent">Finanze</h2>
-                        <p class="text-slate-400 mt-2 font-medium flex items-center gap-2">
+                        <h2 class="text-3xl md:text-5xl font-black tracking-tighter bg-gradient-to-r from-emerald-300 via-teal-200 to-slate-400 bg-clip-text text-transparent">Finanze</h2>
+                        <p class="text-slate-400 mt-1 md:mt-2 text-sm md:text-base font-medium flex items-center gap-2">
                             <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Gestione flussi di cassa.
                         </p>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-3">
+                    <!-- Desktop: full buttons -->
+                    <div class="hidden md:flex flex-wrap items-center gap-3">
                         
                         <button onclick="Expenses.showCategoriesModal()" 
                                 class="group flex items-center gap-2 px-4 py-2.5 bg-slate-800/40 text-slate-400 border border-slate-700/50 hover:border-slate-500 hover:text-slate-200 rounded-xl transition-all backdrop-blur-md">
@@ -223,22 +224,20 @@ const Expenses = {
                             <span class="text-[11px] font-bold uppercase tracking-wider">Mappature</span>
                         </button>
                         
-                        <div class="w-px h-6 bg-slate-700/30 mx-1 hidden sm:block"></div>
+                        <div class="w-px h-6 bg-slate-700/30 mx-1"></div>
 
                         <button onclick="ExpenseModals.showImport()" 
                                 class="group relative flex items-center gap-2 px-6 py-2.5 
                                 bg-blue-600/20 text-blue-100 border border-blue-400/50 
                                 hover:bg-blue-600/30 hover:border-blue-400 hover:text-white hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:-translate-y-0.5
                                 rounded-xl transition-all duration-300 backdrop-blur-xl shadow-lg shadow-blue-900/10">
-                            
                             <svg class="w-5 h-5 text-blue-300 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                             </svg>
                             <span class="text-xs font-black uppercase tracking-widest">Importa</span>
-                           
                         </button>
 
-                        <div class="w-px h-6 bg-slate-700/30 mx-1 hidden sm:block"></div>
+                        <div class="w-px h-6 bg-slate-700/30 mx-1"></div>
 
                         <button onclick="ExpenseModals.showAdd('income')" 
                                 class="group flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-lg shadow-emerald-900/20 rounded-xl transition-all hover:-translate-y-0.5 active:translate-y-0">
@@ -256,36 +255,63 @@ const Expenses = {
                             <span class="text-xs font-black uppercase tracking-wider">Spesa</span>
                         </button>
                     </div>
-                </div>
-            </div>
 
-            <div class="flex justify-center mb-10">
-                <div class="inline-flex items-center gap-4 bg-slate-800/50 backdrop-blur-md p-2 rounded-2xl border border-slate-700/50 shadow-xl">
-                    <button onclick="Expenses.changeMonth(-1)" class="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button>
-                    <h3 id="month-label" class="text-xl font-bold text-white px-4 min-w-[180px] text-center select-none tracking-tight">-- --- --</h3>
-                    <button onclick="Expenses.changeMonth(1)" class="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>
-                    
-                    <div class="w-px h-6 bg-slate-700/50 mx-1"></div>
-                    
-                    <button onclick="Expenses.resetMonth()" title="Torna a Oggi" class="w-10 h-10 flex items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    </button>
-
-                    <button onclick="Expenses.confirmResetMonth()" title="Cancella tutto il mese" class="w-10 h-10 flex items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-600 hover:text-white transition-all border border-rose-500/20">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </button>
-                </div>
-            </div>
-
-            <div id="expenses-kpi-row" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-10"></div>
-
-            <div class="bg-slate-800/30 backdrop-blur-md rounded-[2.5rem] p-8 border border-slate-700/40">
-                <div class="flex flex-col gap-8 mb-10">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Operazioni</h3>
-                        <button onclick="Expenses.exportMonth()" class="text-xs font-black uppercase text-blue-400 hover:bg-blue-400/10 px-4 py-2 rounded-full border border-blue-400/20 transition-all">Esporta CSV</button>
+                    <!-- Mobile: icon-only compact bar -->
+                    <div class="flex md:hidden items-center gap-2">
+                        <button onclick="Expenses.showCategoriesModal()" title="Categorie"
+                                class="w-9 h-9 flex items-center justify-center bg-slate-800/40 text-slate-400 border border-slate-700/50 rounded-lg active:bg-slate-700">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                        </button>
+                        <button onclick="ExpenseFormUI.showMappingsManager()" title="Mappature"
+                                class="w-9 h-9 flex items-center justify-center bg-slate-800/40 text-purple-400/80 border border-purple-500/10 rounded-lg active:bg-purple-500/10">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                        </button>
+                        <button onclick="ExpenseModals.showImport()" title="Importa"
+                                class="w-9 h-9 flex items-center justify-center bg-blue-600/20 text-blue-300 border border-blue-400/40 rounded-lg active:bg-blue-600/30">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        </button>
+                        <div class="flex-1"></div>
+                        <button onclick="ExpenseModals.showAdd('income')" 
+                                class="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wide active:scale-95">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                            Entrata
+                        </button>
+                        <button onclick="ExpenseModals.showAdd('expense')" 
+                                class="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wide active:scale-95">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                            Spesa
+                        </button>
                     </div>
-                    <div id="category-filters-container" class="flex flex-wrap gap-2 pb-6 border-b border-slate-700/50"></div>
+                </div>
+            </div>
+
+            <div class="flex justify-center mb-6 md:mb-10">
+                <div class="inline-flex items-center gap-2 md:gap-4 bg-slate-800/50 backdrop-blur-md p-1.5 md:p-2 rounded-xl md:rounded-2xl border border-slate-700/50 shadow-xl">
+                    <button onclick="Expenses.changeMonth(-1)" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg md:rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all"><svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button>
+                    <h3 id="month-label" class="text-sm md:text-xl font-bold text-white px-2 md:px-4 min-w-[120px] md:min-w-[180px] text-center select-none tracking-tight">-- --- --</h3>
+                    <button onclick="Expenses.changeMonth(1)" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg md:rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all"><svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>
+                    
+                    <div class="w-px h-5 md:h-6 bg-slate-700/50"></div>
+                    
+                    <button onclick="Expenses.resetMonth()" title="Torna a Oggi" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg md:rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all">
+                        <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </button>
+
+                    <button onclick="Expenses.confirmResetMonth()" title="Cancella tutto il mese" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-lg md:rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-600 hover:text-white transition-all border border-rose-500/20">
+                        <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="expenses-kpi-row" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 md:gap-6 mb-6 md:mb-10"></div>
+
+            <div class="bg-slate-800/30 backdrop-blur-md rounded-2xl md:rounded-[2.5rem] p-4 md:p-8 border border-slate-700/40">
+                <div class="flex flex-col gap-4 md:gap-8 mb-6 md:mb-10">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs md:text-sm font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Operazioni</h3>
+                        <button onclick="Expenses.exportMonth()" class="text-[10px] md:text-xs font-black uppercase text-blue-400 hover:bg-blue-400/10 px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-blue-400/20 transition-all">Esporta CSV</button>
+                    </div>
+                    <div id="category-filters-container" class="flex gap-2 pb-4 md:pb-6 border-b border-slate-700/50 overflow-x-auto md:flex-wrap md:overflow-visible -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide"></div>
                 </div>
                 <div id="expenses-list-container" class="space-y-4"></div>
             </div>
@@ -335,7 +361,7 @@ const Expenses = {
     renderKpiCard(title, value, gradient, subtext, isCurrency = true) {
         const displayValue = isCurrency ? Helpers.formatCurrency(Math.abs(value)) : value;
         
-        return `<div class="relative overflow-hidden bg-gradient-to-br ${gradient} rounded-2xl shadow-xl p-6 text-white transform hover:scale-[1.02] transition-all duration-300"><div class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div><div class="relative"><p class="text-xs font-black uppercase tracking-widest opacity-80 mb-2">${title}</p><p class="text-3xl font-bold mb-1">${displayValue}</p><p class="text-[10px] font-medium opacity-70 uppercase tracking-tighter">${subtext}</p></div></div>`;
+        return `<div class="relative overflow-hidden bg-gradient-to-br ${gradient} rounded-xl md:rounded-2xl shadow-xl p-3 md:p-6 text-white transform hover:scale-[1.02] transition-all duration-300"><div class="absolute top-0 right-0 w-16 md:w-32 h-16 md:h-32 bg-white opacity-10 rounded-full -mr-8 md:-mr-16 -mt-8 md:-mt-16"></div><div class="relative"><p class="text-[9px] md:text-xs font-black uppercase tracking-widest opacity-80 mb-0.5 md:mb-2">${title}</p><p class="text-base md:text-3xl font-bold mb-0 md:mb-1">${displayValue}</p><p class="text-[8px] md:text-[10px] font-medium opacity-70 uppercase tracking-tighter">${subtext}</p></div></div>`;
     },
 
     async changeMonth(delta) { this.currentMonth += delta; if (this.currentMonth < 0) { this.currentMonth = 11; this.currentYear--; } else if (this.currentMonth > 11) { this.currentMonth = 0; this.currentYear++; } await this.render(); },
