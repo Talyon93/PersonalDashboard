@@ -54,22 +54,22 @@ const Statistics = {
         }
 
         container.innerHTML = `
-            <div class="mb-8">
-                <div class="flex flex-col xl:flex-row justify-between items-center mb-8 gap-6">
-                    <h2 class="text-5xl font-black tracking-tighter bg-gradient-to-r from-emerald-300 via-teal-200 to-slate-400 bg-clip-text text-transparent">Analytics</h2>
+            <div class="mb-4 md:mb-8">
+                <div class="flex flex-col xl:flex-row justify-between items-start sm:items-center mb-4 md:mb-8 gap-3 md:gap-6">
+                    <h2 class="text-2xl md:text-5xl font-black tracking-tighter bg-gradient-to-r from-emerald-300 via-teal-200 to-slate-400 bg-clip-text text-transparent">Analytics</h2>
                     
                     <div class="flex items-center gap-4">
                         <div class="bg-slate-800/50 p-1 rounded-xl flex shadow-lg border border-slate-700/50 backdrop-blur-sm">
                             <button onclick="Statistics.setViewMode('month')" 
-                                    class="px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 ${this.viewMode === 'month' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:text-white hover:bg-white/5'}">
+                                    class="px-3 md:px-5 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all duration-300 ${this.viewMode === 'month' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:text-white hover:bg-white/5'}">
                                 Mese
                             </button>
                             <button onclick="Statistics.setViewMode('year')" 
-                                    class="px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 ${this.viewMode === 'year' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:text-white hover:bg-white/5'}">
+                                    class="px-3 md:px-5 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all duration-300 ${this.viewMode === 'year' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:text-white hover:bg-white/5'}">
                                 Anno
                             </button>
                             <button onclick="Statistics.setViewMode('all')" 
-                                    class="px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 ${this.viewMode === 'all' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:text-white hover:bg-white/5'}">
+                                    class="px-3 md:px-5 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all duration-300 ${this.viewMode === 'all' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:text-white hover:bg-white/5'}">
                                 Tutto
                             </button>
                         </div>
@@ -77,33 +77,33 @@ const Statistics = {
                 </div>
 
                 ${this.viewMode !== 'all' ? `
-                <div class="relative flex items-center justify-between gap-6 mb-10 bg-slate-800/40 backdrop-blur-md p-2 pr-3 rounded-2xl border border-slate-700/50 shadow-xl max-w-lg mx-auto">
+                <div class="relative flex items-center justify-between gap-2 md:gap-6 mb-4 md:mb-10 bg-slate-800/40 backdrop-blur-md p-1.5 md:p-2 pr-2 md:pr-3 rounded-xl md:rounded-2xl border border-slate-700/50 shadow-xl max-w-lg mx-auto">
                     
                     <button onclick="Statistics.changePeriod(-1)" 
-                            class="w-12 h-12 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 hover:border-slate-500 border border-transparent transition-all duration-300 active:scale-95 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 group-hover:-translate-x-1 transition-transform">
+                            class="w-8 h-8 md:w-12 md:h-12 flex items-center justify-center rounded-lg md:rounded-xl text-slate-400 hover:text-white hover:bg-white/10 border border-transparent transition-all duration-300 active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 md:w-6 md:h-6">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                         </svg>
                     </button>
 
-                    <h3 class="text-2xl font-black text-white flex-1 text-center capitalize tracking-tight select-none">
+                    <h3 class="text-sm md:text-2xl font-black text-white flex-1 text-center capitalize tracking-tight select-none">
                         ${titleLabel}
                     </h3>
 
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1 md:gap-2">
                         <button onclick="Statistics.changePeriod(1)" 
-                                class="w-12 h-12 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 hover:border-slate-500 border border-transparent transition-all duration-300 active:scale-95 group">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 group-hover:translate-x-1 transition-transform">
+                                class="w-8 h-8 md:w-12 md:h-12 flex items-center justify-center rounded-lg md:rounded-xl text-slate-400 hover:text-white hover:bg-white/10 border border-transparent transition-all duration-300 active:scale-95">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 md:w-6 md:h-6">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                             </svg>
                         </button>
 
                         ${this.viewMode === 'month' ? `
-                        <div class="w-px h-8 bg-slate-700 mx-1"></div>
+                        <div class="w-px h-5 md:h-8 bg-slate-700 mx-0.5 md:mx-1"></div>
                         <button onclick="Statistics.handleResetMonth()" 
                                 title="Torna a Oggi"
-                                class="w-12 h-12 flex items-center justify-center rounded-xl bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 hover:border-indigo-500 transition-all duration-300 active:scale-95 shadow-lg shadow-indigo-900/20">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                class="w-8 h-8 md:w-12 md:h-12 flex items-center justify-center rounded-lg md:rounded-xl bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 transition-all duration-300 active:scale-95">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 md:w-5 md:h-5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                             </svg>
                         </button>
@@ -113,7 +113,7 @@ const Statistics = {
                 ` : ''}
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <div class="flex md:grid md:grid-cols-2 lg:grid-cols-5 gap-2 md:gap-6 mb-4 md:mb-8 overflow-x-auto md:overflow-visible scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 pb-1 md:pb-0">
                 ${this.renderKpiCard('Spese', stats.total, `${stats.count} transazioni`, 'from-rose-500 to-pink-600')}
                 ${this.renderKpiCard('Entrate', stats.income, `${stats.incomeCount} transazioni`, 'from-emerald-500 to-teal-600')}
                 ${this.renderKpiCard('Bilancio', stats.balance, stats.balance >= 0 ? 'Positivo' : 'Negativo', stats.balance >= 0 ? 'from-blue-500 to-indigo-600' : 'from-orange-500 to-red-600')}
@@ -123,10 +123,10 @@ const Statistics = {
 
             ${this.viewMode === 'month' ? this.renderBudgetSection(stats) : ''}
 
-            <div class="mb-8">
-                <div class="bg-slate-800/40 backdrop-blur-xl rounded-3xl shadow-2xl p-6 border border-slate-700/50">
-                    <h3 class="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                        <span class="bg-indigo-500/20 p-2 rounded-lg text-indigo-400">📈</span>
+            <div class="mb-4 md:mb-8">
+                <div class="bg-slate-800/40 backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-2xl p-3 md:p-6 border border-slate-700/50">
+                    <h3 class="text-base md:text-2xl font-bold text-white mb-3 md:mb-6 flex items-center gap-2 md:gap-3">
+                        <span class="bg-indigo-500/20 p-1.5 md:p-2 rounded-lg text-indigo-400 text-sm md:text-base">📈</span>
                         <span class="bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
                             ${this.viewMode === 'month' ? 'Andamento Spese' : 'Andamento Mensile'}
                         </span>
@@ -139,26 +139,26 @@ const Statistics = {
                 </div>
             </div>
 
-            <div class="bg-slate-800/40 backdrop-blur-xl rounded-3xl shadow-2xl p-6 mb-8 border border-slate-700/50">
-                <h3 class="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                    <span class="bg-blue-500/20 p-2 rounded-lg text-blue-400">📊</span> Dettaglio Categorie
+            <div class="bg-slate-800/40 backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-2xl p-3 md:p-6 mb-4 md:mb-8 border border-slate-700/50">
+                <h3 class="text-base md:text-2xl font-bold text-white mb-3 md:mb-6 flex items-center gap-2 md:gap-3">
+                    <span class="bg-blue-500/20 p-1.5 md:p-2 rounded-lg text-blue-400 text-sm md:text-base">📊</span> Dettaglio Categorie
                 </h3>
                 <div class="space-y-4">
                     ${this.renderCategoryBars(stats.categories, stats.total)}
                 </div>
             </div>
 
-            <div class="bg-slate-800/40 backdrop-blur-xl rounded-3xl shadow-2xl p-6 mb-8 border border-slate-700/50">
-                <h3 class="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                    <span class="bg-amber-500/20 p-2 rounded-lg text-amber-400">🏷️</span> Statistiche per Tag
+            <div class="bg-slate-800/40 backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-2xl p-3 md:p-6 mb-4 md:mb-8 border border-slate-700/50">
+                <h3 class="text-base md:text-2xl font-bold text-white mb-3 md:mb-6 flex items-center gap-2 md:gap-3">
+                    <span class="bg-amber-500/20 p-1.5 md:p-2 rounded-lg text-amber-400 text-sm md:text-base">🏷️</span> Statistiche per Tag
                 </h3>
                 ${this.renderTagStats(expenses)}
             </div>
 
             ${this.viewMode !== 'all' ? `
-            <div class="bg-slate-800/40 backdrop-blur-xl rounded-3xl shadow-2xl p-6 border border-slate-700/50">
-                <h3 class="text-2xl font-bold text-white mb-6 flex items-center gap-3">
-                    <span class="bg-purple-500/20 p-2 rounded-lg text-purple-400">📅</span> Analisi Giornaliera
+            <div class="bg-slate-800/40 backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-2xl p-3 md:p-6 border border-slate-700/50">
+                <h3 class="text-base md:text-2xl font-bold text-white mb-3 md:mb-6 flex items-center gap-2 md:gap-3">
+                    <span class="bg-purple-500/20 p-1.5 md:p-2 rounded-lg text-purple-400 text-sm md:text-base">📅</span> Analisi Giornaliera
                 </h3>
                 ${this.renderDailyHeatmap(expenses)}
             </div>
@@ -167,13 +167,14 @@ const Statistics = {
     },
 
     renderKpiCard(title, value, sub, grad) {
+        const displayVal = value !== undefined && typeof value === 'number' ? Helpers.formatCurrency(value) : value;
         return `
-            <div class="relative overflow-hidden bg-gradient-to-br ${grad} rounded-2xl shadow-xl p-6 text-white transform hover:scale-105 transition-all">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
+            <div class="shrink-0 min-w-[120px] md:min-w-0 relative overflow-hidden bg-gradient-to-br ${grad} rounded-xl md:rounded-2xl shadow-xl p-3 md:p-6 text-white md:transform md:hover:scale-105 transition-all">
+                <div class="hidden md:block absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
                 <div class="relative">
-                    <p class="text-sm opacity-90 mb-2">${title}</p>
-                    <p class="text-4xl font-bold mb-2">${value !== undefined && typeof value === 'number' ? Helpers.formatCurrency(value) : value}</p>
-                    <div class="text-sm opacity-90">${sub}</div>
+                    <p class="text-[9px] md:text-sm opacity-90 mb-0.5 md:mb-2 font-bold uppercase tracking-wider">${title}</p>
+                    <p class="text-lg md:text-4xl font-bold mb-0 md:mb-2">${displayVal}</p>
+                    <div class="text-[8px] md:text-sm opacity-80">${sub}</div>
                 </div>
             </div>`;
     },
@@ -462,17 +463,17 @@ const Statistics = {
         const isOver = stats.total > budget;
 
         return `
-            <div class="bg-white rounded-2xl shadow-xl p-8 mb-8">
-                <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                    <span>💰</span><span class="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Budget Mensile</span>
+            <div class="bg-slate-800/40 backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-2xl p-3 md:p-8 mb-4 md:mb-8 border border-slate-700/50">
+                <h3 class="text-base md:text-2xl font-bold text-white mb-3 md:mb-6 flex items-center gap-2">
+                    <span>💰</span><span class="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">Budget Mensile</span>
                 </h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div class="text-center"><p class="text-sm text-gray-600 mb-2">Budget Totale</p><p class="text-4xl font-bold text-gray-800">${Helpers.formatCurrency(budget)}</p></div>
-                    <div class="text-center"><p class="text-sm text-gray-600 mb-2">Speso</p><p class="text-4xl font-bold ${isOver ? 'text-red-600' : 'text-blue-600'}">${Helpers.formatCurrency(stats.total)}</p></div>
-                    <div class="text-center"><p class="text-sm text-gray-600 mb-2">${isOver ? 'Oltre Budget' : 'Disponibile'}</p><p class="text-4xl font-bold ${isOver ? 'text-red-600' : 'text-green-600'}">${Helpers.formatCurrency(Math.abs(remaining))}</p></div>
+                <div class="grid grid-cols-3 gap-2 md:gap-6 mb-3 md:mb-6">
+                    <div class="text-center"><p class="text-[9px] md:text-sm text-slate-400 mb-0.5 md:mb-2">Budget</p><p class="text-sm md:text-4xl font-bold text-white">${Helpers.formatCurrency(budget)}</p></div>
+                    <div class="text-center"><p class="text-[9px] md:text-sm text-slate-400 mb-0.5 md:mb-2">Speso</p><p class="text-sm md:text-4xl font-bold ${isOver ? 'text-red-400' : 'text-blue-400'}">${Helpers.formatCurrency(stats.total)}</p></div>
+                    <div class="text-center"><p class="text-[9px] md:text-sm text-slate-400 mb-0.5 md:mb-2">${isOver ? 'Oltre' : 'Disponibile'}</p><p class="text-sm md:text-4xl font-bold ${isOver ? 'text-red-400' : 'text-green-400'}">${Helpers.formatCurrency(Math.abs(remaining))}</p></div>
                 </div>
-                <div class="relative h-12 bg-gray-100 rounded-full overflow-hidden">
-                    <div class="absolute inset-0 flex items-center justify-between px-6 z-10"><span class="font-bold ${percentage > 50 ? 'text-white' : 'text-gray-700'}">${percentage.toFixed(0)}% utilizzato</span><span class="font-bold ${percentage > 90 ? 'text-white' : 'text-gray-700'}">${isOver ? '⚠️ ' : ''}${Math.max(0, 100 - percentage).toFixed(0)}% disponibile</span></div>
+                <div class="relative h-6 md:h-12 bg-slate-700/50 rounded-full overflow-hidden">
+                    <div class="absolute inset-0 flex items-center justify-between px-2 md:px-6 z-10"><span class="font-bold text-[9px] md:text-sm ${percentage > 50 ? 'text-white' : 'text-slate-300'}">${percentage.toFixed(0)}%</span><span class="font-bold text-[9px] md:text-sm ${percentage > 90 ? 'text-white' : 'text-slate-300'}">${isOver ? '⚠️' : ''}${Math.max(0, 100 - percentage).toFixed(0)}%</span></div>
                     <div class="h-full bg-gradient-to-r ${isOver ? 'from-red-500 to-red-600' : 'from-green-500 to-emerald-600'} transition-all duration-1000" style="width: ${percentage}%"></div>
                 </div>
             </div>
@@ -480,13 +481,32 @@ const Statistics = {
     },
 
     renderCategoryBars(categories, total) {
-        if (!categories || categories.length === 0) return '<p class="text-gray-500 text-center py-8">Nessuna categoria</p>';
+        if (!categories || categories.length === 0) return '<p class="text-slate-500 text-center py-8">Nessuna categoria</p>';
         const maxValue = Math.max(...categories.map(c => c.total));
+        const colors = ['from-red-500 to-pink-600', 'from-orange-500 to-yellow-600', 'from-green-500 to-emerald-600', 'from-blue-500 to-cyan-600', 'from-purple-500 to-indigo-600'];
         return categories.map((cat, index) => {
             const barWidth = (cat.total / maxValue) * 100;
-            const colors = ['from-red-500 to-pink-600', 'from-orange-500 to-yellow-600', 'from-green-500 to-emerald-600', 'from-blue-500 to-cyan-600', 'from-purple-500 to-indigo-600'];
             return `
-                <div class="flex items-center gap-4"><div class="flex items-center gap-3 w-48"><span class="text-3xl">${cat.icon}</span><div><p class="font-semibold text-gray-800">${cat.name}</p><p class="text-xs text-gray-500">${cat.count} transazioni</p></div></div><div class="flex-1"><div class="flex items-center gap-3"><div class="flex-1 h-10 bg-gray-100 rounded-full overflow-hidden relative"><div class="h-full bg-gradient-to-r ${colors[index % colors.length]} rounded-full flex items-center justify-end pr-3" style="width: ${barWidth}%"><span class="text-white font-bold text-sm">${cat.percentage}%</span></div></div><span class="font-bold text-xl text-gray-800 w-24 text-right">${Helpers.formatCurrency(cat.total)}</span></div></div></div>
+                <div class="space-y-1.5 md:space-y-0 md:flex md:items-center md:gap-4">
+                    <div class="flex items-center gap-2 md:gap-3 md:w-48">
+                        <span class="text-xl md:text-3xl">${cat.icon}</span>
+                        <div class="flex-1 md:flex-none">
+                            <p class="font-semibold text-sm md:text-base text-slate-200">${cat.name}</p>
+                            <p class="text-[10px] md:text-xs text-slate-500">${cat.count} transazioni</p>
+                        </div>
+                        <span class="md:hidden font-bold text-sm text-white">${Helpers.formatCurrency(cat.total)}</span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 md:gap-3">
+                            <div class="flex-1 h-5 md:h-10 bg-slate-700/50 rounded-full overflow-hidden relative">
+                                <div class="h-full bg-gradient-to-r ${colors[index % colors.length]} rounded-full flex items-center justify-end pr-2 md:pr-3" style="width: ${barWidth}%">
+                                    <span class="text-white font-bold text-[9px] md:text-sm">${cat.percentage}%</span>
+                                </div>
+                            </div>
+                            <span class="hidden md:inline font-bold text-xl text-white w-24 text-right">${Helpers.formatCurrency(cat.total)}</span>
+                        </div>
+                    </div>
+                </div>
             `;
         }).join('');
     },
@@ -502,11 +522,11 @@ const Statistics = {
             });
         });
         const sorted = Object.values(tagStats).sort((a,b) => b.total - a.total);
-        if(sorted.length===0) return '<div class="text-center text-gray-500 py-8">Nessun tag.</div>';
+        if(sorted.length===0) return '<div class="text-center text-slate-500 py-8">Nessun tag.</div>';
         const total = sorted.reduce((s,t)=>s+t.total,0);
-        return `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">${sorted.map((t,i) => {
+        return `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">${sorted.map((t,i) => {
             const colors = ['from-blue-500 to-cyan-500', 'from-purple-500 to-pink-500', 'from-green-500 to-emerald-500'];
-            return `<div class="bg-gradient-to-r ${colors[i%3]} rounded-xl p-5 text-white shadow-lg"><div class="flex justify-between mb-3"><div class="flex items-center gap-3"><div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center text-2xl">🏷️</div><div><div class="font-bold text-xl">${t.tag}</div><div class="text-sm opacity-90">${t.count} transazioni</div></div></div><div class="text-right"><div class="font-bold text-2xl">${Helpers.formatCurrency(t.total)}</div><div class="text-sm opacity-90">${total > 0 ? ((t.total/total)*100).toFixed(1) : 0}%</div></div></div></div>`;
+            return `<div class="bg-gradient-to-r ${colors[i%3]} rounded-xl p-3 md:p-5 text-white shadow-lg"><div class="flex justify-between items-center md:items-start gap-2 md:mb-3"><div class="flex items-center gap-2 md:gap-3"><div class="w-8 h-8 md:w-12 md:h-12 bg-white/20 rounded-lg flex items-center justify-center text-lg md:text-2xl">🏷️</div><div><div class="font-bold text-sm md:text-xl">${t.tag}</div><div class="text-[10px] md:text-sm opacity-90">${t.count} trans.</div></div></div><div class="text-right"><div class="font-bold text-sm md:text-2xl">${Helpers.formatCurrency(t.total)}</div><div class="text-[10px] md:text-sm opacity-90">${total > 0 ? ((t.total/total)*100).toFixed(1) : 0}%</div></div></div></div>`;
         }).join('')}</div>`;
     },
 
@@ -536,12 +556,13 @@ const Statistics = {
                     <div id="hmList" class="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar"></div>
                 </div>
             </div>
-            <div class="grid grid-cols-7 gap-3 select-none">
+            <div class="grid grid-cols-7 gap-1 md:gap-3 select-none">
         `;
         
-        ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'].forEach(d => 
-            html += `<div class="text-center text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">${d}</div>`
-        );
+        ['D','L','M','M','G','V','S'].forEach((d, i) => {
+            const full = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'][i];
+            html += `<div class="text-center text-[9px] md:text-sm font-bold text-slate-500 uppercase tracking-wider mb-1 md:mb-2"><span class="md:hidden">${d}</span><span class="hidden md:inline">${full}</span></div>`;
+        });
 
         for(let i=0; i<startDate.getDay(); i++) html += '<div></div>';
 
@@ -570,12 +591,13 @@ const Statistics = {
             }
 
             html += `
-                <div class="h-20 ${bg} rounded-xl flex flex-col items-center justify-center cursor-pointer hover:scale-105 hover:brightness-110 transition-all duration-150 relative group"
+                <div class="h-11 md:h-20 ${bg} rounded-lg md:rounded-xl flex flex-col items-center justify-center cursor-pointer hover:scale-105 hover:brightness-110 transition-all duration-150 relative group"
+                     onclick="Statistics.showHeatmapTooltip(event, '${dateStr}', ${val})"
                      onmouseenter="Statistics.showHeatmapTooltip(event, '${dateStr}', ${val})"
                      onmousemove="Statistics.showHeatmapTooltip(event, '${dateStr}', ${val})"
                      onmouseleave="Statistics.hideHeatmapTooltip()">
-                    <span class="font-black text-xl ${textDay}">${curr.getDate()}</span>
-                    ${val > 0 ? `<span class="text-xs font-bold ${textAmount} mt-1 bg-black/20 px-2 py-0.5 rounded-full">${Helpers.formatCurrency(val).split(',')[0]}</span>` : ''}
+                    <span class="font-black text-sm md:text-xl ${textDay}">${curr.getDate()}</span>
+                    ${val > 0 ? `<span class="hidden md:inline text-xs font-bold ${textAmount} mt-1 bg-black/20 px-2 py-0.5 rounded-full">${Helpers.formatCurrency(val).split(',')[0]}</span>` : ''}
                 </div>
             `;
         }

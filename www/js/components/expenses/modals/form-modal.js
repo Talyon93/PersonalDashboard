@@ -160,27 +160,27 @@ const ExpenseFormUI = {
 
         const modal = document.createElement('div');
         modal.id = 'expenseModal';
-        modal.className = 'modal fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-fadeIn';
+        modal.className = 'modal fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6 animate-fadeIn';
         
         modal.innerHTML = `
             <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity" onclick="ExpenseModals.close('expenseModal')"></div>
             
-            <div class="relative w-full max-w-lg bg-[#0f172a] rounded-[2rem] shadow-2xl border border-slate-800/60 overflow-hidden transform transition-all scale-100 flex flex-col max-h-[90vh]">
+            <div class="relative w-full sm:max-w-lg bg-[#0f172a] rounded-t-2xl sm:rounded-[2rem] shadow-2xl border border-slate-800/60 overflow-hidden transform transition-all scale-100 flex flex-col max-h-[92vh] sm:max-h-[90vh]">
                 
-                <div class="relative px-8 pt-8 pb-6 border-b border-slate-800/50 bg-slate-900/50">
+                <div class="relative px-5 sm:px-8 pt-5 sm:pt-8 pb-4 sm:pb-6 border-b border-slate-800/50 bg-slate-900/50">
                     <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-${accentColor}-500 via-purple-500 to-${accentColor}-500 opacity-80"></div>
                     <div class="flex justify-between items-center">
                         <div>
-                            <h2 class="text-3xl font-black text-white tracking-tight">${title}</h2>
-                            <p class="text-slate-400 text-xs font-medium uppercase tracking-widest mt-1">Compila i dettagli</p>
+                            <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">${title}</h2>
+                            <p class="text-slate-400 text-[10px] sm:text-xs font-medium uppercase tracking-widest mt-0.5 sm:mt-1">Compila i dettagli</p>
                         </div>
-                        <div class="w-12 h-12 rounded-2xl bg-${accentColor}-500/10 flex items-center justify-center text-2xl shadow-inner border border-white/5">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-${accentColor}-500/10 flex items-center justify-center text-xl sm:text-2xl shadow-inner border border-white/5">
                             ${isIncome ? '💰' : '💸'}
                         </div>
                     </div>
                 </div>
 
-                <div class="p-8 overflow-y-auto custom-scrollbar space-y-6">
+                <div class="p-5 sm:p-8 overflow-y-auto custom-scrollbar space-y-4 sm:space-y-6">
                     <form onsubmit="ExpenseFormUI.submitAdd(event, '${type}')">
                         
                         <div class="group">
@@ -321,29 +321,29 @@ const ExpenseFormUI = {
 
         const modal = document.createElement('div');
         modal.id = 'expenseDetailModal';
-        modal.className = 'modal fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn';
+        modal.className = 'modal fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 animate-fadeIn';
         
         modal.innerHTML = `
             <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity" onclick="ExpenseFormUI.closeDetail()"></div>
 
-            <div class="relative w-full max-w-lg bg-[#0f172a] rounded-[2rem] shadow-2xl border border-slate-800/60 overflow-hidden transform transition-all scale-100 flex flex-col max-h-[90vh]">
+            <div class="relative w-full sm:max-w-lg bg-[#0f172a] rounded-t-2xl sm:rounded-[2rem] shadow-2xl border border-slate-800/60 overflow-hidden transform transition-all scale-100 flex flex-col max-h-[92vh] sm:max-h-[90vh]">
                 
-                <div class="relative px-8 pt-8 pb-2 flex justify-between items-start">
-                    <div class="flex items-center gap-5">
-                        <div class="w-16 h-16 flex items-center justify-center bg-slate-800/50 rounded-2xl text-4xl shadow-inner border border-white/5">
+                <div class="relative px-5 sm:px-8 pt-5 sm:pt-8 pb-2 flex justify-between items-start">
+                    <div class="flex items-center gap-3 sm:gap-5">
+                        <div class="w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center bg-slate-800/50 rounded-xl sm:rounded-2xl text-2xl sm:text-4xl shadow-inner border border-white/5">
                             ${category ? category.icon : '📦'}
                         </div>
                         <div>
-                            <h3 class="text-xl font-bold text-white leading-tight">${Helpers.escapeHtml(expense.description)}</h3>
-                            <p class="text-3xl font-black ${expense.type === 'income' ? 'text-emerald-400' : 'text-rose-500'} mt-1 tracking-tight drop-shadow-lg">
+                            <h3 class="text-base sm:text-xl font-bold text-white leading-tight">${Helpers.escapeHtml(expense.description)}</h3>
+                            <p class="text-2xl sm:text-3xl font-black ${expense.type === 'income' ? 'text-emerald-400' : 'text-rose-500'} mt-0.5 sm:mt-1 tracking-tight drop-shadow-lg">
                                 ${Helpers.formatCurrency(expense.amount)}
                             </p>
                         </div>
                     </div>
-                    <button onclick="ExpenseFormUI.closeDetail()" class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-all">&times;</button>
+                    <button onclick="ExpenseFormUI.closeDetail()" class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-all shrink-0">&times;</button>
                 </div>
 
-                <div class="p-8 overflow-y-auto custom-scrollbar space-y-5">
+                <div class="p-5 sm:p-8 overflow-y-auto custom-scrollbar space-y-4 sm:space-y-5">
                     <form onsubmit="ExpenseFormUI.submitUpdate(event, '${expenseId}')">
                         
                         <div class="grid grid-cols-2 gap-5 mb-5">
@@ -482,7 +482,7 @@ const ExpenseFormUI = {
         const list = Object.entries(mappings);
         const modal = document.createElement('div');
         modal.id = 'mappingsModal';
-        modal.className = 'modal fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn p-4';
+        modal.className = 'modal fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 animate-fadeIn sm:p-4';
         
         const renderRow = (merchant, data) => {
             const cat = window.Categories ? Categories.getById(data.category) : null;
@@ -492,7 +492,7 @@ const ExpenseFormUI = {
         };
 
         modal.innerHTML = `
-            <div class="bg-[#0f172a] rounded-2xl shadow-2xl border border-slate-800 w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden">
+            <div class="bg-[#0f172a] rounded-t-2xl sm:rounded-2xl shadow-2xl border border-slate-800 w-full sm:max-w-2xl flex flex-col max-h-[85vh] overflow-hidden">
                 <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
                     <div><h3 class="text-xl font-bold text-white">Regole Importazione</h3><p class="text-slate-500 text-xs mt-1">Gestisci le associazioni automatiche</p></div>
                     <button onclick="ExpenseModals.close('mappingsModal')" class="text-slate-500 hover:text-white transition-colors">&times;</button>
