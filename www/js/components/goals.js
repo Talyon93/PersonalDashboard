@@ -47,29 +47,29 @@ const Goals = {
         const groupedGoals = this.groupByQuarter(filteredGoals);
 
         container.innerHTML = `
-            <div class="mb-10 animate-fadeIn">
-                <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-6 mb-10">
+            <div class="mb-6 md:mb-10 animate-fadeIn">
+                <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-3 md:gap-6 mb-4 md:mb-10">
                     <div>
-                        <h2 class="text-5xl font-black tracking-tighter bg-gradient-to-r from-purple-400 via-pink-400 to-slate-400 bg-clip-text text-transparent italic">Obiettivi</h2>
-                        <p class="text-slate-400 mt-2 font-medium flex items-center gap-2 text-lg">
-                            <span class="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></span> Visione e traguardi a lungo termine.
+                        <h2 class="text-2xl md:text-5xl font-black tracking-tighter bg-gradient-to-r from-purple-400 via-pink-400 to-slate-400 bg-clip-text text-transparent italic">Obiettivi</h2>
+                        <p class="text-slate-400 mt-1 md:mt-2 font-medium flex items-center gap-2 text-xs md:text-lg">
+                            <span class="w-1.5 h-1.5 md:w-2 md:h-2 bg-pink-500 rounded-full animate-pulse"></span> Visione e traguardi a lungo termine.
                         </p>
                     </div>
                     
-                    <div class="flex flex-wrap gap-3">
-                        <div class="bg-slate-800/40 backdrop-blur-xl p-1 rounded-2xl border border-slate-700/50 flex shadow-xl">
+                    <div class="flex flex-wrap gap-2 md:gap-3">
+                        <div class="bg-slate-800/40 backdrop-blur-xl p-1 rounded-xl md:rounded-2xl border border-slate-700/50 flex shadow-xl">
                             ${['all', 'active', 'completed'].map(v => `
                                 <button onclick="Goals.setView('${v}')" 
-                                        class="px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${this.currentView === v ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}">
+                                        class="px-3 md:px-6 py-1.5 md:py-2 rounded-lg md:rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all ${this.currentView === v ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}">
                                     ${v === 'all' ? 'Tutti' : v === 'active' ? 'Attivi' : 'Finiti'}
                                 </button>
                             `).join('')}
                         </div>
-                        <button onclick="Goals.showAddModal()" class="px-8 py-2.5 bg-gradient-to-r from-purple-600 to-pink-700 text-white shadow-xl rounded-2xl transition-all hover:scale-105 active:scale-95 text-sm font-bold">✨ Nuovo Obiettivo</button>
+                        <button onclick="Goals.showAddModal()" class="px-4 md:px-8 py-2 md:py-2.5 bg-gradient-to-r from-purple-600 to-pink-700 text-white shadow-xl rounded-xl md:rounded-2xl transition-all hover:scale-105 active:scale-95 text-xs md:text-sm font-bold">✨ Nuovo</button>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                <div class="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-6 mb-6 md:mb-12 overflow-x-auto md:overflow-visible scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 pb-1 md:pb-0">
                     ${this.renderKpiCard('Progresso', overallProgress, 'from-purple-500 to-pink-600', `${completedSubtasks}/${totalSubtasks} Task`, '%')}
                     ${this.renderKpiCard('Attivi', activeGoals.length, 'from-blue-500 to-indigo-600', 'In esecuzione', '')}
                     ${this.renderKpiCard('Completati', completedGoals.length, 'from-emerald-500 to-teal-600', 'Traguardi raggiunti', '')}
@@ -77,7 +77,7 @@ const Goals = {
                 </div>
 
                 ${filteredGoals.length === 0 ? this.renderEmptyState() : `
-                    <div class="space-y-12">
+                    <div class="space-y-8 md:space-y-12">
                         ${Object.entries(groupedGoals).map(([quarter, goals]) => 
                             this.renderQuarterSection(quarter, goals)
                         ).join('')}
@@ -89,11 +89,13 @@ const Goals = {
 
     renderKpiCard(title, value, grad, sub, unit = '') {
         return `
-            <div class="relative overflow-hidden bg-gradient-to-br ${grad} rounded-2xl shadow-xl p-6 text-white transform hover:scale-[1.02] transition-all">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
-                <p class="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">${title}</p>
-                <p class="text-4xl font-black mb-1">${value}${unit}</p>
-                <p class="text-[10px] font-bold opacity-70 uppercase tracking-tighter">${sub}</p>
+            <div class="shrink-0 min-w-[120px] md:min-w-0 relative overflow-hidden bg-gradient-to-br ${grad} rounded-xl md:rounded-2xl shadow-xl p-3 md:p-6 text-white md:transform md:hover:scale-[1.02] transition-all">
+                <div class="hidden md:block absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
+                <div class="relative">
+                    <p class="text-[9px] md:text-[10px] font-black uppercase tracking-widest opacity-80 mb-0.5 md:mb-2">${title}</p>
+                    <p class="text-lg md:text-4xl font-black mb-0 md:mb-1">${value}${unit}</p>
+                    <p class="text-[8px] md:text-[10px] font-bold opacity-70 uppercase tracking-tighter">${sub}</p>
+                </div>
             </div>`;
     },
 
@@ -106,12 +108,12 @@ const Goals = {
         const msg = messages[this.currentView];
 
         return `
-            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-16 text-center">
-                <div class="text-8xl mb-6">${msg.icon}</div>
-                <h3 class="text-3xl font-bold text-white mb-3">${msg.title}</h3>
-                <p class="text-slate-400 text-lg mb-8">${msg.subtitle}</p>
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl md:rounded-2xl shadow-2xl border border-slate-700 p-8 md:p-16 text-center">
+                <div class="text-5xl md:text-8xl mb-4 md:mb-6">${msg.icon}</div>
+                <h3 class="text-xl md:text-3xl font-bold text-white mb-2 md:mb-3">${msg.title}</h3>
+                <p class="text-slate-400 text-sm md:text-lg mb-6 md:mb-8">${msg.subtitle}</p>
                 ${this.currentView === 'all' ? `
-                    <button onclick="Goals.showAddModal()" class="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl hover:scale-105 transition-all shadow-2xl font-bold text-lg">✨ Crea il tuo primo obiettivo</button>
+                    <button onclick="Goals.showAddModal()" class="px-6 md:px-8 py-3 md:py-4 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl hover:scale-105 transition-all shadow-2xl font-bold text-sm md:text-lg">✨ Crea il tuo primo obiettivo</button>
                 ` : ''}
             </div>`;
     },
@@ -134,12 +136,12 @@ const Goals = {
     renderQuarterSection(quarterKey, goals) {
         const [year, quarter] = quarterKey.split('-');
         return `
-            <div class="space-y-8">
-                <div class="flex items-center gap-4">
-                    <h3 class="text-2xl font-black text-white tracking-tight capitalize">📅 ${quarter} ${year}</h3>
+            <div class="space-y-4 md:space-y-8">
+                <div class="flex items-center gap-3 md:gap-4">
+                    <h3 class="text-lg md:text-2xl font-black text-white tracking-tight capitalize">📅 ${quarter} ${year}</h3>
                     <div class="h-px flex-1 bg-slate-700/50"></div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 gap-3 md:gap-4">
                     ${goals.map(goal => this.renderGoalCard(goal)).join('')}
                 </div>
             </div>`;
@@ -159,48 +161,48 @@ const Goals = {
         else if (daysUntil < 60) priorityColor = 'orange';
 
         return `
-            <div class="group relative bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl border-2 ${isCompleted ? 'border-green-500' : `border-${priorityColor}-500/50`} hover:border-${isCompleted ? 'green' : priorityColor}-400 transition-all overflow-hidden flex flex-col">
+            <div class="group relative bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl md:rounded-2xl shadow-2xl border-2 ${isCompleted ? 'border-green-500' : `border-${priorityColor}-500/50`} hover:border-${isCompleted ? 'green' : priorityColor}-400 transition-all overflow-hidden flex flex-col">
                 <div class="absolute inset-0 bg-gradient-to-r ${isCompleted ? 'from-green-500/10 to-emerald-500/10' : `from-${priorityColor}-500/5 to-${priorityColor}-600/5`} opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 
-                <div class="relative p-6 flex-1">
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="flex-1">
-                            <h4 class="text-xl font-bold ${isCompleted ? 'text-green-400' : 'text-white'} flex items-center gap-2">
+                <div class="relative p-4 md:p-6 flex-1">
+                    <div class="flex items-start justify-between mb-3 md:mb-4">
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-base md:text-xl font-bold ${isCompleted ? 'text-green-400' : 'text-white'} flex items-center gap-2 leading-tight">
                                 ${isCompleted ? '✅ ' : ''}${Helpers.escapeHtml(goal.title)}
                             </h4>
-                            ${goal.description ? `<p class="text-slate-400 text-sm line-clamp-2 mt-1">${Helpers.escapeHtml(goal.description)}</p>` : ''}
+                            ${goal.description ? `<p class="text-slate-400 text-xs md:text-sm line-clamp-2 mt-1">${Helpers.escapeHtml(goal.description)}</p>` : ''}
                         </div>
-                        <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onclick="Goals.showEditModal('${goal.id}')" class="p-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-blue-400">✏️</button>
-                            <button onclick="Goals.handleDeleteGoal('${goal.id}')" class="p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-400">🗑️</button>
+                        <div class="flex gap-1.5 md:gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+                            <button onclick="Goals.showEditModal('${goal.id}')" class="p-1.5 md:p-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-blue-400 text-sm">✏️</button>
+                            <button onclick="Goals.handleDeleteGoal('${goal.id}')" class="p-1.5 md:p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-red-400 text-sm">🗑️</button>
                         </div>
                     </div>
 
-                    <div class="mb-6">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-semibold text-slate-400">Progresso</span>
-                            <span class="text-2xl font-black ${percentage === 100 ? 'text-green-400' : 'text-slate-300'}">${percentage}%</span>
+                    <div class="mb-4 md:mb-6">
+                        <div class="flex items-center justify-between mb-1.5 md:mb-2">
+                            <span class="text-xs md:text-sm font-semibold text-slate-400">Progresso</span>
+                            <span class="text-lg md:text-2xl font-black ${percentage === 100 ? 'text-green-400' : 'text-slate-300'}">${percentage}%</span>
                         </div>
-                        <div class="relative h-4 bg-slate-700/50 rounded-full overflow-hidden border border-slate-600">
+                        <div class="relative h-3 md:h-4 bg-slate-700/50 rounded-full overflow-hidden border border-slate-600">
                             <div class="absolute inset-0 bg-gradient-to-r ${percentage === 100 ? 'from-green-500 to-emerald-600' : 'from-purple-500 to-pink-600'} transition-all duration-1000" style="width: ${percentage}%"></div>
                         </div>
-                         <div class="flex items-center justify-between mt-2">
-                            <span class="text-xs text-slate-500">${completed}/${total} subtask</span>
+                         <div class="flex items-center justify-between mt-1.5 md:mt-2">
+                            <span class="text-[10px] md:text-xs text-slate-500">${completed}/${total} subtask</span>
                             ${daysUntil >= 0 ? 
-                                `<span class="text-xs px-2 py-1 rounded-full ${daysUntil < 30 ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}">⏰ ${daysUntil} giorni</span>` : 
-                                `<span class="text-xs px-2 py-1 rounded-full bg-red-500/30 text-red-400 font-semibold animate-pulse">⚠️ Scaduto</span>`
+                                `<span class="text-[10px] md:text-xs px-2 py-0.5 md:py-1 rounded-full ${daysUntil < 30 ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}">⏰ ${daysUntil}g</span>` : 
+                                `<span class="text-[10px] md:text-xs px-2 py-0.5 md:py-1 rounded-full bg-red-500/30 text-red-400 font-semibold animate-pulse">⚠️ Scaduto</span>`
                             }
                         </div>
                     </div>
 
-                     <div class="space-y-2 mb-4 max-h-48 overflow-y-auto custom-scrollbar">
-                        ${goal.subtasks.length === 0 ? `<p class="text-sm text-slate-500 italic py-2 text-center">Nessun subtask</p>` 
+                     <div class="space-y-1.5 md:space-y-2 mb-3 md:mb-4 max-h-48 overflow-y-auto custom-scrollbar">
+                        ${goal.subtasks.length === 0 ? `<p class="text-xs md:text-sm text-slate-500 italic py-2 text-center">Nessun subtask</p>` 
                         : goal.subtasks.map((subtask, index) => `
-                            <div class="flex items-center gap-3 p-3 rounded-xl ${subtask.completed ? 'bg-green-500/10' : 'bg-slate-700/30'} hover:bg-slate-700/50 transition-all cursor-pointer" onclick="Goals.handleToggleSubtask('${goal.id}', ${index})">
-                                <div class="w-5 h-5 rounded-full border-2 ${subtask.completed ? 'border-green-400 bg-green-500' : 'border-slate-500'} flex items-center justify-center">
-                                    ${subtask.completed ? '<span class="text-[10px] text-white">✓</span>' : ''}
+                            <div class="flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-lg md:rounded-xl ${subtask.completed ? 'bg-green-500/10' : 'bg-slate-700/30'} hover:bg-slate-700/50 transition-all cursor-pointer" onclick="Goals.handleToggleSubtask('${goal.id}', ${index})">
+                                <div class="w-4 h-4 md:w-5 md:h-5 rounded-full border-2 ${subtask.completed ? 'border-green-400 bg-green-500' : 'border-slate-500'} flex items-center justify-center shrink-0">
+                                    ${subtask.completed ? '<span class="text-[8px] md:text-[10px] text-white">✓</span>' : ''}
                                 </div>
-                                <span class="flex-1 text-sm ${subtask.completed ? 'line-through text-slate-500' : 'text-slate-300'}">${Helpers.escapeHtml(subtask.title)}</span>
+                                <span class="flex-1 text-xs md:text-sm ${subtask.completed ? 'line-through text-slate-500' : 'text-slate-300'}">${Helpers.escapeHtml(subtask.title)}</span>
                             </div>
                         `).join('')}
                     </div>
@@ -397,21 +399,21 @@ const Goals = {
 
     showAddModal() {
         const modalHTML = `
-            <div id="goalModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn overflow-y-auto">
-                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-700 animate-slideUp my-8">
-                    <div class="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4 flex items-center justify-between rounded-t-2xl">
-                        <h3 class="text-2xl font-bold text-white">✨ Nuovo Obiettivo</h3>
-                        <button onclick="Goals.closeModal()" class="text-white/80 hover:text-white transition">✕</button>
+            <div id="goalModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end md:items-center justify-center z-50 animate-fadeIn overflow-y-auto">
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-t-2xl md:rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-700 animate-slideUp md:my-8 max-h-[90vh] overflow-y-auto">
+                    <div class="bg-gradient-to-r from-purple-600 to-pink-600 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between rounded-t-2xl sticky top-0 z-10">
+                        <h3 class="text-lg md:text-2xl font-bold text-white">✨ Nuovo Obiettivo</h3>
+                        <button onclick="Goals.closeModal()" class="text-white/80 hover:text-white transition text-lg">✕</button>
                     </div>
-                    <form onsubmit="Goals.handleAddGoal(event)" class="p-6 space-y-6">
-                        <div><label class="block text-sm font-semibold text-slate-300 mb-2">Titolo</label><input type="text" id="goalTitle" required class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none"></div>
-                        <div><label class="block text-sm font-semibold text-slate-300 mb-2">Descrizione</label><textarea id="goalDescription" rows="3" class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none resize-none"></textarea></div>
-                        <div><label class="block text-sm font-semibold text-slate-300 mb-2">Scadenza</label><input type="date" id="goalTargetDate" required class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none"></div>
+                    <form onsubmit="Goals.handleAddGoal(event)" class="p-4 md:p-6 space-y-4 md:space-y-6">
+                        <div><label class="block text-xs md:text-sm font-semibold text-slate-300 mb-1.5 md:mb-2">Titolo</label><input type="text" id="goalTitle" required class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-3 md:px-4 py-2.5 md:py-3 text-white text-sm md:text-base focus:border-purple-500 focus:outline-none"></div>
+                        <div><label class="block text-xs md:text-sm font-semibold text-slate-300 mb-1.5 md:mb-2">Descrizione</label><textarea id="goalDescription" rows="2" class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-3 md:px-4 py-2.5 md:py-3 text-white text-sm md:text-base focus:border-purple-500 focus:outline-none resize-none"></textarea></div>
+                        <div><label class="block text-xs md:text-sm font-semibold text-slate-300 mb-1.5 md:mb-2">Scadenza</label><input type="date" id="goalTargetDate" required class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-3 md:px-4 py-2.5 md:py-3 text-white text-sm md:text-base focus:border-purple-500 focus:outline-none"></div>
                         <div>
-                            <div class="flex items-center justify-between mb-3"><label class="text-sm font-semibold text-slate-300">Subtask</label><button type="button" onclick="Goals.addSubtaskField()" class="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-bold">➕ Aggiungi</button></div>
-                            <div id="subtasksList" class="space-y-2 max-h-64 overflow-y-auto pr-2"></div>
+                            <div class="flex items-center justify-between mb-2 md:mb-3"><label class="text-xs md:text-sm font-semibold text-slate-300">Subtask</label><button type="button" onclick="Goals.addSubtaskField()" class="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-lg text-xs md:text-sm font-bold">➕ Aggiungi</button></div>
+                            <div id="subtasksList" class="space-y-2 max-h-48 md:max-h-64 overflow-y-auto pr-1 md:pr-2"></div>
                         </div>
-                        <div class="flex gap-3 pt-4"><button type="submit" class="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg font-bold">Salva</button><button type="button" onclick="Goals.closeModal()" class="px-6 py-3 bg-slate-700 text-slate-300 rounded-lg font-bold">Annulla</button></div>
+                        <div class="flex gap-2 md:gap-3 pt-2 md:pt-4 pb-2"><button type="submit" class="flex-1 px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg font-bold text-sm md:text-base">Salva</button><button type="button" onclick="Goals.closeModal()" class="px-4 md:px-6 py-2.5 md:py-3 bg-slate-700 text-slate-300 rounded-lg font-bold text-sm md:text-base">Annulla</button></div>
                     </form>
                 </div>
             </div>`;
@@ -425,8 +427,8 @@ const Goals = {
         const id = Date.now() + Math.random();
         const html = `
             <div class="flex gap-2 animate-slideUp" id="subtask-${id}">
-                <input type="text" class="flex-1 bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-2 text-white focus:border-purple-500 focus:outline-none subtask-input" placeholder="Step intermedio...">
-                <button type="button" onclick="document.getElementById('subtask-${id}').remove()" class="px-3 bg-red-500/20 text-red-400 rounded-lg">🗑️</button>
+                <input type="text" class="flex-1 bg-slate-700/50 border-2 border-slate-600 rounded-lg px-3 md:px-4 py-1.5 md:py-2 text-white text-sm focus:border-purple-500 focus:outline-none subtask-input" placeholder="Step intermedio...">
+                <button type="button" onclick="document.getElementById('subtask-${id}').remove()" class="px-2 md:px-3 bg-red-500/20 text-red-400 rounded-lg text-sm">🗑️</button>
             </div>`;
         document.getElementById('subtasksList').insertAdjacentHTML('beforeend', html);
     },
@@ -453,28 +455,28 @@ const Goals = {
         const goal = this.goals.find(g => g.id === id);
         if (!goal) return;
         const modalHTML = `
-            <div id="goalModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn overflow-y-auto">
-                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-700 animate-slideUp my-8">
-                    <div class="bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-4 flex items-center justify-between rounded-t-2xl">
-                        <h3 class="text-2xl font-bold text-white">✏️ Modifica</h3>
-                        <button onclick="Goals.closeModal()" class="text-white/80 hover:text-white">✕</button>
+            <div id="goalModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end md:items-center justify-center z-50 animate-fadeIn overflow-y-auto">
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-t-2xl md:rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-700 animate-slideUp md:my-8 max-h-[90vh] overflow-y-auto">
+                    <div class="bg-gradient-to-r from-blue-600 to-cyan-600 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between rounded-t-2xl sticky top-0 z-10">
+                        <h3 class="text-lg md:text-2xl font-bold text-white">✏️ Modifica</h3>
+                        <button onclick="Goals.closeModal()" class="text-white/80 hover:text-white text-lg">✕</button>
                     </div>
-                    <form onsubmit="Goals.handleEditGoal(event, '${goal.id}')" class="p-6 space-y-6">
-                        <div><label class="block text-sm font-semibold text-slate-300 mb-2">Titolo</label><input type="text" id="goalTitle" required value="${Helpers.escapeHtml(goal.title)}" class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none"></div>
-                        <div><label class="block text-sm font-semibold text-slate-300 mb-2">Descrizione</label><textarea id="goalDescription" rows="3" class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none resize-none">${Helpers.escapeHtml(goal.description || '')}</textarea></div>
-                        <div><label class="block text-sm font-semibold text-slate-300 mb-2">Scadenza</label><input type="date" id="goalTargetDate" required value="${goal.targetDate}" class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none"></div>
+                    <form onsubmit="Goals.handleEditGoal(event, '${goal.id}')" class="p-4 md:p-6 space-y-4 md:space-y-6">
+                        <div><label class="block text-xs md:text-sm font-semibold text-slate-300 mb-1.5 md:mb-2">Titolo</label><input type="text" id="goalTitle" required value="${Helpers.escapeHtml(goal.title)}" class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-3 md:px-4 py-2.5 md:py-3 text-white text-sm md:text-base focus:border-blue-500 focus:outline-none"></div>
+                        <div><label class="block text-xs md:text-sm font-semibold text-slate-300 mb-1.5 md:mb-2">Descrizione</label><textarea id="goalDescription" rows="2" class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-3 md:px-4 py-2.5 md:py-3 text-white text-sm md:text-base focus:border-blue-500 focus:outline-none resize-none">${Helpers.escapeHtml(goal.description || '')}</textarea></div>
+                        <div><label class="block text-xs md:text-sm font-semibold text-slate-300 mb-1.5 md:mb-2">Scadenza</label><input type="date" id="goalTargetDate" required value="${goal.targetDate}" class="w-full bg-slate-700/50 border-2 border-slate-600 rounded-lg px-3 md:px-4 py-2.5 md:py-3 text-white text-sm md:text-base focus:border-blue-500 focus:outline-none"></div>
                         <div>
-                            <div class="flex items-center justify-between mb-3"><label class="text-sm font-semibold text-slate-300">Subtask</label><button type="button" onclick="Goals.addSubtaskField()" class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-bold">➕ Aggiungi</button></div>
-                            <div id="subtasksList" class="space-y-2 max-h-64 overflow-y-auto pr-2">
+                            <div class="flex items-center justify-between mb-2 md:mb-3"><label class="text-xs md:text-sm font-semibold text-slate-300">Subtask</label><button type="button" onclick="Goals.addSubtaskField()" class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-xs md:text-sm font-bold">➕ Aggiungi</button></div>
+                            <div id="subtasksList" class="space-y-2 max-h-48 md:max-h-64 overflow-y-auto pr-1 md:pr-2">
                                 ${goal.subtasks.map(st => `
                                     <div class="flex gap-2 items-center">
-                                        <input type="checkbox" ${st.completed ? 'checked' : ''} class="w-5 h-5 subtask-completed accent-green-500">
-                                        <input type="text" value="${Helpers.escapeHtml(st.title)}" class="flex-1 bg-slate-700/50 border-2 border-slate-600 rounded-lg px-4 py-2 text-white subtask-input">
-                                        <button type="button" onclick="this.parentElement.remove()" class="px-3 bg-red-500/20 text-red-400 rounded-lg">🗑️</button>
+                                        <input type="checkbox" ${st.completed ? 'checked' : ''} class="w-4 h-4 md:w-5 md:h-5 subtask-completed accent-green-500 shrink-0">
+                                        <input type="text" value="${Helpers.escapeHtml(st.title)}" class="flex-1 bg-slate-700/50 border-2 border-slate-600 rounded-lg px-3 md:px-4 py-1.5 md:py-2 text-white text-sm subtask-input">
+                                        <button type="button" onclick="this.parentElement.remove()" class="px-2 md:px-3 bg-red-500/20 text-red-400 rounded-lg text-sm">🗑️</button>
                                     </div>`).join('')}
                             </div>
                         </div>
-                        <div class="flex gap-3 pt-4"><button type="submit" class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg font-bold">Salva</button><button type="button" onclick="Goals.closeModal()" class="px-6 py-3 bg-slate-700 text-slate-300 rounded-lg font-bold">Annulla</button></div>
+                        <div class="flex gap-2 md:gap-3 pt-2 md:pt-4 pb-2"><button type="submit" class="flex-1 px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg font-bold text-sm md:text-base">Salva</button><button type="button" onclick="Goals.closeModal()" class="px-4 md:px-6 py-2.5 md:py-3 bg-slate-700 text-slate-300 rounded-lg font-bold text-sm md:text-base">Annulla</button></div>
                     </form>
                 </div>
             </div>`;
