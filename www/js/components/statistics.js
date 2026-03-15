@@ -183,12 +183,10 @@ const Statistics = {
     //  FILTRAGGIO CRUCIALE: BOOLEAN LOGIC
     // ==========================================================
 
-    // Spese "Normali": NO is_excluded
     getNormalExpenses(expenses) {
         return expenses.filter(e => !e.is_excluded && (!e.type || e.type === 'expense'));
     },
     
-    // Spese "Investimenti/Extra": SI is_excluded
     getExcludedExpenses(expenses) {
         return expenses.filter(e => !!e.is_excluded && (!e.type || e.type === 'expense'));
     },
@@ -197,7 +195,6 @@ const Statistics = {
         const incomeTx = expenses.filter(e => e.type === 'income');
         const income = incomeTx.reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
         
-        // Separiamo usando la logica booleana
         const expOnly = expenses.filter(e => !e.type || e.type === 'expense');
         const normal = this.getNormalExpenses(expOnly);
         const excluded = this.getExcludedExpenses(expOnly);
@@ -205,7 +202,6 @@ const Statistics = {
         const total = normal.reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
         const excludedTotal = excluded.reduce((s, e) => s + Math.abs(parseFloat(e.amount)), 0);
         
-        // Statistiche Categorie (solo per spese normali)
         const categoryTotals = {};
         const categoryCounts = {};
         Categories.getAll().forEach(c => { categoryTotals[c.id] = 0; categoryCounts[c.id] = 0; });
@@ -276,8 +272,56 @@ const Statistics = {
         }
 
         const monthlyBudget = this.safeGetSetting('monthlyBudget', 700);
-        const maxVal = Math.max(runningTotal, monthlyBudget) * 1.15; 
-        
+        const maxVal = Math.max(runningTotal, monthlyBudget) * 1.15;
+
+        // ══════════════════════════════════════════
+        //  MOBILE: barre settimanali HTML
+        // ══════════════════════════════════════════
+        if (window.innerWidth < 768) {
+            const budgetPerDay = monthlyBudget / daysInCustomMonth;
+            const weeks = [];
+            let wTotal = 0, wStart = null, wDays = 0;
+            cumulativeTotals.forEach((d, i) => {
+                if (wStart === null) wStart = d.day;
+                wTotal += d.daily;
+                wDays++;
+                if (wDays === 7 || i === cumulativeTotals.length - 1) {
+                    weeks.push({ start: wStart, end: d.day, total: wTotal, days: wDays });
+                    wTotal = 0; wDays = 0; wStart = null;
+                }
+            });
+            const maxWeek = Math.max(...weeks.map(w => w.total), 1);
+            const budgetPct = Math.min((runningTotal / monthlyBudget) * 100, 100);
+            const isOver = runningTotal > monthlyBudget;
+
+            return `
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between text-xs mb-1">
+                        <span class="text-slate-400">Totale: <span class="text-white font-bold">${Helpers.formatCurrency(runningTotal)}</span></span>
+                        <span class="text-red-400 font-medium">Budget: ${Helpers.formatCurrency(monthlyBudget)}</span>
+                    </div>
+                    <div class="relative h-2.5 bg-slate-700/60 rounded-full overflow-hidden mb-2">
+                        <div class="h-full rounded-full transition-all duration-500 ${isOver ? 'bg-red-500' : 'bg-blue-500'}" style="width:${budgetPct}%"></div>
+                    </div>
+                    ${weeks.map(w => {
+                        const pct = Math.max((w.total / maxWeek) * 100, 3);
+                        const over = w.total > budgetPerDay * w.days;
+                        return `
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] font-bold text-slate-500 w-14 shrink-0 text-right">${w.start}\u2013${w.end}</span>
+                            <div class="flex-1 h-7 bg-slate-700/40 rounded-lg overflow-hidden">
+                                <div class="h-full rounded-lg ${over ? 'bg-gradient-to-r from-red-500 to-rose-600' : 'bg-gradient-to-r from-blue-500 to-indigo-500'}" style="width:${pct}%"></div>
+                            </div>
+                            <span class="text-xs font-bold ${over ? 'text-red-400' : 'text-white'} w-16 text-right shrink-0">${Helpers.formatCurrency(w.total).split(',')[0]}\u20AC</span>
+                        </div>`;
+                    }).join('')}
+                    <div class="text-center text-[10px] text-slate-600 pt-1">Raggruppato per settimana</div>
+                </div>`;
+        }
+
+        // ══════════════════════════════════════════
+        //  DESKTOP: SVG originale (invariato)
+        // ══════════════════════════════════════════
         const W = 1200;
         const H = 350;
         const PAD_L = 70;
@@ -326,7 +370,7 @@ const Statistics = {
                         const y = getY(val);
                         return `
                             <line x1="${PAD_L}" y1="${y}" x2="${W - PAD_R}" y2="${y}" stroke="#334155" stroke-width="1" stroke-dasharray="4" />
-                            <text x="${PAD_L - 15}" y="${y + 5}" fill="#94a3b8" font-size="12" text-anchor="end" font-family="sans-serif">${Helpers.formatCurrency(val).split(',')[0]}€</text>
+                            <text x="${PAD_L - 15}" y="${y + 5}" fill="#94a3b8" font-size="12" text-anchor="end" font-family="sans-serif">${Helpers.formatCurrency(val).split(',')[0]}\u20AC</text>
                         `;
                     }).join('')}
                     <line x1="${bStart.x}" y1="${bStart.y}" x2="${bEnd.x}" y2="${bEnd.y}" stroke="#ef4444" stroke-width="2" stroke-dasharray="8,6" opacity="0.7" />
@@ -360,7 +404,6 @@ const Statistics = {
         const aggregated = {};
         const labels = [];
         
-        // FILTRO QUI: Solo spese normali (non investimenti)
         const normalExpenses = this.getNormalExpenses(expenses);
 
         if (this.viewMode === 'year') {
@@ -383,7 +426,81 @@ const Statistics = {
         const keys = this.viewMode === 'year' ? Object.keys(aggregated) : labels;
         const values = keys.map(k => aggregated[k] || 0);
         const maxVal = Math.max(...values, 100) * 1.1;
+        const totalSpent = values.reduce((s, v) => s + v, 0);
+        const currentMonth = new Date().getMonth();
+        const isCurrentYear = this.currentYear === new Date().getFullYear();
 
+        // ══════════════════════════════════════════
+        //  MOBILE: horizontal bars HTML
+        // ══════════════════════════════════════════
+        if (window.innerWidth < 768) {
+            const maxBar = Math.max(...values, 1);
+
+            if (this.viewMode === 'year') {
+                // Average per active month
+                const activeMonths = values.filter(v => v > 0).length;
+                const avg = activeMonths > 0 ? totalSpent / activeMonths : 0;
+
+                return `
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between text-xs mb-2">
+                            <span class="text-slate-400">Totale anno: <span class="text-white font-bold">${Helpers.formatCurrency(totalSpent)}</span></span>
+                            <span class="text-slate-400">Media: <span class="text-indigo-400 font-medium">${Helpers.formatCurrency(avg)}/mese</span></span>
+                        </div>
+                        ${keys.map((k, i) => {
+                            const val = aggregated[k];
+                            const pct = Math.max((val / maxBar) * 100, val > 0 ? 3 : 0);
+                            const isCurrent = isCurrentYear && parseInt(k) === currentMonth;
+                            const hasData = val > 0;
+                            const isAboveAvg = val > avg && avg > 0;
+
+                            return `
+                            <div class="flex items-center gap-2 ${isCurrent ? 'scale-[1.02] origin-left' : ''}">
+                                <span class="text-[11px] font-bold ${isCurrent ? 'text-indigo-400' : 'text-slate-500'} w-8 shrink-0 text-right uppercase">${labels[k]}</span>
+                                <div class="flex-1 h-6 bg-slate-700/40 rounded-lg overflow-hidden">
+                                    ${hasData ? `
+                                    <div class="h-full rounded-lg transition-all duration-500 ${
+                                        isCurrent 
+                                            ? 'bg-gradient-to-r from-indigo-500 to-blue-500 shadow-sm shadow-indigo-500/30' 
+                                            : isAboveAvg 
+                                                ? 'bg-gradient-to-r from-orange-500 to-amber-500' 
+                                                : 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                                    }" style="width:${pct}%"></div>
+                                    ` : ''}
+                                </div>
+                                <span class="text-xs font-bold ${
+                                    !hasData ? 'text-slate-600' : isCurrent ? 'text-indigo-400' : 'text-white'
+                                } w-14 text-right shrink-0">${hasData ? Helpers.formatCurrency(val).split(',')[0] + '€' : '—'}</span>
+                            </div>`;
+                        }).join('')}
+                    </div>`;
+            } else {
+                // "all" mode — by year, vertical list
+                return `
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between text-xs mb-2">
+                            <span class="text-slate-400">Totale: <span class="text-white font-bold">${Helpers.formatCurrency(totalSpent)}</span></span>
+                        </div>
+                        ${keys.map((year, i) => {
+                            const val = aggregated[year] || 0;
+                            const pct = Math.max((val / maxBar) * 100, val > 0 ? 3 : 0);
+                            const isCurrent = year == new Date().getFullYear();
+                            return `
+                            <div class="flex items-center gap-2">
+                                <span class="text-[11px] font-bold ${isCurrent ? 'text-indigo-400' : 'text-slate-500'} w-10 shrink-0 text-right">${year}</span>
+                                <div class="flex-1 h-7 bg-slate-700/40 rounded-lg overflow-hidden">
+                                    <div class="h-full rounded-lg bg-gradient-to-r ${isCurrent ? 'from-indigo-500 to-blue-500' : 'from-blue-500 to-indigo-500'}" style="width:${pct}%"></div>
+                                </div>
+                                <span class="text-xs font-bold ${isCurrent ? 'text-indigo-400' : 'text-white'} w-16 text-right shrink-0">${Helpers.formatCurrency(val).split(',')[0]}€</span>
+                            </div>`;
+                        }).join('')}
+                    </div>`;
+            }
+        }
+
+        // ══════════════════════════════════════════
+        //  DESKTOP: SVG (unchanged)
+        // ══════════════════════════════════════════
         const W = 1200;
         const H = 350;
         const PAD_L = 70;
@@ -512,7 +629,6 @@ const Statistics = {
     },
 
     renderTagStats(expenses) {
-        // Usa solo spese normali per i tag
         const tagStats = {};
         this.getNormalExpenses(expenses).forEach(e => {
             if(e.tags) e.tags.forEach(t => {
@@ -536,7 +652,6 @@ const Statistics = {
         const days = Math.ceil((endDate - startDate) / 86400000) + 1;
         const dailyTotals = {};
         
-        // 1. Dati (Solo normali)
         const normalExpenses = this.getNormalExpenses(expenses);
 
         normalExpenses.forEach(e => {
