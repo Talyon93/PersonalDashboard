@@ -12,7 +12,6 @@ There is no build step for the web app — open `www/index.html` directly in a b
 
 **Android build:**
 ```bash
-npm run build          # no-op currently
 npx cap sync android   # sync web assets to Android project
 npx cap open android   # open in Android Studio
 ```
@@ -65,8 +64,10 @@ Components register widgets (objects with `{ id, title, size, render }`) that th
 | `www/js/event-bus.js` | Cross-component event system |
 | `www/js/data-cache.js` | Two-tier cache (memory + localStorage) |
 | `www/js/cached-crud.js` | Cache-aware wrappers for all DB ops |
+| `www/js/agenda-bridge.js` | Registry for external events shown in agenda |
 | `www/js/components/dashboard.js` | Drag-drop widget grid |
-| `www/js/components/agenda/agenda.js` | Main agenda (largest: ~57KB) |
+| `www/js/components/agenda/agenda.js` | Agenda controller — state, CRUD, navigation |
+| `www/js/components/agenda/agenda_view.js` | All agenda render functions (day/week/month/year/list) |
 | `www/js/components/expenses/expenses-main.js` | Expense module orchestrator |
 | `www/js/components/statistics.js` | Analytics/charts (Chart.js) |
 
@@ -74,10 +75,61 @@ Components register widgets (objects with `{ id, title, size, render }`) that th
 
 Single-page app with hash-based routing. `navigation.js` maps route names to component render calls. Routes: `dashboard`, `agenda`, `goals`, `expenses`, `expenses-settings`, `statistics`, `diet`, `settings`, `modules`.
 
+### Auth
+
+Supabase Auth with email/password and Google OAuth. `www/js/supabase-config.js` initializes the client and exposes `window.getUser()`, `window.requireAuth()`, `window.logout()`. Auth uses `getSession()` (not `getUser()`) for reliability after OAuth redirects. Password reset flow is handled entirely in `login.html` via `onAuthStateChange` detecting the `PASSWORD_RECOVERY` event.
+
 ### Supabase Integration
 
-Config in `www/js/config.js` (public anon key — safe for frontend, relies on Row Level Security). Client initialized in `www/js/supabase-config.js`. All DB access goes through `CachedCRUD` wrappers to maintain cache coherency.
+Config in `www/js/config.js` (public anon key — safe for frontend, relies on Row Level Security). On Netlify, the key is injected at build time via environment variables (see `netlify.toml`). All DB access goes through `CachedCRUD` wrappers to maintain cache coherency.
+
+### AgendaBridge — External Events in Agenda
+
+`www/js/agenda-bridge.js` is a registry that lets any module inject read-only events into the agenda views. Loaded before all agenda scripts.
+
+**Normalized event format:**
+```js
+{
+  id: 'ext_expenses_123',   // unique, prefixed with module id
+  _isExternal: true,
+  moduleId: 'expenses',
+  moduleLabel: 'Spese',
+  date: 'YYYY-MM-DD',
+  time: 'HH:MM' | null,    // null → shown in all-day strip; with time → shown in grid
+  title: string,
+  subtitle: string,         // e.g. '€ 45.00 · Cibo'
+  color: '#f59e0b',
+  icon: '💰',
+  onNavigate: string|undefined, // optional JS expression to run when user taps the action button
+}
+```
+
+**`onNavigate`**: optional field on an event. If present, the info popup shows "Apri dettaglio →" and evaluates the expression directly (no section change). If absent, the popup shows "Vai a [Module] →" and calls `window.showSection(moduleId)`. Use this to open a self-contained modal without leaving the agenda — e.g. `ExpenseModals.showDetail('123')` or `Diet.openModal(2, 'lunch')`.
+
+**To register a new module:**
+```js
+AgendaBridge.register({
+    id: 'goals',
+    label: 'Obiettivi',
+    color: '#8b5cf6',
+    icon: '🎯',
+    getEvents: (from, to) => Goals.getAgendaEvents(from, to)
+});
+```
+
+Place the registration at the bottom of the module's file, after `window.ModuleManager` registration. The module must implement `getAgendaEvents(fromStr, toStr)` returning a promise of normalized events.
+
+**Visibility settings** are stored in localStorage as `agenda_display_settings` (per-module boolean). The user controls these via the ⚙ button in the agenda header.
+
+**Agenda rendering**: `_loadExternalEvents()` runs at the start of every `updateView()`, computes the date range for the current view, and calls `AgendaBridge.getEvents()`. External events are passed as a 5th parameter to all `AgendaViews.render*()` functions.
+
+- **Day view**: untimed events → all-day badge strip; timed events → inline in the hour grid
+- **Week view**: untimed events → badge strip above each day column (clickable); timed events → inline in the hour grid
+- **List view**: external events interleaved with tasks per day, sorted by time
+- **Month view**: colored dots per module on days that have external events
+
+All external event badges/blocks call `AgendaBridge.showEventInfo(ev.id)` on click. Events are cached in `AgendaBridge._cache` (Map) at fetch time for fast lookup in the popup.
 
 ### Responsive / Mobile
 
-Tailwind breakpoints (`md:`) handle desktop vs mobile layout. Capacitor wraps the web app for Android. Recent commits have focused heavily on mobile layout optimization for each module.
+Tailwind breakpoints (`md:`) handle desktop vs mobile layout. Capacitor wraps the web app for Android. All major views have separate Desktop and Mobile render functions (e.g. `renderDayDesktop` / `renderDayMobile`).

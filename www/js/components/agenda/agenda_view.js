@@ -164,28 +164,28 @@ const AgendaViews = {
     //  ROUTER DELLE VISTE (Split)
     // ============================================================
 
-    renderDay(tasks, notes, currentDate, config) {
-        return this.isMobile() 
-            ? this.renderDayMobile(tasks, notes, currentDate, config) 
-            : this.renderDayDesktop(tasks, notes, currentDate, config);
+    renderDay(tasks, notes, currentDate, config, externalEvents = []) {
+        return this.isMobile()
+            ? this.renderDayMobile(tasks, notes, currentDate, config, externalEvents)
+            : this.renderDayDesktop(tasks, notes, currentDate, config, externalEvents);
     },
 
-    renderWeek(tasks, notes, currentDate, config) {
-        return this.isMobile() 
-            ? this.renderWeekMobile(tasks, notes, currentDate, config) 
-            : this.renderWeekDesktop(tasks, notes, currentDate, config);
+    renderWeek(tasks, notes, currentDate, config, externalEvents = []) {
+        return this.isMobile()
+            ? this.renderWeekMobile(tasks, notes, currentDate, config, externalEvents)
+            : this.renderWeekDesktop(tasks, notes, currentDate, config, externalEvents);
     },
 
-    renderMonth(tasks, notes, currentDate, config) {
-        return this.isMobile() 
-            ? this.renderMonthMobile(tasks, notes, currentDate, config) 
-            : this.renderMonthDesktop(tasks, notes, currentDate, config);
+    renderMonth(tasks, notes, currentDate, config, externalEvents = []) {
+        return this.isMobile()
+            ? this.renderMonthMobile(tasks, notes, currentDate, config, externalEvents)
+            : this.renderMonthDesktop(tasks, notes, currentDate, config, externalEvents);
     },
 
-    renderList(tasks, notes, currentDate, config) {
-        return this.isMobile() 
-            ? this.renderListMobile(tasks, notes, currentDate, config) 
-            : this.renderListDesktop(tasks, notes, currentDate, config);
+    renderList(tasks, notes, currentDate, config, externalEvents = []) {
+        return this.isMobile()
+            ? this.renderListMobile(tasks, notes, currentDate, config, externalEvents)
+            : this.renderListDesktop(tasks, notes, currentDate, config, externalEvents);
     },
 
     renderYear(tasks, notes, currentDate) {
@@ -199,7 +199,7 @@ const AgendaViews = {
     // ============================================================
     
     // --- DESKTOP (Il tuo script originale) ---
-    renderDayDesktop(tasks, notes, currentDate, config) {
+    renderDayDesktop(tasks, notes, currentDate, config, externalEvents = []) {
         const dateStr = this._iso(currentDate);
         const dayTasks = tasks.filter(t => this._isTaskActiveInDate(t, dateStr));
         const allDayTasks = dayTasks.filter(t => this._isAllDayOrMultiDay(t));
@@ -208,6 +208,12 @@ const AgendaViews = {
         const isToday = dateStr === this._iso(new Date());
         const slotCount = this._getSlotCount(config);
         const rowHeightPct = 100 / slotCount;
+
+        const dayExt = externalEvents.filter(ev => ev.date === dateStr);
+        const extUntimed = dayExt.filter(ev => !ev.time);
+        const extTimed = dayExt.filter(ev => ev.time).map(ev => ({
+            ...ev, date: ev.date + 'T' + ev.time + ':00', duration: 30,
+        }));
 
         return `
             <div class="flex flex-col h-[calc(100vh-290px)] gap-2 min-h-[400px]">
@@ -227,19 +233,24 @@ const AgendaViews = {
                             ${allDayTasks.map(t => this._renderAllDayTaskBadgeDesktop(t)).join('')}
                         </div>
                     ` : ''}
+                    ${extUntimed.length > 0 ? `
+                        <div class="flex flex-wrap gap-1.5 pt-1 border-t border-slate-700/50">
+                            ${extUntimed.map(ev => this._renderExternalBadge(ev)).join('')}
+                        </div>
+                    ` : ''}
                 </div>
 
                 <div class="flex-1 bg-[#0f172a] rounded-[2.5rem] border border-slate-800 relative overflow-hidden flex flex-col shadow-2xl">
                     <div class="flex-1 relative h-full">
                         ${this._renderTimeMarkerDesktop(config, isToday, rowHeightPct, true)}
-                        ${this._renderDayRowsDesktop(gridTasks, currentDate, config, rowHeightPct)}
+                        ${this._renderDayRowsDesktop(gridTasks, extTimed, currentDate, config, rowHeightPct)}
                     </div>
                 </div>
             </div>`;
     },
 
     // --- MOBILE ---
-    renderDayMobile(tasks, notes, currentDate, config) {
+    renderDayMobile(tasks, notes, currentDate, config, externalEvents = []) {
         const dateStr = this._iso(currentDate);
         const dayTasks = tasks.filter(t => this._isTaskActiveInDate(t, dateStr));
         const allDayTasks = dayTasks.filter(t => this._isAllDayOrMultiDay(t));
@@ -248,6 +259,12 @@ const AgendaViews = {
         const isToday = dateStr === this._iso(new Date());
         const slotCount = this._getSlotCount(config);
         const rowHeightPct = 100 / slotCount;
+
+        const dayExt = externalEvents.filter(ev => ev.date === dateStr);
+        const extUntimed = dayExt.filter(ev => !ev.time);
+        const extTimed = dayExt.filter(ev => ev.time).map(ev => ({
+            ...ev, date: ev.date + 'T' + ev.time + ':00', duration: 30,
+        }));
 
         return `
             <div class="flex flex-col flex-1 gap-2 min-h-[400px]">
@@ -265,6 +282,11 @@ const AgendaViews = {
                     ${allDayTasks.length > 0 ? `
                         <div class="flex flex-col gap-1.5 pt-2 border-t border-slate-700/50">
                             ${allDayTasks.map(t => this._renderAllDayTaskBadgeMobile(t)).join('')}
+                        </div>
+                    ` : ''}
+                    ${extUntimed.length > 0 ? `
+                        <div class="flex flex-wrap gap-1.5 pt-1.5 border-t border-slate-700/50">
+                            ${extUntimed.map(ev => this._renderExternalBadge(ev, true)).join('')}
                         </div>
                     ` : ''}
                 </div>
@@ -285,7 +307,7 @@ const AgendaViews = {
     // ============================================================
     
     // --- DESKTOP (Il tuo script originale) ---
-    renderWeekDesktop(tasks, notes, currentDate, config) {
+    renderWeekDesktop(tasks, notes, currentDate, config, externalEvents = []) {
         const startOfWeek = this._getStartOfWeek(currentDate);
         const weekDays = Array.from({length: 7}, (_, i) => {
             const d = new Date(startOfWeek);
@@ -330,24 +352,32 @@ const AgendaViews = {
                                     </div>`
                                 }).join('')}
                                 ${dayNotes.map(n => `
-                                    <div onclick="event.stopPropagation(); Agenda.editNote('${n.id}')" 
-                                         class="bg-[#fef9c3] text-yellow-900 text-[8px] p-1 rounded shadow-sm border-l-2 border-yellow-500 cursor-pointer font-medium truncate" 
+                                    <div onclick="event.stopPropagation(); Agenda.editNote('${n.id}')"
+                                         class="bg-[#fef9c3] text-yellow-900 text-[8px] p-1 rounded shadow-sm border-l-2 border-yellow-500 cursor-pointer font-medium truncate"
                                          title="${Helpers.escapeHtml(n.content)}">
                                         📝 ${Helpers.escapeHtml(n.content)}
+                                    </div>
+                                `).join('')}
+                                ${externalEvents.filter(ev => ev.date === dateStr && !ev.time).map(ev => `
+                                    <div onclick="event.stopPropagation(); AgendaBridge.showEventInfo('${ev.id}')"
+                                         class="flex items-center gap-1 px-1 py-0.5 rounded text-[8px] font-bold truncate border cursor-pointer hover:brightness-125 active:scale-95 transition-all"
+                                         style="background:${ev.color}12; border-color:${ev.color}35; color:${ev.color};"
+                                         title="${Helpers.escapeHtml(ev.title)}">
+                                        ${ev.icon} <span class="truncate">${Helpers.escapeHtml(ev.title)}</span>
                                     </div>
                                 `).join('')}
                             </div>`;
                     }).join('')}
                 </div>
-                
+
                 <div class="flex-1 relative bg-[#0f172a] h-full overflow-hidden">
-                     ${this._renderWeekGridDesktop(weekDays, tasks, config, colWidthClass)}
+                     ${this._renderWeekGridDesktop(weekDays, tasks, config, colWidthClass, externalEvents)}
                 </div>
             </div>`;
     },
 
     // --- MOBILE ---
-    renderWeekMobile(tasks, notes, currentDate, config) {
+    renderWeekMobile(tasks, notes, currentDate, config, externalEvents = []) {
         const startOfWeek = this._getStartOfWeek(currentDate);
         const weekDays = Array.from({length: 7}, (_, i) => {
             const d = new Date(startOfWeek);
@@ -398,10 +428,18 @@ const AgendaViews = {
                                                 </div>`
                                             }).join('')}
                                             ${dayNotes.map(n => `
-                                                <div onclick="event.stopPropagation(); Agenda.editNote('${n.id}')" 
-                                                     class="bg-[#fef9c3] text-yellow-900 text-[9px] p-1 rounded shadow-sm border-l-2 border-yellow-500 cursor-pointer font-medium truncate leading-tight" 
+                                                <div onclick="event.stopPropagation(); Agenda.editNote('${n.id}')"
+                                                     class="bg-[#fef9c3] text-yellow-900 text-[9px] p-1 rounded shadow-sm border-l-2 border-yellow-500 cursor-pointer font-medium truncate leading-tight"
                                                      title="${Helpers.escapeHtml(n.content)}">
                                                     📝 ${Helpers.escapeHtml(n.content)}
+                                                </div>
+                                            `).join('')}
+                                            ${externalEvents.filter(ev => ev.date === dateStr && !ev.time).map(ev => `
+                                                <div onclick="event.stopPropagation(); AgendaBridge.showEventInfo('${ev.id}')"
+                                                     class="flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-bold truncate border cursor-pointer hover:brightness-125 active:scale-95 transition-all"
+                                                     style="background:${ev.color}12; border-color:${ev.color}35; color:${ev.color};"
+                                                     title="${Helpers.escapeHtml(ev.title)}">
+                                                    ${ev.icon} <span class="truncate">${Helpers.escapeHtml(ev.title)}</span>
                                                 </div>
                                             `).join('')}
                                         </div>`;
@@ -430,11 +468,21 @@ const AgendaViews = {
                                     if (isToday) gridHtml += this._renderTimeMarkerMobile(config, true, rowHeightPct, true);
 
                                     const layoutTasks = this._layoutTasks(dayTasks);
+                                    const extTimed = externalEvents
+                                        .filter(ev => ev.date === dateStr && ev.time)
+                                        .map(ev => ({ ...ev, date: ev.date + 'T' + ev.time + ':00', duration: 30 }));
+                                    const layoutExt = this._layoutTasks(extTimed);
+
                                     layoutTasks.forEach(t => {
                                         if (!config.showCompleted && t.completed) return;
                                         const { h } = this._parseTime(t.date);
                                         if (h < config.startHour || h > config.endHour) return;
                                         gridHtml += this._renderTimelineTaskMobile(t, config, rowHeightPct, true);
+                                    });
+                                    layoutExt.forEach(ev => {
+                                        const { h } = this._parseTime(ev.date);
+                                        if (h < config.startHour || h > config.endHour) return;
+                                        gridHtml += this._renderExternalTimeline(ev, config, rowHeightPct, true);
                                     });
                                     gridHtml += `</div>`;
                                     return gridHtml;
@@ -451,7 +499,7 @@ const AgendaViews = {
     // ============================================================
     
     // --- DESKTOP (Il tuo script originale) ---
-    renderMonthDesktop(tasks, notes, currentDate, config) {
+    renderMonthDesktop(tasks, notes, currentDate, config, externalEvents = []) {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
         const firstDay = new Date(year, month, 1).getDay();
@@ -512,13 +560,22 @@ const AgendaViews = {
                         }).join('')}
                         ${displayTasks.length > 5 ? `<div class="text-[9px] text-center text-slate-500 font-bold mt-auto shrink-0">+${displayTasks.length - 5}</div>` : ''}
                     </div>
+                    ${(() => {
+                        const extMods = [...new Set(externalEvents.filter(ev => ev.date === dateStr).map(ev => ev.moduleId))];
+                        if (!extMods.length) return '';
+                        const dots = extMods.map(id => {
+                            const ev = externalEvents.find(e => e.moduleId === id && e.date === dateStr);
+                            return `<span style="background:${ev.color}" class="w-1.5 h-1.5 rounded-full opacity-80 shrink-0" title="${ev.moduleLabel}"></span>`;
+                        }).join('');
+                        return `<div class="flex gap-0.5 flex-wrap shrink-0 px-1 pb-0.5">${dots}</div>`;
+                    })()}
                 </div>`;
         }
         return html + '</div></div>';
     },
 
     // --- MOBILE ---
-    renderMonthMobile(tasks, notes, currentDate, config) {
+    renderMonthMobile(tasks, notes, currentDate, config, externalEvents = []) {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
         const firstDay = new Date(year, month, 1).getDay();
@@ -648,10 +705,10 @@ const AgendaViews = {
     // ============================================================
     
     // --- DESKTOP (Larga a tutto schermo) ---
-    renderListDesktop(tasks, notes, currentDate, config) {
+    renderListDesktop(tasks, notes, currentDate, config, externalEvents = []) {
         const targetMonth = currentDate.getMonth();
         const targetYear = currentDate.getFullYear();
-        
+
         const isInTargetMonth = (task) => {
             const start = new Date(task.date);
             return start.getMonth() === targetMonth && start.getFullYear() === targetYear;
@@ -659,23 +716,32 @@ const AgendaViews = {
 
         let filteredTasks = config.showCompleted ? tasks : tasks.filter(t => !t.completed);
         filteredTasks = filteredTasks.filter(t => isInTargetMonth(t));
-        
+
         const filteredNotes = notes.filter(n => {
             const d = new Date(n.date);
             return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
         });
 
-        const uniqueDates = new Set([...filteredTasks.map(t => t.date.split('T')[0]), ...filteredNotes.map(n => n.date)]);
+        const monthFrom = `${targetYear}-${String(targetMonth + 1).padStart(2,'0')}-01`;
+        const monthTo   = this._iso(new Date(targetYear, targetMonth + 1, 0));
+        const filteredExt = externalEvents.filter(ev => ev.date >= monthFrom && ev.date <= monthTo);
+
+        const uniqueDates = new Set([
+            ...filteredTasks.map(t => t.date.split('T')[0]),
+            ...filteredNotes.map(n => n.date),
+            ...filteredExt.map(ev => ev.date)
+        ]);
         const sortedDates = Array.from(uniqueDates).sort();
 
         if (sortedDates.length === 0) return `<div class="bg-[#0f172a] rounded-[2.5rem] p-20 text-center border border-slate-800 text-slate-500 italic">Nessuna attività per ${currentDate.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}</div>`;
 
-        // FIX: Rimosso 'max-w-5xl mx-auto' e inserito 'w-full'
         let html = '<div class="space-y-8 w-full pb-10">';
         sortedDates.forEach(dateStr => {
             const dateObj = new Date(dateStr);
             const dayTasks = filteredTasks.filter(t => t.date.startsWith(dateStr));
             const dayNotes = filteredNotes.filter(n => n.date === dateStr);
+            const dayExt   = filteredExt.filter(ev => ev.date === dateStr)
+                .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
 
             html += `
                 <div class="animate-fadeIn bg-[#162032] rounded-3xl p-6 border border-slate-800 shadow-lg hover:border-slate-700 transition-colors">
@@ -683,9 +749,9 @@ const AgendaViews = {
                         <div class="text-2xl font-black text-indigo-400">${dateObj.getDate()}</div>
                         <div class="text-sm font-bold text-slate-300 uppercase tracking-widest">${dateObj.toLocaleDateString('it-IT', { month: 'long', weekday: 'long' })}</div>
                     </div>
-                    
+
                     ${dayNotes.map(n => `<div class="bg-yellow-500/10 border-l-4 border-yellow-500 p-3 mb-2 rounded-r-lg text-yellow-200 text-sm italic">📝 ${Helpers.escapeHtml(n.content)}</div>`).join('')}
-                    
+
                     <div class="space-y-2">
                         ${dayTasks.map(t => `
                             <div class="flex items-center gap-4 p-3 bg-slate-800/50 rounded-xl border border-slate-700 hover:border-slate-600 cursor-pointer ${t.isDeadline ? 'border-rose-500/50 bg-rose-900/10' : ''}" onclick="Agenda.editTask('${t.id}')">
@@ -698,6 +764,17 @@ const AgendaViews = {
                                 ${this._isAllDayOrMultiDay(t) ? '<span class="text-[9px] uppercase border border-slate-600 px-1 rounded text-slate-500">Long Term</span>' : ''}
                             </div>
                         `).join('')}
+                        ${dayExt.map(ev => `
+                            <div class="flex items-center gap-3 p-3 rounded-xl border" style="background:${ev.color}10; border-color:${ev.color}30;">
+                                <span class="text-xs font-black px-2 py-1 rounded shadow-inner shrink-0" style="color:${ev.color}; background:${ev.color}20;">
+                                    ${ev.time || '·'}
+                                </span>
+                                <span class="text-base">${ev.icon}</span>
+                                <span class="font-bold flex-1 truncate" style="color:${ev.color}">${Helpers.escapeHtml(ev.title)}</span>
+                                ${ev.subtitle ? `<span class="text-xs text-slate-400 shrink-0">${Helpers.escapeHtml(ev.subtitle)}</span>` : ''}
+                                <span class="text-[9px] uppercase px-1.5 py-0.5 rounded font-bold" style="background:${ev.color}20; color:${ev.color}">${ev.moduleLabel}</span>
+                            </div>
+                        `).join('')}
                     </div>
                 </div>`;
         });
@@ -705,7 +782,7 @@ const AgendaViews = {
     },
 
     // --- MOBILE ---
-    renderListMobile(tasks, notes, currentDate, config) {
+    renderListMobile(tasks, notes, currentDate, config, externalEvents = []) {
         const targetMonth = currentDate.getMonth();
         const targetYear = currentDate.getFullYear();
         
@@ -758,6 +835,49 @@ const AgendaViews = {
     //  RENDER HELPER CONDIVISI (Righe e Marker)
     // ============================================================
 
+    // ── External event renderers ──────────────────────────────────
+
+    /** Badge nella strip "tutto il giorno" per eventi senza orario */
+    _renderExternalBadge(ev, isMobile = false) {
+        const size = isMobile ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-xs';
+        return `
+            <div onclick="event.stopPropagation(); AgendaBridge.showEventInfo('${ev.id}')"
+                 class="shrink-0 flex items-center gap-1.5 ${size} rounded-md font-bold border cursor-pointer hover:brightness-125 transition-all active:scale-95"
+                 style="background:${ev.color}15; border-color:${ev.color}40; color:${ev.color};"
+                 title="${Helpers.escapeHtml(ev.title)}${ev.subtitle ? ' — ' + ev.subtitle : ''}">
+                <span>${ev.icon}</span>
+                <span class="truncate max-w-[160px]">${Helpers.escapeHtml(ev.title)}</span>
+                ${ev.subtitle ? `<span class="opacity-60 shrink-0">${Helpers.escapeHtml(ev.subtitle)}</span>` : ''}
+            </div>`;
+    },
+
+    /** Blocco nel grid orario per eventi con orario */
+    _renderExternalTimeline(ev, config, rowHeightPct, isMobile = false) {
+        const { h, m } = this._parseTime(ev.date);
+        const slotCount = this._getSlotCount(config);
+        const totalMinutes = slotCount * 60;
+        const startMinutes = config.startHour * 60;
+        const topVal    = ((h * 60 + m - startMinutes) / totalMinutes) * 100;
+        const heightVal = Math.max((30 / totalMinutes) * 100, isMobile ? 1.5 : 2);
+        const left = ev._left ?? 0;
+        const width = ev._width ?? 100;
+
+        return `
+            <div onclick="event.stopPropagation(); AgendaBridge.showEventInfo('${ev.id}')"
+                 class="pointer-events-auto absolute rounded-r-lg rounded-l-sm border-l-[3px] overflow-hidden cursor-pointer hover:brightness-125 transition-all active:scale-[0.98]"
+                 style="top:${topVal}%; height:${heightVal}%; left:${left}%; width:${width}%; min-height:${isMobile ? '16px' : '22px'};
+                        background:${ev.color}20; border-color:${ev.color};"
+                 title="${Helpers.escapeHtml(ev.title)}${ev.subtitle ? ' — ' + ev.subtitle : ''}">
+                <div class="flex items-center gap-1 px-1.5 h-full overflow-hidden">
+                    <span class="${isMobile ? 'text-[9px]' : 'text-[10px]'}">${ev.icon}</span>
+                    <span class="font-bold truncate ${isMobile ? 'text-[8px]' : 'text-[9px]'}" style="color:${ev.color}">
+                        ${Helpers.escapeHtml(ev.title)}
+                    </span>
+                    ${ev.subtitle && !isMobile ? `<span class="ml-auto text-[8px] opacity-60 shrink-0" style="color:${ev.color}">${Helpers.escapeHtml(ev.subtitle)}</span>` : ''}
+                </div>
+            </div>`;
+    },
+
     _renderAllDayTaskBadgeDesktop(t) {
         let bgClass = "bg-indigo-600/20 text-indigo-200 border-indigo-500/30";
         if (t.isDeadline) bgClass = "bg-rose-600/20 text-rose-200 border-rose-500/50";
@@ -787,7 +907,7 @@ const AgendaViews = {
         `;
     },
 
-    _renderDayRowsDesktop(tasks, currentDate, config, rowHeightPct) {
+    _renderDayRowsDesktop(tasks, extTimed, currentDate, config, rowHeightPct) {
         let html = '<div class="h-full flex flex-col">';
         for (let h = config.startHour; h <= config.endHour; h++) {
             html += `
@@ -795,27 +915,33 @@ const AgendaViews = {
                     <div class="w-16 shrink-0 flex justify-end pr-4 items-start pt-1 border-r border-slate-800/60 bg-[#162032]">
                         <span class="text-xs font-bold text-slate-500 transform -translate-y-1/2">${h}:00</span>
                     </div>
-                    <div class="flex-1 relative hover:bg-white/[0.02] transition-colors cursor-crosshair" 
+                    <div class="flex-1 relative hover:bg-white/[0.02] transition-colors cursor-crosshair"
                          onclick="Agenda.showAddModalWithDate('${this._iso(currentDate)}', '${String(h).padStart(2,'0')}:00')">
                         <div class="absolute w-full top-1/2 border-t border-slate-800/40 border-dashed pointer-events-none"></div>
                     </div>
                 </div>`;
         }
         html += '</div>';
-        
+
         const layoutTasks = this._layoutTasks(tasks);
+        const layoutExt   = this._layoutTasks(extTimed || []);
 
         html += `<div class="absolute inset-0 left-16 right-4 pointer-events-none">`;
         layoutTasks.forEach(t => {
-            const { h } = this._parseTime(t.date); 
+            const { h } = this._parseTime(t.date);
             if (h < config.startHour || h > config.endHour) return;
             html += this._renderTimelineTaskDesktop(t, config, rowHeightPct, true);
+        });
+        layoutExt.forEach(ev => {
+            const { h } = this._parseTime(ev.date);
+            if (h < config.startHour || h > config.endHour) return;
+            html += this._renderExternalTimeline(ev, config, rowHeightPct, false);
         });
         html += `</div>`;
         return html;
     },
 
-    _renderDayRowsMobile(tasks, currentDate, config, rowHeightPct) {
+    _renderDayRowsMobile(tasks, extTimed, currentDate, config, rowHeightPct) {
         let html = '<div class="h-full flex flex-col">';
         for (let h = config.startHour; h <= config.endHour; h++) {
             html += `
@@ -823,27 +949,33 @@ const AgendaViews = {
                     <div class="w-12 pr-2 shrink-0 flex justify-end items-start pt-1 border-r border-slate-800/60 bg-[#162032]">
                         <span class="text-[10px] font-bold text-slate-500 transform -translate-y-1/2">${h}:00</span>
                     </div>
-                    <div class="flex-1 relative hover:bg-white/[0.02] transition-colors cursor-crosshair" 
+                    <div class="flex-1 relative hover:bg-white/[0.02] transition-colors cursor-crosshair"
                          onclick="Agenda.showAddModalWithDate('${this._iso(currentDate)}', '${String(h).padStart(2,'0')}:00')">
                         <div class="absolute w-full top-1/2 border-t border-slate-800/40 border-dashed pointer-events-none"></div>
                     </div>
                 </div>`;
         }
         html += '</div>';
-        
+
         const layoutTasks = this._layoutTasks(tasks);
+        const layoutExt   = this._layoutTasks(extTimed || []);
 
         html += `<div class="absolute inset-0 left-12 right-2 pointer-events-none">`;
         layoutTasks.forEach(t => {
-            const { h } = this._parseTime(t.date); 
+            const { h } = this._parseTime(t.date);
             if (h < config.startHour || h > config.endHour) return;
             html += this._renderTimelineTaskMobile(t, config, rowHeightPct, true);
+        });
+        layoutExt.forEach(ev => {
+            const { h } = this._parseTime(ev.date);
+            if (h < config.startHour || h > config.endHour) return;
+            html += this._renderExternalTimeline(ev, config, rowHeightPct, true);
         });
         html += `</div>`;
         return html;
     },
 
-    _renderWeekGridDesktop(days, tasks, config, colWidthClass) {
+    _renderWeekGridDesktop(days, tasks, config, colWidthClass, externalEvents = []) {
         const slotCount = this._getSlotCount(config);
         const rowHeightPct = 100 / slotCount;
         
@@ -870,15 +1002,25 @@ const AgendaViews = {
             if (isToday) html += this._renderTimeMarkerDesktop(config, true, rowHeightPct, true);
 
             const layoutTasks = this._layoutTasks(dayTasks);
+            const extTimed = externalEvents
+                .filter(ev => ev.date === dateStr && ev.time)
+                .map(ev => ({ ...ev, date: ev.date + 'T' + ev.time + ':00', duration: 30 }));
+            const layoutExt = this._layoutTasks(extTimed);
+
             layoutTasks.forEach(t => {
                 if (!config.showCompleted && t.completed) return;
                 const { h } = this._parseTime(t.date);
                 if (h < config.startHour || h > config.endHour) return;
                 html += this._renderTimelineTaskDesktop(t, config, rowHeightPct, true);
             });
-            html += `</div>`; 
+            layoutExt.forEach(ev => {
+                const { h } = this._parseTime(ev.date);
+                if (h < config.startHour || h > config.endHour) return;
+                html += this._renderExternalTimeline(ev, config, rowHeightPct, false);
+            });
+            html += `</div>`;
         });
-        
+
         return html + '</div>';
     },
 

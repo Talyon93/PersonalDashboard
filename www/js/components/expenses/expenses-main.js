@@ -528,6 +528,51 @@ async exportMonth() {
 },
     showCategoriesModal() { if (typeof Expenses_showCategoriesModal === 'function') Expenses_showCategoriesModal(); },
 
+    /**
+     * AgendaBridge protocol — ritorna eventi normalizzati per il range di date dato.
+     */
+    async getAgendaEvents(fromStr, toStr) {
+        try {
+            const all = window.CachedCRUD ? await CachedCRUD.getExpenses() : await ExpenseCRUD.getAll();
+            if (!all) return [];
+
+            return all
+                .filter(e => e.date >= fromStr && e.date <= toStr && !e.is_excluded)
+                .map(e => {
+                    // Usa l'orario di created_at solo se la data coincide con expense.date
+                    // (altrimenti è un import CSV: created_at è la data di import, non della spesa)
+                    let time = null;
+                    if (e.created_at) {
+                        const createdDate = e.created_at.split('T')[0];
+                        if (createdDate === e.date) {
+                            const t = e.created_at.split('T')[1]?.substring(0, 5);
+                            if (t && t !== '00:00') time = t;
+                        }
+                    }
+
+                    const amount = e.amount != null ? `€ ${parseFloat(e.amount).toFixed(2)}` : '';
+                    const subtitle = [amount, e.category].filter(Boolean).join(' · ');
+
+                    return {
+                        id: 'ext_expense_' + e.id,
+                        _isExternal: true,
+                        moduleId: 'expenses',
+                        moduleLabel: 'Spese',
+                        date: e.date,
+                        time,
+                        title: e.description || 'Spesa',
+                        subtitle,
+                        color: '#f59e0b',
+                        icon: '💰',
+                        onNavigate: `ExpenseModals.showDetail('${e.id}')`,
+                    };
+                });
+        } catch (e) {
+            console.error('AgendaBridge [expenses]:', e);
+            return [];
+        }
+    },
+
 };
 
 window.Expenses = Expenses;
@@ -566,5 +611,16 @@ if (window.ModuleManager) {
         },
 
         widgets: window.ExpensesWidgets ? window.ExpensesWidgets.getDefinitions() : []
+    });
+}
+
+// Registrazione in AgendaBridge
+if (window.AgendaBridge) {
+    AgendaBridge.register({
+        id: 'expenses',
+        label: 'Spese',
+        color: '#f59e0b',
+        icon: '💰',
+        getEvents: (from, to) => Expenses.getAgendaEvents(from, to)
     });
 }

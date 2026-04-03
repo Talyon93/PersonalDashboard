@@ -523,7 +523,39 @@ const Goals = {
         }
     },
     
-    setView(v) { this.currentView = v; this.render(); }
+    setView(v) { this.currentView = v; this.render(); },
+
+    async getAgendaEvents(fromStr, toStr) {
+        try {
+            const all = window.CachedCRUD ? await CachedCRUD.getGoals() : await GoalCRUD.getAll();
+            if (!all) return [];
+
+            return all
+                .filter(g => !g.completed && g.targetDate && g.targetDate >= fromStr && g.targetDate <= toStr)
+                .map(g => {
+                    const total = g.subtasks?.length || 0;
+                    const done  = g.subtasks?.filter(s => s.completed).length || 0;
+                    const pct   = total > 0 ? Math.round((done / total) * 100) : null;
+                    const subtitle = pct !== null ? `${pct}% · ${done}/${total} subtask` : '';
+
+                    return {
+                        id: 'ext_goal_' + g.id,
+                        _isExternal: true,
+                        moduleId: 'goals',
+                        moduleLabel: 'Obiettivi',
+                        date: g.targetDate,
+                        time: null,
+                        title: g.title,
+                        subtitle,
+                        color: '#8b5cf6',
+                        icon: '🎯',
+                    };
+                });
+        } catch (e) {
+            console.error('AgendaBridge [goals]:', e);
+            return [];
+        }
+    },
 };
 
 window.Goals = Goals;
@@ -543,5 +575,15 @@ if (window.ModuleManager) {
         render: () => Goals.render(),
         // ESPORTAZIONE WIDGET DASHBOARD
         widgets: Goals.getWidgets()
+    });
+}
+
+if (window.AgendaBridge) {
+    AgendaBridge.register({
+        id: 'goals',
+        label: 'Obiettivi',
+        color: '#8b5cf6',
+        icon: '🎯',
+        getEvents: (from, to) => Goals.getAgendaEvents(from, to)
     });
 }

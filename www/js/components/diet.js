@@ -385,6 +385,49 @@ const Diet = {
     }
 };
 
+Diet.getAgendaEvents = async function(fromStr, toStr) {
+    try {
+        if (!Object.keys(this.plans).length) await this.loadData();
+
+        // Orari tipici per tipo pasto (null = senza orario nella strip)
+        const mealTimes = { breakfast: '08:00', lunch: '13:00', dinner: '20:00', snacks: null };
+
+        const events = [];
+        const from = new Date(fromStr), to = new Date(toStr);
+
+        for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+            const dateStr = d.toISOString().split('T')[0];
+            // JS: 0=Dom…6=Sab → converti in lun=0…dom=6
+            const dayIndex = (d.getDay() + 6) % 7;
+            const plan = this.plans[dayIndex];
+            if (!plan) continue;
+
+            for (const type of this.mealTypes) {
+                const meal = plan[type.id];
+                if (!meal?.main?.name) continue;
+
+                events.push({
+                    id: `ext_diet_${dateStr}_${type.id}`,
+                    _isExternal: true,
+                    moduleId: 'diet',
+                    moduleLabel: 'Dieta',
+                    date: dateStr,
+                    time: mealTimes[type.id] ?? null,
+                    title: meal.main.name,
+                    subtitle: type.label,
+                    color: '#10b981',
+                    icon: type.icon,
+                    onNavigate: `Diet.openModal(${dayIndex}, '${type.id}')`,
+                });
+            }
+        }
+        return events;
+    } catch (e) {
+        console.error('AgendaBridge [diet]:', e);
+        return [];
+    }
+};
+
 window.Diet = Diet;
 
 if (window.ModuleManager) {
@@ -397,5 +440,15 @@ if (window.ModuleManager) {
         init: () => Diet.init(),
         render: () => Diet.render(),
         widgets: Diet.getWidgets()
+    });
+}
+
+if (window.AgendaBridge) {
+    AgendaBridge.register({
+        id: 'diet',
+        label: 'Dieta',
+        color: '#10b981',
+        icon: '🍽️',
+        getEvents: (from, to) => Diet.getAgendaEvents(from, to)
     });
 }

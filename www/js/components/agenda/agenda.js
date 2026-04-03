@@ -8,9 +8,10 @@ const Agenda = {
     currentView: 'month',
     showCompleted: false,
     
-    tasks: [], 
+    tasks: [],
     notes: [],
-    
+    externalEvents: [],
+
     isInitialized: false,
 
     config: {
@@ -91,17 +92,19 @@ const Agenda = {
         this.config.showCompleted = this.showCompleted;
         this._renderControls();
         this._renderPeriodSelector();
+        await this._loadExternalEvents();
 
         const main = document.getElementById('agenda-main-container');
         if (main && window.AgendaViews) {
             let html = '';
+            const ext = this.externalEvents;
             switch (this.currentView) {
-                case 'day': html = AgendaViews.renderDay(this.tasks, this.notes, this.currentDate, this.config); break;
-                case 'week': html = AgendaViews.renderWeek(this.tasks, this.notes, this.currentDate, this.config); break;
-                case 'month': html = AgendaViews.renderMonth(this.tasks, this.notes, this.currentDate, this.config); break;
-                case 'year': html = AgendaViews.renderYear(this.tasks, this.notes, this.currentDate); break;
-                case 'list': html = AgendaViews.renderList(this.tasks, this.notes, this.currentDate, this.config); break;
-                default: html = AgendaViews.renderMonth(this.tasks, this.notes, this.currentDate, this.config);
+                case 'day':   html = AgendaViews.renderDay(this.tasks, this.notes, this.currentDate, this.config, ext); break;
+                case 'week':  html = AgendaViews.renderWeek(this.tasks, this.notes, this.currentDate, this.config, ext); break;
+                case 'month': html = AgendaViews.renderMonth(this.tasks, this.notes, this.currentDate, this.config, ext); break;
+                case 'year':  html = AgendaViews.renderYear(this.tasks, this.notes, this.currentDate); break;
+                case 'list':  html = AgendaViews.renderList(this.tasks, this.notes, this.currentDate, this.config, ext); break;
+                default:      html = AgendaViews.renderMonth(this.tasks, this.notes, this.currentDate, this.config, ext);
             }
             main.innerHTML = html;
             
@@ -136,7 +139,17 @@ const Agenda = {
     `;
 
     const actionsHTML = `
-        <button onclick="document.getElementById('gcal-import-input').click()" 
+        <div class="relative">
+            <button onclick="Agenda.toggleDisplaySettings()"
+                    class="p-3 bg-slate-900/50 border border-slate-800 text-slate-400 hover:text-white rounded-2xl transition-all"
+                    title="Impostazioni vista agenda">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+            </button>
+            <div id="agenda-display-settings" class="hidden absolute right-0 top-full mt-2 w-56 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl z-50"></div>
+        </div>
+        <button onclick="document.getElementById('gcal-import-input').click()"
                 class="flex-1 px-4 py-3 bg-slate-900/50 border border-slate-800 text-white rounded-2xl transition-all text-xs font-bold flex items-center justify-center gap-2">
             <span class="text-lg">📥</span> Importa
         </button>
@@ -807,6 +820,72 @@ const Agenda = {
         }
 
         if(window.Helpers) Helpers.showToast('Salvataggio completato');
+    },
+
+    // --- EXTERNAL EVENTS ---
+    async _loadExternalEvents() {
+        if (!window.AgendaBridge || AgendaBridge.getRegisteredModules().length === 0) {
+            this.externalEvents = [];
+            return;
+        }
+        const d = this.currentDate;
+        const iso = (dt) => dt.toISOString().split('T')[0];
+        let from, to;
+        if (this.currentView === 'day') {
+            from = to = iso(d);
+        } else if (this.currentView === 'week') {
+            const dow = d.getDay();
+            const start = new Date(d); start.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+            const end = new Date(start); end.setDate(start.getDate() + 6);
+            from = iso(start); to = iso(end);
+        } else if (this.currentView === 'year') {
+            this.externalEvents = []; return;
+        } else {
+            from = iso(new Date(d.getFullYear(), d.getMonth(), 1));
+            to   = iso(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+        }
+        this.externalEvents = await AgendaBridge.getEvents(from, to);
+    },
+
+    // --- DISPLAY SETTINGS PANEL ---
+    toggleDisplaySettings() {
+        const panel = document.getElementById('agenda-display-settings');
+        if (!panel) return;
+        panel.classList.toggle('hidden');
+        if (!panel.classList.contains('hidden')) this._renderDisplaySettings(panel);
+    },
+
+    _renderDisplaySettings(panel) {
+        if (!window.AgendaBridge) { panel.innerHTML = '<p class="text-slate-500 text-sm p-4">Nessun modulo registrato.</p>'; return; }
+        const modules = AgendaBridge.getRegisteredModules()
+            .filter(m => !window.ModuleManager || ModuleManager.isActive(m.id));
+        if (modules.length === 0) { panel.innerHTML = '<p class="text-slate-500 text-sm p-4">Nessun modulo attivo.</p>'; return; }
+
+        panel.innerHTML = `
+            <div class="p-4 border-b border-slate-700">
+                <p class="text-xs font-black uppercase tracking-widest text-slate-400">Mostra nell'agenda</p>
+            </div>
+            <div class="p-3 space-y-1">
+                ${modules.map(mod => {
+                    const on = AgendaBridge.isVisible(mod.id);
+                    return `
+                    <label class="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-slate-700/50 cursor-pointer transition-colors">
+                        <span class="flex items-center gap-2 text-sm font-semibold text-slate-300">
+                            <span>${mod.icon}</span> ${mod.label}
+                        </span>
+                        <div onclick="Agenda._saveDisplaySetting('${mod.id}', ${!on})"
+                             class="relative w-10 h-5 rounded-full transition-colors duration-200 shrink-0 ${on ? 'bg-indigo-500' : 'bg-slate-600'}">
+                            <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${on ? 'translate-x-5' : 'translate-x-0'}"></div>
+                        </div>
+                    </label>`
+                }).join('')}
+            </div>
+        `;
+    },
+
+    _saveDisplaySetting(moduleId, visible) {
+        if (window.AgendaBridge) AgendaBridge.saveSetting(moduleId, visible);
+        this.updateView();
     },
 
     // --- NAVIGATION ---
