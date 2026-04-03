@@ -479,6 +479,13 @@
       font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.08em; color: var(--text-secondary);
     }
+
+    .forgot-link {
+      text-align: right; margin-top: -12px; margin-bottom: 20px;
+      font-size: 0.8rem; font-weight: 600; color: var(--accent-blue);
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    .forgot-link:hover { opacity: 0.75; }
   </style>
 </head>
 
@@ -578,18 +585,19 @@
       </div>
 
       <form id="authForm" autocomplete="on">
-        <div class="login-field">
+        <div class="login-field" id="emailWrap">
           <label class="login-label" for="email">Email</label>
-          <input id="email" class="login-input" type="email" autocomplete="email" required
+          <input id="email" class="login-input" type="email" autocomplete="email"
                  placeholder="nome@esempio.com" inputmode="email"/>
         </div>
-        <div class="login-field">
-          <label class="login-label" for="password">Password</label>
-          <input id="password" class="login-input" type="password" autocomplete="current-password" required
+        <div class="login-field" id="passwordWrap">
+          <label class="login-label" id="passwordLabel" for="password">Password</label>
+          <input id="password" class="login-input" type="password" autocomplete="current-password"
                  placeholder="••••••••"/>
         </div>
+        <div id="forgotLink" class="forgot-link">Password dimenticata?</div>
         <div id="confirmWrap" class="login-field is-hidden">
-          <label class="login-label" for="passwordConfirm">Conferma Password</label>
+          <label class="login-label" id="confirmLabel" for="passwordConfirm">Conferma Password</label>
           <input id="passwordConfirm" class="login-input" type="password" autocomplete="new-password"
                  placeholder="••••••••"/>
         </div>
@@ -667,13 +675,19 @@
     }
 
     const $ = (sel) => document.querySelector(sel);
-    const alertBox = $("#alertBox");
-    const tabLogin = $("#tabLogin");
+    const alertBox    = $("#alertBox");
+    const tabLogin    = $("#tabLogin");
     const tabRegister = $("#tabRegister");
+    const emailWrap   = $("#emailWrap");
+    const passwordWrap= $("#passwordWrap");
     const confirmWrap = $("#confirmWrap");
-    const submitBtn = $("#submitBtn");
-    const authForm = $("#authForm");
-    const ctaHint = $("#ctaHint");
+    const forgotLink  = $("#forgotLink");
+    const submitBtn   = $("#submitBtn");
+    const authForm    = $("#authForm");
+    const ctaHint     = $("#ctaHint");
+    const googleBtn   = $("#googleBtn");
+    const authDivider = $(".auth-divider");
+    const loginTabs   = $(".login-tabs");
 
     let mode = "login";
 
@@ -681,28 +695,72 @@
       alertBox.className = `login-alert ${type === "error" ? "error" : "success"}`;
       alertBox.textContent = msg;
     }
-
     function clearAlert() { alertBox.className = "login-alert"; }
 
     function setMode(next) {
       mode = next;
       clearAlert();
+
+      // Visibilità tab e Google button
+      const isNormal = mode === "login" || mode === "register";
+      loginTabs.style.display   = isNormal ? "" : "none";
+      googleBtn.style.display   = isNormal ? "" : "none";
+      authDivider.style.display = isNormal ? "" : "none";
+
       tabLogin.classList.toggle("active", mode === "login");
       tabRegister.classList.toggle("active", mode === "register");
+
       if (mode === "login") {
+        emailWrap.classList.remove("is-hidden");
+        passwordWrap.classList.remove("is-hidden");
         confirmWrap.classList.add("is-hidden");
+        forgotLink.style.display = "";
+        $("#passwordLabel").textContent = "Password";
+        $("#password").autocomplete = "current-password";
         submitBtn.textContent = "Accedi";
         ctaHint.innerHTML = 'Non hai un account? <strong>Crealo.</strong>';
-        $("#password").autocomplete = "current-password";
-      } else {
+        ctaHint.style.display = "";
+
+      } else if (mode === "register") {
+        emailWrap.classList.remove("is-hidden");
+        passwordWrap.classList.remove("is-hidden");
         confirmWrap.classList.remove("is-hidden");
+        forgotLink.style.display = "none";
+        $("#passwordLabel").textContent = "Password";
+        $("#password").autocomplete = "new-password";
+        $("#confirmLabel").textContent = "Conferma Password";
         submitBtn.textContent = "Crea Account";
         ctaHint.innerHTML = 'Hai già un account? <strong>Accedi qui.</strong>';
+        ctaHint.style.display = "";
+
+      } else if (mode === "forgot") {
+        emailWrap.classList.remove("is-hidden");
+        passwordWrap.classList.add("is-hidden");
+        confirmWrap.classList.add("is-hidden");
+        forgotLink.style.display = "none";
+        submitBtn.textContent = "Invia link di reset";
+        ctaHint.innerHTML = 'Torna al <strong>Login</strong>';
+        ctaHint.style.display = "";
+
+      } else if (mode === "reset") {
+        emailWrap.classList.add("is-hidden");
+        passwordWrap.classList.remove("is-hidden");
+        confirmWrap.classList.remove("is-hidden");
+        forgotLink.style.display = "none";
+        $("#passwordLabel").textContent = "Nuova Password";
         $("#password").autocomplete = "new-password";
+        $("#confirmLabel").textContent = "Conferma Nuova Password";
+        submitBtn.textContent = "Salva nuova password";
+        ctaHint.style.display = "none";
       }
     }
 
-    document.getElementById("googleBtn").addEventListener("click", async () => {
+    // Rileva ritorno dal link di reset nell'email
+    window.supabaseClient.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") setMode("reset");
+    });
+
+    googleBtn.addEventListener("click", async () => {
       clearAlert();
       const { error } = await window.supabaseClient.auth.signInWithOAuth({
         provider: "google",
@@ -711,14 +769,19 @@
       if (error) setAlert("error", error.message);
     });
 
+    forgotLink.addEventListener("click", () => setMode("forgot"));
     tabLogin.addEventListener("click", () => setMode("login"));
     tabRegister.addEventListener("click", () => setMode("register"));
-    ctaHint.addEventListener("click", () => setMode(mode === "login" ? "register" : "login"));
+    ctaHint.addEventListener("click", () => {
+      if (mode === "login") setMode("register");
+      else if (mode === "register") setMode("login");
+      else if (mode === "forgot") setMode("login");
+    });
 
     authForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       clearAlert();
-      const email = $("#email").value.trim();
+      const email    = $("#email").value.trim();
       const password = $("#password").value;
       const passwordConfirm = $("#passwordConfirm").value;
 
@@ -734,6 +797,22 @@
           if (error) throw error;
           setAlert("ok", "Account creato! Controlla la tua email per confermare.");
           setMode("login");
+
+        } else if (mode === "forgot") {
+          const { error } = await window.supabaseClient.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + "/login.html"
+          });
+          if (error) throw error;
+          setAlert("ok", "Email inviata! Controlla la tua casella e clicca il link.");
+
+        } else if (mode === "reset") {
+          if (password.length < 6) { setAlert("error", "La password deve avere almeno 6 caratteri."); return; }
+          if (passwordConfirm !== password) { setAlert("error", "Le password non corrispondono."); return; }
+          const { error } = await window.supabaseClient.auth.updateUser({ password });
+          if (error) throw error;
+          setAlert("ok", "Password aggiornata! Reindirizzamento...");
+          setTimeout(() => window.location.href = "index.html", 1500);
+
         } else {
           const { error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
           if (error) throw error;
