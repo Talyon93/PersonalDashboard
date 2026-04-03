@@ -21,8 +21,9 @@ const AppInit = {
             // 1. Autenticazione
             this.updateStatus("Verifica identità...", "Controllo sessione Supabase");
             if (!window.supabaseClient) throw new Error("Supabase client not found");
-            const { data: { user } } = await window.supabaseClient.auth.getUser();
-            
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            const user = session?.user;
+
             if (!user) {
                 window.location.href = 'login.html';
                 return;

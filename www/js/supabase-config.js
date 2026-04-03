@@ -36,9 +36,8 @@
   // 5. Helper Functions Globali
   window.getUser = async function () {
     if (!window.supabaseClient) return null;
-    const { data: { user }, error } = await window.supabaseClient.auth.getUser();
-    if (error) return null;
-    return user;
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    return session?.user ?? null;
   };
 
   window.requireAuth = async function () {
