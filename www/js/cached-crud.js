@@ -207,6 +207,40 @@ const CachedCRUD = {
         return MerchantMapping.getAll();
     },
 
+    async getHabits() {
+        return await DataCache.get('habits', () => HabitCRUD.getAll());
+    },
+
+    async getHabitEntries(fromDate, toDate) {
+        return await HabitCRUD.getEntries(fromDate, toDate);
+    },
+
+    async createHabit(data) {
+        const result = await HabitCRUD.create(data);
+        DataCache.invalidateMultiple(['habits']);
+        if (window.EventBus) EventBus.emit('dataChanged', { type: 'habit', action: 'create' });
+        return result;
+    },
+
+    async updateHabit(id, data) {
+        const result = await HabitCRUD.update(id, data);
+        DataCache.invalidateMultiple(['habits']);
+        if (window.EventBus) EventBus.emit('dataChanged', { type: 'habit', action: 'update' });
+        return result;
+    },
+
+    async deleteHabit(id) {
+        await HabitCRUD.delete(id);
+        DataCache.invalidateMultiple(['habits']);
+        if (window.EventBus) EventBus.emit('dataChanged', { type: 'habit', action: 'delete' });
+    },
+
+    async toggleHabitEntry(habitId, dateStr) {
+        const result = await HabitCRUD.toggleEntry(habitId, dateStr);
+        if (window.EventBus) EventBus.emit('dataChanged', { type: 'habit', action: 'toggle' });
+        return result;
+    },
+
     async getSettings() {
         // Definisce come scaricare i settings se non sono in cache
         const fetchSettings = async () => {
